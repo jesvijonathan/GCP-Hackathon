@@ -1,0 +1,505 @@
+{
+    "merchants": [
+      {
+        "id": "MER001",
+        "name": "TechNova Solutions",
+        "businessType": "Software Development",
+        "mccCode": "5734",
+        "registrationDate": "2023-01-15",
+        "status": "Active",
+        "contact": {
+          "email": "admin@technova.com",
+          "phone": "+1-555-0123",
+          "address": {
+            "street": "123 Tech Street",
+            "city": "San Francisco",
+            "state": "CA",
+            "zipCode": "94105",
+            "country": "USA"
+          },
+          "keyContact": "John Smith"
+        },
+        "riskMetrics": {
+          "riskScore": 25,
+          "riskCategory": "Low",
+          "chargebackRate": 0.2,
+          "disputeRatio": 0.1,
+          "fraudRate": 0.05,
+          "returnRate": 1.2,
+          "kycStatus": "Verified",
+          "amlStatus": "Compliant",
+          "pciCompliance": "Level 1"
+        },
+        "transactions": {
+          "daily": {
+            "volume": 45000,
+            "count": 150,
+            "averageValue": 300,
+            "successRate": 98.5
+          },
+          "monthly": {
+            "volume": 1350000,
+            "count": 4500,
+            "averageValue": 300,
+            "successRate": 98.2
+          },
+          "peakHours": ["10:00", "14:00", "16:00"],
+          "paymentMethods": {
+            "creditCard": 65,
+            "debitCard": 20,
+            "digitalWallet": 12,
+            "bankTransfer": 3
+          },
+          "geographicDistribution": {
+            "domestic": 85,
+            "international": 15
+          }
+        },
+        "financials": {
+          "totalRevenue": 1350000,
+          "processingFees": 27000,
+          "outstandingBalance": 5000,
+          "reserveFunds": 50000,
+          "refundAmount": 12000
+        },
+        "compliance": {
+          "documentsUploaded": 12,
+          "documentsRequired": 12,
+          "verificationStatus": "Complete",
+          "licenseExpiry": "2024-12-31",
+          "lastAudit": "2024-01-15",
+          "regulatoryFlags": 0
+        },
+        "lastActivity": "2024-01-20T14:30:00Z",
+        "alerts": []
+      },
+      {
+        "id": "MER002",
+        "name": "Fashion Forward Boutique",
+        "businessType": "Retail Clothing",
+        "mccCode": "5651",
+        "registrationDate": "2023-03-22",
+        "status": "Active",
+        "contact": {
+          "email": "orders@fashionforward.com",
+          "phone": "+1-555-0456",
+          "address": {
+            "street": "456 Fashion Ave",
+            "city": "New York",
+            "state": "NY",
+            "zipCode": "10001",
+            "country": "USA"
+          },
+          "keyContact": "Sarah Johnson"
+        },
+        "riskMetrics": {
+          "riskScore": 55,
+          "riskCategory": "Medium",
+          "chargebackRate": 1.8,
+          "disputeRatio": 0.9,
+          "fraudRate": 0.4,
+          "returnRate": 8.5,
+          "kycStatus": "Verified",
+          "amlStatus": "Compliant",
+          "pciCompliance": "Level 2"
+        },
+        "transactions": {
+          "daily": {
+            "volume": 22000,
+            "count": 85,
+            "averageValue": 258,
+            "successRate": 96.8
+          },
+          "monthly": {
+            "volume": 660000,
+            "count": 2550,
+            "averageValue": 258,
+            "successRate": 97.1
+          },
+          "peakHours": ["12:00", "15:00", "19:00"],
+          "paymentMethods": {
+            "creditCard": 70,
+            "debitCard": 15,
+            "digitalWallet": 13,
+            "bankTransfer": 2
+          },
+          "geographicDistribution": {
+            "domestic": 92,
+            "international": 8
+          }
+        },
+        "financials": {
+          "totalRevenue": 660000,
+          "processingFees": 16500,
+          "outstandingBalance": 8500,
+          "reserveFunds": 25000,
+          "refundAmount": 45000
+        },
+        "compliance": {
+          "documentsUploaded": 11,
+          "documentsRequired": 12,
+          "verificationStatus": "Pending",
+          "licenseExpiry": "2024-09-15",
+          "lastAudit": "2023-12-10",
+          "regulatoryFlags": 1
+        },
+        "lastActivity": "2024-01-20T16:45:00Z",
+        "alerts": [
+          {
+            "type": "Compliance",
+            "message": "Business license renewal required",
+            "severity": "Medium",
+            "date": "2024-01-18"
+          }
+        ]
+      },
+      {
+        "id": "MER003",
+        "name": "CryptoMax Trading",
+        "businessType": "Cryptocurrency Exchange",
+        "mccCode": "6051",
+        "registrationDate": "2023-06-10",
+        "status": "Under Review",
+        "contact": {
+          "email": "support@cryptomax.com",
+          "phone": "+1-555-0789",
+          "address": {
+            "street": "789 Blockchain Blvd",
+            "city": "Austin",
+            "state": "TX",
+            "zipCode": "78701",
+            "country": "USA"
+          },
+          "keyContact": "Michael Chen"
+        },
+        "riskMetrics": {
+          "riskScore": 85,
+          "riskCategory": "Critical",
+          "chargebackRate": 3.2,
+          "disputeRatio": 2.1,
+          "fraudRate": 1.8,
+          "returnRate": 2.5,
+          "kycStatus": "Under Review",
+          "amlStatus": "Pending",
+          "pciCompliance": "Level 3"
+        },
+        "transactions": {
+          "daily": {
+            "volume": 180000,
+            "count": 320,
+            "averageValue": 562,
+            "successRate": 94.2
+          },
+          "monthly": {
+            "volume": 5400000,
+            "count": 9600,
+            "averageValue": 562,
+            "successRate": 94.8
+          },
+          "peakHours": ["09:00", "13:00", "21:00"],
+          "paymentMethods": {
+            "creditCard": 45,
+            "debitCard": 25,
+            "digitalWallet": 25,
+            "bankTransfer": 5
+          },
+          "geographicDistribution": {
+            "domestic": 60,
+            "international": 40
+          }
+        },
+        "financials": {
+          "totalRevenue": 5400000,
+          "processingFees": 162000,
+          "outstandingBalance": 25000,
+          "reserveFunds": 200000,
+          "refundAmount": 95000
+        },
+        "compliance": {
+          "documentsUploaded": 8,
+          "documentsRequired": 15,
+          "verificationStatus": "Incomplete",
+          "licenseExpiry": "2024-06-10",
+          "lastAudit": "2023-11-20",
+          "regulatoryFlags": 5
+        },
+        "lastActivity": "2024-01-20T11:22:00Z",
+        "alerts": [
+          {
+            "type": "Risk",
+            "message": "High chargeback rate detected",
+            "severity": "High",
+            "date": "2024-01-19"
+          },
+          {
+            "type": "Compliance",
+            "message": "Missing AML documentation",
+            "severity": "Critical",
+            "date": "2024-01-17"
+          },
+          {
+            "type": "Transaction",
+            "message": "Unusual transaction pattern detected",
+            "severity": "High",
+            "date": "2024-01-16"
+          }
+        ]
+      },
+      {
+        "id": "MER004",
+        "name": "GreenLeaf Organic Foods",
+        "businessType": "Grocery Store",
+        "mccCode": "5411",
+        "registrationDate": "2022-11-08",
+        "status": "Active",
+        "contact": {
+          "email": "contact@greenleaf.com",
+          "phone": "+1-555-0321",
+          "address": {
+            "street": "321 Organic Way",
+            "city": "Portland",
+            "state": "OR",
+            "zipCode": "97205",
+            "country": "USA"
+          },
+          "keyContact": "Emma Wilson"
+        },
+        "riskMetrics": {
+          "riskScore": 15,
+          "riskCategory": "Low",
+          "chargebackRate": 0.1,
+          "disputeRatio": 0.05,
+          "fraudRate": 0.02,
+          "returnRate": 0.8,
+          "kycStatus": "Verified",
+          "amlStatus": "Compliant",
+          "pciCompliance": "Level 1"
+        },
+        "transactions": {
+          "daily": {
+            "volume": 12000,
+            "count": 200,
+            "averageValue": 60,
+            "successRate": 99.2
+          },
+          "monthly": {
+            "volume": 360000,
+            "count": 6000,
+            "averageValue": 60,
+            "successRate": 99.1
+          },
+          "peakHours": ["08:00", "12:00", "17:00"],
+          "paymentMethods": {
+            "creditCard": 50,
+            "debitCard": 35,
+            "digitalWallet": 10,
+            "bankTransfer": 5
+          },
+          "geographicDistribution": {
+            "domestic": 100,
+            "international": 0
+          }
+        },
+        "financials": {
+          "totalRevenue": 360000,
+          "processingFees": 7200,
+          "outstandingBalance": 1200,
+          "reserveFunds": 15000,
+          "refundAmount": 2800
+        },
+        "compliance": {
+          "documentsUploaded": 12,
+          "documentsRequired": 12,
+          "verificationStatus": "Complete",
+          "licenseExpiry": "2025-03-15",
+          "lastAudit": "2024-01-05",
+          "regulatoryFlags": 0
+        },
+        "lastActivity": "2024-01-20T18:15:00Z",
+        "alerts": []
+      },
+      {
+        "id": "MER005",
+        "name": "Global Import Co.",
+        "businessType": "Import/Export",
+        "mccCode": "5399",
+        "registrationDate": "2023-08-15",
+        "status": "Suspended",
+        "contact": {
+          "email": "info@globalimport.com",
+          "phone": "+1-555-0654",
+          "address": {
+            "street": "654 Trade Center",
+            "city": "Miami",
+            "state": "FL",
+            "zipCode": "33101",
+            "country": "USA"
+          },
+          "keyContact": "Roberto Martinez"
+        },
+        "riskMetrics": {
+          "riskScore": 92,
+          "riskCategory": "Critical",
+          "chargebackRate": 4.5,
+          "disputeRatio": 3.2,
+          "fraudRate": 2.8,
+          "returnRate": 15.2,
+          "kycStatus": "Expired",
+          "amlStatus": "Non-Compliant",
+          "pciCompliance": "Not Assessed"
+        },
+        "transactions": {
+          "daily": {
+            "volume": 0,
+            "count": 0,
+            "averageValue": 0,
+            "successRate": 0
+          },
+          "monthly": {
+            "volume": 2200000,
+            "count": 1100,
+            "averageValue": 2000,
+            "successRate": 88.5
+          },
+          "peakHours": ["10:00", "14:00"],
+          "paymentMethods": {
+            "creditCard": 30,
+            "debitCard": 10,
+            "digitalWallet": 5,
+            "bankTransfer": 55
+          },
+          "geographicDistribution": {
+            "domestic": 25,
+            "international": 75
+          }
+        },
+        "financials": {
+          "totalRevenue": 2200000,
+          "processingFees": 88000,
+          "outstandingBalance": 150000,
+          "reserveFunds": 500000,
+          "refundAmount": 320000
+        },
+        "compliance": {
+          "documentsUploaded": 6,
+          "documentsRequired": 18,
+          "verificationStatus": "Failed",
+          "licenseExpiry": "2023-12-31",
+          "lastAudit": "2023-10-15",
+          "regulatoryFlags": 12
+        },
+        "lastActivity": "2024-01-15T09:30:00Z",
+        "alerts": [
+          {
+            "type": "Account",
+            "message": "Account suspended due to compliance violations",
+            "severity": "Critical",
+            "date": "2024-01-15"
+          },
+          {
+            "type": "Risk",
+            "message": "Excessive chargeback rate",
+            "severity": "Critical",
+            "date": "2024-01-14"
+          },
+          {
+            "type": "Compliance",
+            "message": "KYC documentation expired",
+            "severity": "Critical",
+            "date": "2024-01-10"
+          }
+        ]
+      },
+      {
+        "id": "MER006",
+        "name": "HealthTech Innovations",
+        "businessType": "Medical Devices",
+        "mccCode": "5047",
+        "registrationDate": "2023-04-20",
+        "status": "Active",
+        "contact": {
+          "email": "sales@healthtech.com",
+          "phone": "+1-555-0987",
+          "address": {
+            "street": "987 Medical Plaza",
+            "city": "Boston",
+            "state": "MA",
+            "zipCode": "02101",
+            "country": "USA"
+          },
+          "keyContact": "Dr. Lisa Thompson"
+        },
+        "riskMetrics": {
+          "riskScore": 35,
+          "riskCategory": "Medium",
+          "chargebackRate": 0.8,
+          "disputeRatio": 0.4,
+          "fraudRate": 0.1,
+          "returnRate": 3.2,
+          "kycStatus": "Verified",
+          "amlStatus": "Compliant",
+          "pciCompliance": "Level 1"
+        },
+        "transactions": {
+          "daily": {
+            "volume": 85000,
+            "count": 45,
+            "averageValue": 1888,
+            "successRate": 97.8
+          },
+          "monthly": {
+            "volume": 2550000,
+            "count": 1350,
+            "averageValue": 1888,
+            "successRate": 97.5
+          },
+          "peakHours": ["09:00", "11:00", "15:00"],
+          "paymentMethods": {
+            "creditCard": 40,
+            "debitCard": 10,
+            "digitalWallet": 5,
+            "bankTransfer": 45
+          },
+          "geographicDistribution": {
+            "domestic": 80,
+            "international": 20
+          }
+        },
+        "financials": {
+          "totalRevenue": 2550000,
+          "processingFees": 51000,
+          "outstandingBalance": 12000,
+          "reserveFunds": 100000,
+          "refundAmount": 35000
+        },
+        "compliance": {
+          "documentsUploaded": 14,
+          "documentsRequired": 15,
+          "verificationStatus": "Complete",
+          "licenseExpiry": "2025-04-20",
+          "lastAudit": "2023-12-20",
+          "regulatoryFlags": 0
+        },
+        "lastActivity": "2024-01-20T13:45:00Z",
+        "alerts": [
+          {
+            "type": "Compliance",
+            "message": "FDA certification renewal due in 60 days",
+            "severity": "Low",
+            "date": "2024-01-18"
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "totalMerchants": 6,
+      "activeMerchants": 4,
+      "suspendedMerchants": 1,
+      "underReviewMerchants": 1,
+      "highRiskMerchants": 2,
+      "totalMonthlyVolume": 12570000,
+      "averageRiskScore": 46.2,
+      "totalAlerts": 8
+    }
+  }
+  
