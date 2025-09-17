@@ -5,69 +5,44 @@
       <nav class="nav">
         <button class="action-center">Action Center</button>
         <button class="auth-button" @click="toggleAuth">
-          {{ isLoggedIn ? 'Logout' : 'Login' }}
+          {{ isAuthenticated ? 'Logout' : 'Login' }}
         </button>
       </nav>
     </div>
   </header>
 </template>
 
-<script>
+<script setup>
+import { onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import NullByteLogo from '@/assets/img/Nullbyte.svg'
+import { useAuth } from '@/composables/useAuth'
 
-export default {
-  name: 'Header',
-  data() {
-    return {
-      isLoggedIn: false,
-      logo: NullByteLogo,
-    }
-  },
-  mounted() {
-    // Check auth status when component mounts
-    this.checkAuthStatus()
-    
-    // Listen for storage changes (in case user logs out in another tab)
-    window.addEventListener('storage', this.handleStorageChange)
-  },
-  beforeUnmount() {
-    window.removeEventListener('storage', this.handleStorageChange)
-  },
-  methods: {
-    checkAuthStatus() {
-      const authStatus = localStorage.getItem('isAuthenticated')
-      this.isLoggedIn = authStatus === 'true'
-    },
-    
-    handleStorageChange(event) {
-      if (event.key === 'isAuthenticated') {
-        this.checkAuthStatus()
-      }
-    },
-    
-    toggleAuth() {
-      if (this.isLoggedIn) {
-        // User is logged in, so logout
-        this.logout()
-      } else {
-        // User is not logged in, redirect to login
-        this.$router.push('/login')
-      }
-    },
-    
-    logout() {
-      localStorage.setItem('isAuthenticated', 'false')
-      // Or completely remove: localStorage.removeItem('isAuthenticated')
-      this.isLoggedIn = false
-      this.$router.push('/login')
-    },
-    
-    login() {
-      localStorage.setItem('isAuthenticated', 'true')
-      this.isLoggedIn = true
-    }
+const router = useRouter()
+const { isAuthenticated, logout, checkAuthStatus } = useAuth()
+
+const logo = NullByteLogo
+
+const toggleAuth = () => {
+  if (isAuthenticated.value) {
+    // User is logged in, so logout
+    logout()
+    router.push('/login')
+  } else {
+    // User is not logged in, redirect to login
+    router.push('/login')
   }
 }
+
+// Check auth status when component mounts
+onMounted(() => {
+  checkAuthStatus()
+})
+
+// Debug: Watch authentication changes
+watch(isAuthenticated, (newValue) => {
+  console.log('Header: Auth state changed to:', newValue)
+})
 </script>
 
 <style scoped>
