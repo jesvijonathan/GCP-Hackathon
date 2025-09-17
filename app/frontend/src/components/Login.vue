@@ -1,8 +1,10 @@
 <script setup>
 import { RouterLink, useRouter } from "vue-router";
 import { ref, onMounted } from 'vue';
+import { useAuth } from '@/composables/useAuth';
 
 const router = useRouter();
+const { login } = useAuth(); // Get the login function from useAuth
 
 const username = ref("");
 const password = ref("");
@@ -10,15 +12,24 @@ const password = ref("");
 const handleSubmit = (event) => {
   event.preventDefault();
   
-  // Option 1: Store as separate items
-  localStorage.setItem("isAuthenticated", "true");
-  localStorage.setItem("username", username.value);
-  localStorage.setItem("password", password.value);
-
-  router.push('/dashboard');
-
-  username.value = "";
-  password.value = "";
+  // Use the login function from useAuth instead of directly setting localStorage
+  const credentials = {
+    username: username.value,
+    password: password.value
+  };
+  
+  const result = login(credentials);
+  
+  if (result.success) {
+    // Also store username and password if needed
+    localStorage.setItem("username", username.value);
+    localStorage.setItem("password", password.value);
+    
+    router.push('/dashboard');
+    
+    username.value = "";
+    password.value = "";
+  }
 };
 </script>
 
@@ -61,6 +72,7 @@ const handleSubmit = (event) => {
 </template>
 
 <style scoped>
+/* Your existing styles remain the same */
 * {
   box-sizing: border-box;
 }
