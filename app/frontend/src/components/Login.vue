@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink, useRouter } from "vue-router";
 import { ref, onMounted } from 'vue';
+import { useAuth } from '@/composables/useAuth';
 
 const router = useRouter();
 
@@ -20,6 +21,7 @@ const handleSubmit = (event) => {
   username.value = "";
   password.value = "";
 };
+
 </script>
 
 <template>

@@ -5,13 +5,14 @@ import JobView from '@/views/JobView.vue';
 import AddJobView from '@/views/AddJobView.vue';
 import EditJobView from '@/views/EditJobView.vue';
 import Dashboard from '@/components/Dashboard.vue';
+import MerchantOnboarding from '@/components/MerchantOnboarding.vue';
 import About from '@/views/AboutView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/',
+      path: '/login',
       name: 'home',
       component: HomeView,
     },
@@ -19,6 +20,11 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: Dashboard,
+    },
+    {
+      path: '/merchant-onboarding',
+      name: 'merchant-onboarding',
+      component: MerchantOnboarding,
     }
   ],
 });
