@@ -1,1 +1,6 @@
 app/backend/modules/data_pipeline/tweets_*.json
+app/backend/modules/data_pipeline/reddit_*.json
+app/backend/modules/data_pipeline/news_*.json
+app/backend/modules/data_pipeline/output/*
+!app/backend/modules/data_pipeline/output/main_manifest_*.json
+app/backend/modules/data_pipeline/__pycache__/

@@ -1,0 +1,175 @@
+{
+  "preset": ".\\preset.json",
+  "output_dir": "C:\\winshare\\GCP-Hackathon\\app\\backend\\modules\\data_pipeline\\output",
+  "generated_at": "20250918_024735",
+  "merchants": [
+    {
+      "merchant": "HomeGear",
+      "paths": {
+        "tweets": ".\\output\\homegear\\tweets_homegear_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\homegear\\reddit_homegear_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\homegear\\news_homegear_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\homegear\\reviews_homegear_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\homegear\\reviews_homegear_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\homegear\\stock_hgr_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "BuildPro",
+      "paths": {
+        "tweets": ".\\output\\buildpro\\tweets_buildpro_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\buildpro\\reddit_buildpro_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\buildpro\\news_buildpro_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\buildpro\\reviews_buildpro_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\buildpro\\reviews_buildpro_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\buildpro\\stock_bui_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "BrightLite",
+      "paths": {
+        "tweets": ".\\output\\brightlite\\tweets_brightlite_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\brightlite\\reddit_brightlite_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\brightlite\\news_brightlite_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\brightlite\\reviews_brightlite_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\brightlite\\reviews_brightlite_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\brightlite\\stock_bri_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "GardenCore",
+      "paths": {
+        "tweets": ".\\output\\gardencore\\tweets_gardencore_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\gardencore\\reddit_gardencore_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\gardencore\\news_gardencore_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\gardencore\\reviews_gardencore_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\gardencore\\reviews_gardencore_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\gardencore\\stock_gar_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "FixItCo",
+      "paths": {
+        "tweets": ".\\output\\fixitco\\tweets_fixitco_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\fixitco\\reddit_fixitco_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\fixitco\\news_fixitco_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\fixitco\\reviews_fixitco_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\fixitco\\reviews_fixitco_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\fixitco\\stock_fix_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "ToolNest",
+      "paths": {
+        "tweets": ".\\output\\toolnest\\tweets_toolnest_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\toolnest\\reddit_toolnest_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\toolnest\\news_toolnest_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\toolnest\\reviews_toolnest_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\toolnest\\reviews_toolnest_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\toolnest\\stock_tns_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "AudioTech",
+      "paths": {
+        "tweets": ".\\output\\audiotech\\tweets_audiotech_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\audiotech\\reddit_audiotech_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\audiotech\\news_audiotech_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\audiotech\\reviews_audiotech_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\audiotech\\reviews_audiotech_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\audiotech\\stock_aud_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "PrimeHome",
+      "paths": {
+        "tweets": ".\\output\\primehome\\tweets_primehome_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\primehome\\reddit_primehome_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\primehome\\news_primehome_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\primehome\\reviews_primehome_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\primehome\\reviews_primehome_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\primehome\\stock_pri_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "HandyMart",
+      "paths": {
+        "tweets": ".\\output\\handymart\\tweets_handymart_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\handymart\\reddit_handymart_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\handymart\\news_handymart_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\handymart\\reviews_handymart_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\handymart\\reviews_handymart_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\handymart\\stock_han_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "CraftWorks",
+      "paths": {
+        "tweets": ".\\output\\craftworks\\tweets_craftworks_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\craftworks\\reddit_craftworks_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\craftworks\\news_craftworks_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\craftworks\\reviews_craftworks_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\craftworks\\reviews_craftworks_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\craftworks\\stock_cra_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "SolidCore",
+      "paths": {
+        "tweets": ".\\output\\solidcore\\tweets_solidcore_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\solidcore\\reddit_solidcore_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\solidcore\\news_solidcore_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\solidcore\\reviews_solidcore_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\solidcore\\reviews_solidcore_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\solidcore\\stock_sol_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "EdgeTools",
+      "paths": {
+        "tweets": ".\\output\\edgetools\\tweets_edgetools_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\edgetools\\reddit_edgetools_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\edgetools\\news_edgetools_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\edgetools\\reviews_edgetools_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\edgetools\\reviews_edgetools_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\edgetools\\stock_edg_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "GreenWorks",
+      "paths": {
+        "tweets": ".\\output\\greenworks\\tweets_greenworks_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\greenworks\\reddit_greenworks_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\greenworks\\news_greenworks_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\greenworks\\reviews_greenworks_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\greenworks\\reviews_greenworks_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\greenworks\\stock_gre_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    },
+    {
+      "merchant": "SmartDIY",
+      "paths": {
+        "tweets": ".\\output\\smartdiy\\tweets_smartdiy_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reddit": ".\\output\\smartdiy\\reddit_smartdiy_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "news": ".\\output\\smartdiy\\news_smartdiy_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews": ".\\output\\smartdiy\\reviews_smartdiy_2020-01-01_to_2024-12-31_20250918_024735.json",
+        "reviews_summary": ".\\output\\smartdiy\\reviews_smartdiy_2020-01-01_to_2024-12-31_20250918_024735_summary.json",
+        "stock": ".\\output\\smartdiy\\stock_sma_2020-01-01_to_2024-12-31_20250918_024735.json"
+      },
+      "errors": {}
+    }
+  ]
+}
