@@ -185,11 +185,23 @@
           </ul>
         </div>
       </div>
+
+      <!-- Action center -->
+      <div class="card action-center-card">
+        <h1 class="action-card-heading">Action Center for {{ selectedMerchant.name }}</h1>
+        <button @click="notifyPermanentban" class="action-card-button">Parmanent Ban</button>
+        <button @click="notifyShadowBan" class="action-card-button">Shadow Ban</button>
+        <button @click="notifyContinueMerchant" class="action-card-button">Continue Merchant</button>
+      </div>
     </section>
   </div>
 </template>
 
 <script>
+
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
+
 export default {
   name: "MerchantDashboard",
   data() {
@@ -235,6 +247,74 @@ export default {
     selectMerchant(m) {
       this.selectedMerchant = m;
     },
+    
+    // Toastify notification functions
+    notifyPermanentban() {
+      if (!this.selectedMerchant) {
+        toast.error("No merchant selected for action", {
+          autoClose: 3000,
+          position: "top-right",
+        });
+        return;
+      }
+      
+      toast.error(`${this.selectedMerchant.name} has been permanently banned!`, {
+        autoClose: 5000,
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      
+      // You can add actual ban logic here
+      console.log(`Permanently banned merchant: ${this.selectedMerchant.id}`);
+    },
+    
+    notifyShadowBan() {
+      if (!this.selectedMerchant) {
+        toast.error("No merchant selected for action", {
+          autoClose: 3000,
+          position: "top-right",
+        });
+        return;
+      }
+      
+      toast.warning(`${this.selectedMerchant.name} has been shadow banned!`, {
+        autoClose: 5000,
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      
+      // You can add actual shadow ban logic here
+      console.log(`Shadow banned merchant: ${this.selectedMerchant.id}`);
+    },
+    
+    notifyContinueMerchant() {
+      if (!this.selectedMerchant) {
+        toast.error("No merchant selected for action", {
+          autoClose: 3000,
+          position: "top-right",
+        });
+        return;
+      }
+      
+      toast.success(`${this.selectedMerchant.name} will continue operating normally!`, {
+        autoClose: 4000,
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      
+      // You can add actual continue logic here
+      console.log(`Continued merchant operations: ${this.selectedMerchant.id}`);
+    },
+    
     formatCurrency(n) {
       if (typeof n !== "number") return n;
       return (
@@ -492,6 +572,31 @@ export default {
 }
 .merchant-info-card{
   padding: 20px;
+}
+
+.action-center-card{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.action-card-button{
+  background-color: rgb(6, 124, 124);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px;
+  margin: 5px;
+  width: 250px;
+  cursor: pointer;
+}
+
+.action-card-heading{
+  color: rgb(11, 105, 105);
+  margin-bottom: 10px;
+  font-size: 20px;
+  font-weight: bold;
 }
 @media (max-width: 1024px) {
   .merchant-dashboard {
