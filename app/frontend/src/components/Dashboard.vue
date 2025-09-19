@@ -1,10 +1,10 @@
-```vue
 <template>
   <div class="merchant-dashboard teal-theme">
     <!-- Left Sidebar: Merchant List with Search/Filter -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <h2>Merchants</h2>
+        <p class="sidebar-subtitle">Manage your merchants</p>
       </div>
 
       <div class="search-filter">
@@ -12,23 +12,23 @@
         <input
           id="search"
           v-model="searchQuery"
-          placeholder="Search Box"
+          placeholder="Search merchants..."
           class="search-input"
         />
         <div class="filters">
           <div class="filter-title">Filter Options:</div>
-          <label
-          class="actual-filters" ><input  type="checkbox" v-model="filters.riskHigh" /> Risk
-            Level</label
-          >
-          <label
-          class="actual-filters"><input type="checkbox" v-model="filters.statusActive" />
-            Status</label
-          >
-          <label
-          class="actual-filters"><input type="checkbox" v-model="filters.dateRangeThisMonth" /> Date
-            Range</label
-          >
+          <label class="actual-filters">
+            <input type="checkbox" v-model="filters.riskHigh" /> 
+            High Risk Level
+          </label>
+          <label class="actual-filters">
+            <input type="checkbox" v-model="filters.statusActive" />
+            Active Status
+          </label>
+          <label class="actual-filters">
+            <input type="checkbox" v-model="filters.dateRangeThisMonth" /> 
+            This Month
+          </label>
         </div>
       </div>
 
@@ -45,9 +45,16 @@
         >
           <div class="merchant-summary">
             <div class="merchant-name">{{ m.name }}</div>
-            <div class="merchant-id">ID: {{ m.id }}</div>
-            <div class="merchant-risk" v-if="m.riskMetrics">
-              Risk: {{ m.riskMetrics.riskScore ?? "—" }}
+            <div class="merchant-details-div">
+              <div class="merchant-risk" v-if="m.riskMetrics">
+                Risk: {{ m.riskMetrics.riskScore ?? "—" }}
+              </div>
+              <button 
+                @click.stop="routeToMerchantPage(m.id)" 
+                class="merchant-summary-button"
+              >
+                View Details
+              </button>
             </div>
           </div>
         </div>
@@ -166,6 +173,22 @@
         </div>
       </div>
 
+      <!-- Action center -->
+      <div class="card action-center-card">
+        <h1 class="action-card-heading">
+          Action Center for {{ selectedMerchant.name }}
+        </h1>
+        <button @click="notifyPermanentban" class="action-card-button">
+          Permanent Ban
+        </button>
+        <button @click="notifyShadowBan" class="action-card-button">
+          Shadow Ban
+        </button>
+        <button @click="notifyContinueMerchant" class="action-card-button">
+          Continue Merchant
+        </button>
+      </div>
+
       <!-- Transaction Analytics / Activities -->
       <div class="card transaction-analytics-card">
         <div class="card-header">
@@ -176,31 +199,32 @@
             <strong>Last Activity:</strong>
             {{ formatDate(selectedMerchant.lastActivity) }}
           </p>
-          <ul>
+          <ul v-if="selectedMerchant.alerts && selectedMerchant.alerts.length > 0">
             <li v-for="(al, idx) in selectedMerchant.alerts" :key="idx">
-              <strong>{{ al.type }}</strong
-              >: {{ al.message }} <em>({{ al.date }})</em> - Severity:
-              {{ al.severity }}
+              <strong>{{ al.type }}</strong>: {{ al.message }} 
+              <em>({{ al.date }})</em> - Severity: {{ al.severity }}
             </li>
           </ul>
+          <p v-else class="no-alerts">No recent alerts</p>
         </div>
       </div>
+    </section>
 
-      <!-- Action center -->
-      <div class="card action-center-card">
-        <h1 class="action-card-heading">Action Center for {{ selectedMerchant.name }}</h1>
-        <button @click="notifyPermanentban" class="action-card-button">Parmanent Ban</button>
-        <button @click="notifyShadowBan" class="action-card-button">Shadow Ban</button>
-        <button @click="notifyContinueMerchant" class="action-card-button">Continue Merchant</button>
+    <!-- Empty state when no merchant is selected -->
+    <section class="details-panel empty-state" v-else>
+      <div class="empty-message">
+        <h3>Select a merchant to view details</h3>
+        <p>Choose a merchant from the sidebar to see their information and risk metrics.</p>
       </div>
     </section>
   </div>
 </template>
 
 <script>
-
-import { toast } from 'vue3-toastify';
-import 'vue3-toastify/dist/index.css';
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
+// Import merchant data directly
+import merchantData from '@/assets/merchant-data.json';
 
 export default {
   name: "MerchantDashboard",
@@ -214,7 +238,7 @@ export default {
         statusActive: false,
         dateRangeThisMonth: false,
       },
-      gaugeCircumference: 2 * Math.PI * 50, // for the donut gauge
+      gaugeCircumference: 2 * Math.PI * 50,
     };
   },
   computed: {
@@ -222,12 +246,13 @@ export default {
       return this.selectedMerchant?.riskMetrics?.riskScore ?? 0;
     },
     alertsHeight() {
-      // map number of alerts to a height (0-60)
       const count = this.selectedMerchant?.alerts?.length ?? 0;
       return Math.min(count * 12, 60);
     },
     filteredMerchants() {
       let list = this.merchants;
+      
+      // Search filter
       if (this.searchQuery.trim()) {
         const q = this.searchQuery.toLowerCase();
         list = list.filter(
@@ -236,10 +261,29 @@ export default {
             (m.id || "").toString().toLowerCase().includes(q)
         );
       }
+      
+      // Risk filter
       if (this.filters.riskHigh) {
         list = list.filter((m) => (m.riskMetrics?.riskScore ?? 0) >= 70);
       }
-      // Additional filters can be added similarly
+      
+      // Status filter
+      if (this.filters.statusActive) {
+        list = list.filter((m) => m.status === 'active');
+      }
+      
+      // Date range filter
+      if (this.filters.dateRangeThisMonth) {
+        const thisMonth = new Date().getMonth();
+        const thisYear = new Date().getFullYear();
+        list = list.filter((m) => {
+          if (!m.lastActivity) return false;
+          const activityDate = new Date(m.lastActivity);
+          return activityDate.getMonth() === thisMonth && 
+                 activityDate.getFullYear() === thisYear;
+        });
+      }
+      
       return list;
     },
   },
@@ -248,6 +292,18 @@ export default {
       this.selectedMerchant = m;
     },
     
+    routeToMerchantPage(merchantId) {
+      try {
+        this.$router.push(`/merchant/${merchantId}`);
+      } catch (error) {
+        console.error('Navigation error:', error);
+        toast.error('Failed to navigate to merchant details', {
+          autoClose: 3000,
+          position: "top-right",
+        });
+      }
+    },
+
     // Toastify notification functions
     notifyPermanentban() {
       if (!this.selectedMerchant) {
@@ -257,20 +313,22 @@ export default {
         });
         return;
       }
-      
-      toast.error(`${this.selectedMerchant.name} has been permanently banned!`, {
-        autoClose: 5000,
-        position: "top-right",
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-      
-      // You can add actual ban logic here
+
+      toast.error(
+        `${this.selectedMerchant.name} has been permanently banned!`,
+        {
+          autoClose: 5000,
+          position: "top-right",
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
+
       console.log(`Permanently banned merchant: ${this.selectedMerchant.id}`);
     },
-    
+
     notifyShadowBan() {
       if (!this.selectedMerchant) {
         toast.error("No merchant selected for action", {
@@ -279,7 +337,7 @@ export default {
         });
         return;
       }
-      
+
       toast.warning(`${this.selectedMerchant.name} has been shadow banned!`, {
         autoClose: 5000,
         position: "top-right",
@@ -288,11 +346,10 @@ export default {
         pauseOnHover: true,
         draggable: true,
       });
-      
-      // You can add actual shadow ban logic here
+
       console.log(`Shadow banned merchant: ${this.selectedMerchant.id}`);
     },
-    
+
     notifyContinueMerchant() {
       if (!this.selectedMerchant) {
         toast.error("No merchant selected for action", {
@@ -301,20 +358,22 @@ export default {
         });
         return;
       }
-      
-      toast.success(`${this.selectedMerchant.name} will continue operating normally!`, {
-        autoClose: 4000,
-        position: "top-right",
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-      
-      // You can add actual continue logic here
+
+      toast.success(
+        `${this.selectedMerchant.name} will continue operating normally!`,
+        {
+          autoClose: 4000,
+          position: "top-right",
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
+
       console.log(`Continued merchant operations: ${this.selectedMerchant.id}`);
     },
-    
+
     formatCurrency(n) {
       if (typeof n !== "number") return n;
       return (
@@ -325,8 +384,9 @@ export default {
         })
       );
     },
+    
     formatDate(dt) {
-      if (!dt) return "";
+      if (!dt) return "N/A";
       try {
         const d = new Date(dt);
         return d.toLocaleString();
@@ -334,9 +394,9 @@ export default {
         return dt;
       }
     },
+    
     sparklinePoints(vol) {
-      // Build a small 6-point trend from the given volume
-      const v = vol ?? 0;
+      const v = vol ?? 100;
       const points = [v * 0.8, v * 0.9, v, v * 1.05, v * 0.95, v * 1.08];
       const w = 180,
         h = 60;
@@ -352,25 +412,25 @@ export default {
         })
         .join(" ");
     },
-  },
-  mounted() {
-    // Load merchants from a JSON file. Replace the path with your actual data URL.
-    fetch("src/assets/merchant-data.json")
-      .then((res) => res.json())
-      .then((data) => {
-        // Support multiple possible shapes
-        const merchantsList =
-          data?.merchants ?? data?.merchantsList ?? data ?? [];
+
+    loadMerchantData() {
+      try {
+        const merchantsList = merchantData?.merchants ?? merchantData?.merchantsList ?? merchantData ?? [];
         this.merchants = Array.isArray(merchantsList) ? merchantsList : [];
+        
         if (this.merchants.length > 0) {
           this.selectedMerchant = this.merchants[0];
-          console.log("Loaded merchants:", this.merchants[0]);
+          console.log("Loaded merchants:", this.merchants.length);
         }
-      })
-      .catch(() => {
-        // Fallback: keep empty if fetch fails
+      } catch (error) {
+        console.error("Error loading merchant data:", error);
         this.merchants = [];
-      });
+      }
+    },
+  },
+  
+  mounted() {
+    this.loadMerchantData();
   },
 };
 </script>
@@ -378,7 +438,6 @@ export default {
 <style scoped>
 /* Teal, white and grey theme */
 :root {
-  /* Define a light teal/grey palette for consistency if used elsewhere */
   --teal-50: #e6fbf8;
   --teal-100: #bfeeea;
   --teal-200: #88e2d9;
@@ -391,13 +450,13 @@ export default {
   --grey-100: #f4f5f7;
   --grey-200: #e5e7eb;
   --grey-500: #6b7280;
+  --grey-600: #9ca3af;
   --grey-700: #374151;
   --bg: #ffffff;
 }
 
 .merchant-dashboard.teal-theme {
-  /* Theme root styling applied to the layout */
-  background: var(--bg);
+  background: #f5f5f5;
   color: #374151;
   min-height: 100vh;
 }
@@ -405,99 +464,189 @@ export default {
 /* Layout */
 .merchant-dashboard {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 350px 1fr;
   gap: 20px;
-  padding: 16px;
-  font-family: Arial, sans-serif;
-  height: 100%;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 
-/* Sidebar */
+/* Enhanced Sidebar Panel */
 .sidebar {
-  border: 1px solid var(--grey-200);
+  background: #ffffff;
   border-radius: 12px;
-  padding: 12px;
-  background: #fff;
-  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
 }
+
+.sidebar-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e6fbf8;
+}
+
 .sidebar-header h2 {
-  margin: 0;
-  font-size: 18px;
-  color: rgb(11, 105, 105);
+  margin: 0 0 5px 0;
+  font-size: 20px;
+  color: #008080;
+  font-weight: 600;
 }
+
 .sidebar-subtitle {
-  margin: 6px 0 0;
-  color: var(--grey-500);
-  font-size: 12px;
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+  font-style: italic;
 }
+
 .search-filter {
-  margin-top: 5px;
-  padding-top: 2px;
+  margin-bottom: 20px;
 }
+
 .search-input {
   width: 100%;
-  padding: 8px 10px;
-  border: 1px solid teal;
-  border-radius: 6px;
+  padding: 12px 16px;
+  border: 1px solid #14b8a6;
+  border-radius: 8px;
   background: #fff;
-  color: teal;
+  color: #374151;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
 }
 
-.search-input::placeholder{
-    color:rgb(13, 184, 184);
+.search-input::placeholder {
+  color: #9ca3af;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--teal-500);
+  border-color: #008080;
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
 }
+
 .filters {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--grey-700);
+  margin-top: 15px;
 }
+
 .filter-title {
   font-weight: 600;
-  margin-bottom: 6px;
-  color: teal;
-  font-size: 15px;
+  margin-bottom: 10px;
+  color: #008080;
+  font-size: 14px;
 }
+
 .actual-filters {
-  margin-right: 6px;
   display: flex;
-  flex-direction: row ;
-  color: #034442;
-  font-size: 15px;
-  gap: 4px;
-}
-.merchant-list {
-  margin-top: 12px;
-  max-height: 520px;
-  overflow: auto;
-}
-.merchant-summary{
-    background-color: rgb(6, 124, 124);
-    border-radius: 5px;
-    color: white;
-    padding-left: 5px;
-}
-.merchant-item {
-  padding: 8px;
-  border-bottom: 1px solid var(--grey-200);
+  align-items: center;
+  color: #374151;
+  font-size: 13px;
+  gap: 8px;
+  margin-bottom: 8px;
   cursor: pointer;
+  /* padding: 4px 0; */
+  transition: color 0.2s ease;
 }
+
+.actual-filters:hover {
+  color: #008080;
+}
+
+.actual-filters input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #14b8a6;
+}
+
+.merchant-list {
+  flex: 1;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.merchant-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.merchant-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.merchant-list::-webkit-scrollbar-thumb {
+  /* background: #14b8a6; */
+  border-radius: 3px;
+}
+
+.merchant-item {
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+}
+
+.merchant-item:hover {
+  transform: translateX(2px);
+}
+
 .merchant-item.selected {
-  background: #b3fde4;
-  border-left: 3px solid var(--teal-500);
+  background: #e6fbf8;
+  border-left: 3px solid #14b8a6;
 }
+
+.merchant-summary {
+  background: linear-gradient(135deg, #008080, #0f9a92);
+  border-radius: 8px;
+  color: white;
+  padding: 12px;
+  box-shadow: 0 2px 6px rgba(0, 128, 128, 0.2);
+}
+
 .merchant-name {
   font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 8px;
 }
-.merchant-id,
+
+.merchant-details-div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
 .merchant-risk {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.merchant-summary-button {
+  background: #ffffff;
+  color: #008080;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: 600;
   font-size: 12px;
-  color: var(--grey-600);
+  transition: all 0.2s ease;
+}
+
+.merchant-summary-button:hover {
+  background: #f0fdfa;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 128, 128, 0.2);
 }
 
 /* Details Panel */
@@ -505,106 +654,205 @@ export default {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
-  padding: 15px;
+  padding: 0;
 }
+
+.empty-state {
+  grid-template-columns: 1fr;
+  place-items: center;
+}
+
+.empty-message {
+  text-align: center;
+  color: #6b7280;
+  padding: 60px 40px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.empty-message h3 {
+  color: #008080;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
 .card {
-  border: 1px solid rgb(21, 156, 180);
-  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   background: #fff;
-  padding: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  height: fit-content;
 }
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
 .card-header h3 {
-  margin: 0 0 8px 0;
+  margin: 0 0 15px 0;
   font-size: 16px;
-  color: rgb(10, 109, 109);
-  font-weight: 200px;
+  color: #008080;
+  font-weight: 600;
+  border-bottom: 2px solid #e6fbf8;
+  padding-bottom: 8px;
 }
+
 .card-content {
   font-size: 14px;
-  color: var(--grey-700);
+  color: #374151;
 }
+
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 15px;
   align-items: start;
 }
+
 .grid-item {
-  background: var(--grey-50);
-  border-radius: 6px;
-  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  border: 1px solid var(--grey-200);
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
 }
-.gauge-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+
+.grid-item:hover {
+  background: #f0fdfa;
+  border-color: #14b8a6;
 }
-.bar-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.sparkline-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+
 .legend {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--grey-700);
+  color: #374151;
+  margin-top: 8px;
+  font-weight: 500;
 }
+
 .legend-dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
 }
+
 .activities ul {
   padding-left: 20px;
-  margin: 0;
-  color: var(--grey-700);
+  margin: 10px 0;
+  color: #374151;
 }
-.merchant-info-card{
+
+.no-alerts {
+  color: #9ca3af;
+  font-style: italic;
+  text-align: center;
   padding: 20px;
 }
 
-.action-center-card{
+.action-center-card {
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
+  padding: 25px;
 }
 
-.action-card-button{
-  background-color: rgb(6, 124, 124);
+.action-card-button {
+  background: #008080;
   color: white;
   border: none;
-  border-radius: 5px;
-  padding: 10px;
-  margin: 5px;
-  width: 250px;
+  border-radius: 8px;
+  padding: 12px 20px;
+  margin: 6px;
+  width: 200px;
   cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
 }
 
-.action-card-heading{
-  color: rgb(11, 105, 105);
-  margin-bottom: 10px;
-  font-size: 20px;
-  font-weight: bold;
+.action-card-button:hover {
+  background: #006666;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 128, 128, 0.3);
 }
+
+.action-card-heading {
+  color: #008080;
+  margin-bottom: 20px;
+  font-size: 16px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Screen reader only class */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Responsive Design */
 @media (max-width: 1024px) {
   .merchant-dashboard {
     grid-template-columns: 1fr;
+    gap: 15px;
   }
+  
+  .sidebar {
+    position: static;
+    max-height: 400px;
+  }
+  
   .details-panel {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  .merchant-dashboard {
+    padding: 15px;
+  }
+  
+  .sidebar {
+    padding: 15px;
+  }
+  
+  .card {
+    padding: 15px;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .merchant-dashboard {
+    padding: 10px;
+  }
+  
+  .sidebar {
+    padding: 12px;
+  }
+  
+  .action-card-button {
+    width: 160px;
+  }
+}
 </style>
-```
