@@ -7,6 +7,7 @@ import EditJobView from '@/views/EditJobView.vue';
 import Dashboard from '@/components/Dashboard.vue';
 import MerchantOnboarding from '@/components/MerchantOnboarding.vue';
 import About from '@/views/AboutView.vue';
+import MerchantView from '@/views/MerchantView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,6 +31,11 @@ const router = createRouter({
       path: '/merchant-onboarding',
       name: 'merchant-onboarding',
       component: MerchantOnboarding,
+    },
+    {
+      path: '/merchant/:id',
+      name: 'MerchantDetails',
+      component: MerchantView,
     }
   ],
 });
