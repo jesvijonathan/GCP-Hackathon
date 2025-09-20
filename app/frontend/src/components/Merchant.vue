@@ -11,19 +11,24 @@
       <div class="notification">Notifications</div>
 
       <div class="action-center-dropdown">
-        <button>Permanent Ban </button>
-        <button>Shadow Ban</button>
-        <button>Restrict Merchant</button>
+        <button @click="openPermanentBanModal">Permanent Ban</button>
+        <button @click="openShadowBanModal">Shadow Ban</button>
+        <button @click="openRestrictModal">Restrict Merchant</button>
       </div>
       <div class="actions-taken">
         <h1>Actions Taken On {{ merchant.name }}</h1>
-        <p class="actions-taken-data">No actions taken</p>
-    </div>
+        <p class="actions-taken-data">
+          {{
+            actionsTaken.length > 0
+              ? actionsTaken.join(", ")
+              : "No actions taken"
+          }}
+        </p>
+      </div>
     </div>
 
     <div v-if="merchant" class="merchant-detail">
       <!-- Merchant Details -->
-
       <div class="merchant-info">
         <div class="info-section">
           <h3>Contact Information</h3>
@@ -109,12 +114,272 @@
       <p>The merchant with ID "{{ $route.params.id }}" could not be found.</p>
       <button @click="goBack" class="back-btn">← Back to Dashboard</button>
     </div>
+
+    <!-- Permanent Ban Confirmation Modal -->
+    <div
+      v-if="showPermanentBanModal"
+      class="modal-overlay"
+      @click="closePermanentBanModal"
+    >
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Confirm Permanent Ban</h3>
+          <button @click="closePermanentBanModal" class="close-btn">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="warning-icon">⚠️</div>
+          <p class="warning-text">
+            Are you sure you want to permanently ban
+            <strong>{{ merchant.name }}</strong
+            >?
+          </p>
+          <p class="warning-subtext">
+            This action cannot be undone. The merchant will be completely
+            blocked from all services.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button @click="closePermanentBanModal" class="btn-cancel">
+            Cancel
+          </button>
+          <button @click="confirmPermanentBan" class="btn-danger">
+            Permanent Ban
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shadow Ban Confirmation Modal -->
+    <div
+      v-if="showShadowBanModal"
+      class="modal-overlay"
+      @click="closeShadowBanModal"
+    >
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Confirm Shadow Ban</h3>
+          <button @click="closeShadowBanModal" class="close-btn">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="warning-icon">🔒</div>
+          <p class="warning-text">
+            Are you sure you want to shadow ban
+            <strong>{{ merchant.name }}</strong
+            >?
+          </p>
+          <p class="warning-subtext">
+            The merchant will have limited visibility and reduced functionality.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeShadowBanModal" class="btn-cancel">
+            Cancel
+          </button>
+          <button @click="confirmShadowBan" class="btn-warning">
+            Shadow Ban
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Restrict Merchant Modal -->
+    <div
+      v-if="showRestrictModal"
+      class="modal-overlay"
+      @click="closeRestrictModal"
+    >
+      <div class="modal-content large" @click.stop>
+        <div class="modal-header">
+          <h3>Restrict Merchant: {{ merchant.name }}</h3>
+          <button @click="closeRestrictModal" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="confirmRestriction" class="restriction-form">
+            <!-- Transaction Limits -->
+            <div class="form-section">
+              <h4>Transaction Limits</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="dailyLimit">Daily Transaction Limit ($)</label>
+                  <input
+                    id="dailyLimit"
+                    v-model.number="restrictionData.dailyTransactionLimit"
+                    type="number"
+                    class="form-input"
+                    placeholder="e.g., 1000"
+                    min="0"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="monthlyLimit"
+                    >Monthly Transaction Limit ($)</label
+                  >
+                  <input
+                    id="monthlyLimit"
+                    v-model.number="restrictionData.monthlyTransactionLimit"
+                    type="number"
+                    class="form-input"
+                    placeholder="e.g., 25000"
+                    min="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Category Restrictions -->
+            <div class="form-section">
+              <h4>Restricted Categories</h4>
+              <div class="form-group">
+                <label for="categoryCodes">Merchant Category Codes (MCC)</label>
+                <div class="category-selector">
+                  <div class="selected-categories">
+                    <span
+                      v-for="code in restrictionData.restrictedCategoryCodes"
+                      :key="code"
+                      class="category-tag"
+                    >
+                      {{ code }}
+                      <button
+                        type="button"
+                        @click="removeCategoryCode(code)"
+                        class="remove-tag"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  </div>
+                  <select
+                    v-model="selectedCategoryCode"
+                    @change="addCategoryCode"
+                    class="form-select"
+                  >
+                    <option value="">Select category to restrict</option>
+                    <option value="5541">Gas Stations</option>
+                    <option value="5542">Automated Fuel Dispensers</option>
+                    <option value="5812">Eating Places, Restaurants</option>
+                    <option value="5814">Fast Food Restaurants</option>
+                    <option value="5921">
+                      Package Stores-Beer, Wine, Liquor
+                    </option>
+                    <option value="5993">Cigar Stores and Stands</option>
+                    <option value="6010">Financial Institutions</option>
+                    <option value="6011">ATMs</option>
+                    <option value="7995">Betting/Casino Gambling</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Additional Restrictions -->
+            <div class="form-section">
+              <h4>Additional Restrictions</h4>
+              <div class="form-group">
+                <label for="maxTransactionAmount"
+                  >Maximum Single Transaction ($)</label
+                >
+                <input
+                  id="maxTransactionAmount"
+                  v-model.number="restrictionData.maxTransactionAmount"
+                  type="number"
+                  class="form-input"
+                  placeholder="e.g., 500"
+                  min="0"
+                />
+              </div>
+              <div class="form-group">
+                <label for="allowedCountries">Allowed Countries</label>
+                <input
+                  id="allowedCountries"
+                  v-model="restrictionData.allowedCountries"
+                  type="text"
+                  class="form-input"
+                  placeholder="e.g., US, CA, GB (comma-separated)"
+                />
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input
+                    v-model="restrictionData.requireAdditionalVerification"
+                    type="checkbox"
+                    class="form-checkbox"
+                  />
+                  Require additional verification for transactions
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input
+                    v-model="restrictionData.blockInternationalTransactions"
+                    type="checkbox"
+                    class="form-checkbox"
+                  />
+                  Block international transactions
+                </label>
+              </div>
+            </div>
+
+            <!-- Reason -->
+            <div class="form-section">
+              <h4>Restriction Reason</h4>
+              <div class="form-group">
+                <label for="reason">Reason for Restriction</label>
+                <textarea
+                  id="reason"
+                  v-model="restrictionData.reason"
+                  class="form-textarea"
+                  placeholder="Explain the reason for these restrictions..."
+                  rows="3"
+                  required
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Duration -->
+            <div class="form-section">
+              <h4>Restriction Duration</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="startDate">Start Date</label>
+                  <input
+                    id="startDate"
+                    v-model="restrictionData.startDate"
+                    type="date"
+                    class="form-input"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="endDate">End Date (Optional)</label>
+                  <input
+                    id="endDate"
+                    v-model="restrictionData.endDate"
+                    type="date"
+                    class="form-input"
+                  />
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeRestrictModal" class="btn-cancel">Cancel</button>
+          <button @click="confirmRestriction" class="btn-primary">
+            Apply Restrictions
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import merchantData from "@/assets/merchant-data.json";
-import NewsCarousel from "./NewsCarousel.vue";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 
 export default {
   name: "MerchantDetail",
@@ -122,11 +387,27 @@ export default {
     return {
       merchant: null,
       loading: true,
+      showPermanentBanModal: false,
+      showShadowBanModal: false,
+      showRestrictModal: false,
+      selectedCategoryCode: "",
+      actionsTaken: [],
+      restrictionData: {
+        dailyTransactionLimit: null,
+        monthlyTransactionLimit: null,
+        maxTransactionAmount: null,
+        restrictedCategoryCodes: [],
+        allowedCountries: "",
+        requireAdditionalVerification: false,
+        blockInternationalTransactions: false,
+        reason: "",
+        startDate: new Date().toISOString().split("T")[0],
+        endDate: "",
+      },
     };
   },
   computed: {
     merchantId() {
-      // Get merchant ID from route parameters
       return this.$route.params.id;
     },
   },
@@ -134,7 +415,6 @@ export default {
     this.fetchMerchantDetails();
   },
   watch: {
-    // Watch for route changes
     "$route.params.id"(newId) {
       if (newId) {
         this.fetchMerchantDetails();
@@ -145,17 +425,14 @@ export default {
     fetchMerchantDetails() {
       this.loading = true;
 
-      // Simulate API call delay (remove in production)
       setTimeout(() => {
         try {
-          // Handle different possible data structures
           const merchants =
             merchantData?.merchants ||
             merchantData?.merchantsList ||
             merchantData ||
             [];
 
-          // Find merchant by ID
           this.merchant = merchants.find(
             (merchant) => merchant.id.toString() === this.merchantId
           );
@@ -201,11 +478,139 @@ export default {
       if (score >= 40) return "Low Risk";
       return "Very Low Risk";
     },
+
+    // Modal methods
+    openPermanentBanModal() {
+      this.showPermanentBanModal = true;
+    },
+
+    closePermanentBanModal() {
+      this.showPermanentBanModal = false;
+    },
+
+    openShadowBanModal() {
+      this.showShadowBanModal = true;
+    },
+
+    closeShadowBanModal() {
+      this.showShadowBanModal = false;
+    },
+
+    openRestrictModal() {
+      this.showRestrictModal = true;
+      // Reset form data
+      this.restrictionData = {
+        dailyTransactionLimit: null,
+        monthlyTransactionLimit: null,
+        maxTransactionAmount: null,
+        restrictedCategoryCodes: [],
+        allowedCountries: "",
+        requireAdditionalVerification: false,
+        blockInternationalTransactions: false,
+        reason: "",
+        startDate: new Date().toISOString().split("T")[0],
+        endDate: "",
+      };
+    },
+
+    closeRestrictModal() {
+      this.showRestrictModal = false;
+      this.selectedCategoryCode = "";
+    },
+
+    // Action confirmation methods
+    confirmPermanentBan() {
+      console.log("Permanent ban confirmed for:", this.merchant.name);
+      this.actionsTaken.push("Permanent Ban");
+      this.closePermanentBanModal();
+      // Add your ban logic here
+      // alert(`${this.merchant.name} has been permanently banned!`);
+      toast.error(`${this.merchant.name} has been permanently banned!`, {
+        autoClose: 5000,
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    },
+
+    confirmShadowBan() {
+      console.log("Shadow ban confirmed for:", this.merchant.name);
+      this.actionsTaken.push("Shadow Ban");
+      this.closeShadowBanModal();
+      // Add your shadow ban logic here
+      // alert(`${this.merchant.name} has been shadow banned!`);
+      toast.warning(`${this.merchant.name} has been shadow banned!`, {
+        autoClose: 5000,
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    },
+
+    confirmRestriction() {
+      if (!this.restrictionData.reason.trim()) {
+        alert("Please provide a reason for the restriction.");
+        return;
+      }
+
+      console.log("Restriction data:", this.restrictionData);
+      this.actionsTaken.push("Restricted");
+      this.closeRestrictModal();
+
+      // Store the restriction data (you can send this to your API)
+      const restrictionSummary = {
+        merchantId: this.merchant.id,
+        merchantName: this.merchant.name,
+        restrictions: { ...this.restrictionData },
+        appliedAt: new Date().toISOString(),
+      };
+
+      console.log("Applied restrictions:", restrictionSummary);
+      // alert(`Restrictions applied to ${this.merchant.name}!`);
+      toast.success(
+        `Restrictions applied on ${this.merchant.name} !`,
+        {
+          autoClose: 4000,
+          position: "top-right",
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
+    },
+
+    // Category code methods
+    addCategoryCode() {
+      if (
+        this.selectedCategoryCode &&
+        !this.restrictionData.restrictedCategoryCodes.includes(
+          this.selectedCategoryCode
+        )
+      ) {
+        this.restrictionData.restrictedCategoryCodes.push(
+          this.selectedCategoryCode
+        );
+        this.selectedCategoryCode = "";
+      }
+    },
+
+    removeCategoryCode(code) {
+      const index = this.restrictionData.restrictedCategoryCodes.indexOf(code);
+      if (index > -1) {
+        this.restrictionData.restrictedCategoryCodes.splice(index, 1);
+      }
+    },
   },
 };
 </script>
 
 <style scoped>
+/* Existing styles remain the same... */
 .merchant-detail-container {
   margin: 0 auto;
   padding: 20px;
@@ -321,34 +726,23 @@ export default {
   transform: translateY(0);
 }
 
-.actions-taken{
-    text-align: center;
-    color: #666;
-    font-size: 14px;
-}
-
-.actions-taken-data{
-    color: #999;
-    font-size: 13px;
-    font-style: italic;
-}
-
-.actions-taken h1{
-    text-align: center;
-    color: #008080;
-    font-size: 13px;
-    font-style: italic;
-}
-
-/* Actions section header */
-.side-panel > div:last-child {
-  color: #008080;
-  font-weight: 600;
-  font-size: 14px;
+.actions-taken {
   text-align: center;
-  margin-top: 10px;
-  padding-top: 15px;
-  border-top: 1px solid #e5e7eb;
+  color: #666;
+  font-size: 14px;
+}
+
+.actions-taken-data {
+  color: #999;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.actions-taken h1 {
+  text-align: center;
+  color: #008080;
+  font-size: 13px;
+  font-style: italic;
 }
 
 .merchant-detail {
@@ -483,19 +877,314 @@ export default {
   color: #721c24;
 }
 
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modalSlideIn 0.3s ease;
+}
+
+.modal-content.large {
+  max-width: 800px;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #008080;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.warning-icon {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.warning-text {
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 12px;
+  color: #374151;
+}
+
+.warning-subtext {
+  font-size: 14px;
+  text-align: center;
+  color: #6b7280;
+  margin-bottom: 0;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #fafbfc;
+}
+
+/* Button Styles */
+.btn-cancel {
+  padding: 10px 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-danger {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #dc2626;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.btn-warning {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #f59e0b;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-warning:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #008080;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #006666;
+  transform: translateY(-1px);
+}
+
+/* Form Styles */
+.restriction-form {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.form-section {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.form-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.form-section h4 {
+  margin: 0 0 16px 0;
+  color: #008080;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: #374151;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #008080;
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.form-checkbox {
+  width: auto !important;
+  margin: 0 !important;
+  accent-color: #008080;
+}
+
+/* Category Selector */
+.category-selector {
+  space-y: 12px;
+}
+
+.selected-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 20px;
+}
+
+.category-tag {
+  background: #e6fbf8;
+  color: #008080;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.remove-tag {
+  background: none;
+  border: none;
+  color: #008080;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.remove-tag:hover {
+  color: #006666;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .merchant-detail-container {
     flex-direction: column;
     gap: 15px;
   }
-  
+
   .side-panel {
     min-width: 100%;
     max-width: 100%;
     position: static;
   }
-  
+
   .merchant-detail {
     max-width: 100%;
   }
@@ -505,22 +1194,39 @@ export default {
   .merchant-detail-container {
     padding: 15px;
   }
-  
+
   .side-panel {
     padding: 15px;
   }
-  
+
   .merchant-header {
     padding: 15px;
   }
-  
+
   .merchant-info {
     grid-template-columns: 1fr;
     gap: 15px;
   }
-  
+
   .info-section {
     padding: 20px;
+  }
+
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+  }
+
+  .modal-footer button {
+    width: 100%;
   }
 }
 
@@ -528,21 +1234,29 @@ export default {
   .merchant-detail-container {
     padding: 10px;
   }
-  
+
   .side-panel {
     padding: 12px;
   }
-  
+
   .merchant-header {
     padding: 12px;
   }
-  
+
   .merchant-header h1 {
     font-size: 16px;
   }
-  
+
   .info-section {
     padding: 15px;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  .modal-header {
+    padding: 16px;
   }
 }
 </style>
