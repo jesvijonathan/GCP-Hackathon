@@ -1,8 +1,14 @@
+#!/usr/bin/env python3
+# main_data.py
+# Generate all fake datasets from a preset JSON, with console progress bars.
+
 import os
 import json
 import argparse
+import sys
+import time
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 # Import your existing generators
 # Make sure these files are in the same folder:
@@ -32,6 +38,44 @@ def pick_seed(default_seed: Optional[int], fallback: int) -> Optional[int]:
     return fallback
 
 
+# --------------------------- Progress helpers ---------------------------
+
+BAR_FILL = "█"
+BAR_EMPTY = "·"
+
+def render_bar(cur: int, total: int, length: int = 32) -> str:
+    total = max(1, int(total))
+    cur = max(0, min(cur, total))
+    filled = int(length * (cur / total))
+    return BAR_FILL * filled + BAR_EMPTY * (length - filled)
+
+def print_overall_progress(iteration: int, total: int, prefix: str = "Overall", suffix: str = "", length: int = 40, show: bool = True):
+    if not show:
+        return
+    bar = render_bar(iteration, total, length)
+    pct = int((iteration / max(1, total)) * 100)
+    line = f"\r{prefix}: [{bar}] {iteration}/{total} ({pct}%) {suffix}"
+    sys.stdout.write(line)
+    sys.stdout.flush()
+    if iteration >= total:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+
+def print_merchant_progress(name: str, cur: int, total: int, stage: str, length: int = 30, show: bool = True, final: bool = False):
+    if not show:
+        return
+    bar = render_bar(cur, total, length)
+    pct = int((cur / max(1, total)) * 100)
+    line = f"\r[{name}] [{bar}] {cur}/{total} ({pct}%) - {stage}"
+    sys.stdout.write(line)
+    sys.stdout.flush()
+    if final:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+
+
+# --------------------------- Defaults ---------------------------
+
 def fill_stream_defaults(merchant: Dict[str, Any], global_defaults: Dict[str, Any]) -> Dict[str, Any]:
     # Global defaults for ranges; counts are "typical-ish"
     defaults = {
@@ -53,7 +97,16 @@ def fill_stream_defaults(merchant: Dict[str, Any], global_defaults: Dict[str, An
     return out
 
 
-def generate_for_merchant(merchant_cfg: Dict[str, Any], global_cfg: Dict[str, Any], outdir: str, base_seed: int, timestamp: str):
+# --------------------------- Generation per merchant ---------------------------
+
+def generate_for_merchant(
+    merchant_cfg: Dict[str, Any],
+    global_cfg: Dict[str, Any],
+    outdir: str,
+    base_seed: int,
+    timestamp: str,
+    show_progress: bool = True
+):
     result = {"merchant": merchant_cfg.get("merchant_name"), "paths": {}, "errors": {}}
 
     merchant_name = merchant_cfg["merchant_name"]
@@ -63,12 +116,22 @@ def generate_for_merchant(merchant_cfg: Dict[str, Any], global_cfg: Dict[str, An
 
     streams = fill_stream_defaults(merchant_cfg, global_cfg.get("defaults") or {})
 
+    # Determine enabled streams to compute per-merchant progress total
+    enabled_streams: List[str] = []
+    for s in ("tweets", "reddit", "news", "reviews", "stock"):
+        if (streams.get(s) or {}).get("enabled", True):
+            enabled_streams.append(s)
+    total_steps = max(1, len(enabled_streams))
+    cur_steps = 0
+
     # Output dir per merchant
     m_outdir = os.path.join(outdir, slug)
     ensure_dir(m_outdir)
 
     # Tweets
     if (streams.get("tweets") or {}).get("enabled", True):
+        stage = "tweets (generating)"
+        print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
         try:
             tcfg = streams["tweets"]
             p = os.path.join(m_outdir, f"tweets_{slug}_{start_date}_to_{end_date}_{timestamp}.json")
@@ -82,11 +145,19 @@ def generate_for_merchant(merchant_cfg: Dict[str, Any], global_cfg: Dict[str, An
                 out_json_path=p,
             )
             result["paths"]["tweets"] = path
+            cur_steps += 1
+            stage = "tweets (done)"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
         except Exception as e:
             result["errors"]["tweets"] = str(e)
+            cur_steps += 1
+            stage = f"tweets (error: {e})"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
 
     # Reddit
     if (streams.get("reddit") or {}).get("enabled", True):
+        stage = "reddit (generating)"
+        print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
         try:
             rcfg = streams["reddit"]
             p = os.path.join(m_outdir, f"reddit_{slug}_{start_date}_to_{end_date}_{timestamp}.json")
@@ -100,11 +171,19 @@ def generate_for_merchant(merchant_cfg: Dict[str, Any], global_cfg: Dict[str, An
                 out_json_path=p,
             )
             result["paths"]["reddit"] = path
+            cur_steps += 1
+            stage = "reddit (done)"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
         except Exception as e:
             result["errors"]["reddit"] = str(e)
+            cur_steps += 1
+            stage = f"reddit (error: {e})"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
 
     # News
     if (streams.get("news") or {}).get("enabled", True):
+        stage = "news (generating)"
+        print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
         try:
             ncfg = streams["news"]
             p = os.path.join(m_outdir, f"news_{slug}_{start_date}_to_{end_date}_{timestamp}.json")
@@ -118,11 +197,19 @@ def generate_for_merchant(merchant_cfg: Dict[str, Any], global_cfg: Dict[str, An
                 out_json_path=p,
             )
             result["paths"]["news"] = path
+            cur_steps += 1
+            stage = "news (done)"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
         except Exception as e:
             result["errors"]["news"] = str(e)
+            cur_steps += 1
+            stage = f"news (error: {e})"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
 
     # Reviews
     if (streams.get("reviews") or {}).get("enabled", True):
+        stage = "reviews (generating)"
+        print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
         try:
             rcfg = streams["reviews"]
             p = os.path.join(m_outdir, f"reviews_{slug}_{start_date}_to_{end_date}_{timestamp}.json")
@@ -141,11 +228,19 @@ def generate_for_merchant(merchant_cfg: Dict[str, Any], global_cfg: Dict[str, An
             result["paths"]["reviews"] = path
             # summary path
             result["paths"]["reviews_summary"] = p.replace(".json", "_summary.json")
+            cur_steps += 1
+            stage = "reviews (done)"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
         except Exception as e:
             result["errors"]["reviews"] = str(e)
+            cur_steps += 1
+            stage = f"reviews (error: {e})"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
 
     # Stock
     if (streams.get("stock") or {}).get("enabled", True):
+        stage = "stock (generating)"
+        print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress)
         try:
             scfg = streams["stock"]
             p = os.path.join(m_outdir, f"stock_{(scfg.get('ticker') or slug[:4]).lower()}_{start_date}_to_{end_date}_{timestamp}.json")
@@ -167,11 +262,19 @@ def generate_for_merchant(merchant_cfg: Dict[str, Any], global_cfg: Dict[str, An
                 out_json_path=p
             )
             result["paths"]["stock"] = path
+            cur_steps += 1
+            stage = "stock (done)"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress, final=True)
         except Exception as e:
             result["errors"]["stock"] = str(e)
+            cur_steps += 1
+            stage = f"stock (error: {e})"
+            print_merchant_progress(merchant_name, cur_steps, total_steps, stage, show=show_progress, final=True)
 
     return result
 
+
+# --------------------------- Main ---------------------------
 
 def main():
     ap = argparse.ArgumentParser(description="Generate all fake datasets from a preset JSON.")
@@ -179,7 +282,10 @@ def main():
     ap.add_argument("--outdir", default=".", help="Base output directory (default: current dir)")
     ap.add_argument("--seed", type=int, default=1234, help="Base seed to derive stream seeds (default 1234)")
     ap.add_argument("--manifest", default=None, help="Optional path to save a manifest JSON")
+    ap.add_argument("--no_progress", action="store_true", help="Disable progress bars/logging")
     args = ap.parse_args()
+
+    show_progress = not args.no_progress
 
     with open(args.preset, "r", encoding="utf-8") as f:
         preset = json.load(f)
@@ -201,13 +307,38 @@ def main():
         "merchants": []
     }
 
-    for m in merchants:
+    total_merchants = len(merchants)
+    if show_progress:
+        print(f"Generating data for {total_merchants} merchants...")
+        print_overall_progress(0, total_merchants, prefix="Overall")
+
+    # Loop merchants
+    for idx, m in enumerate(merchants, start=1):
         if not m.get("merchant_name"):
             continue
+        merchant_name = m["merchant_name"]
         base_seed = int(m.get("seed", args.seed))
-        res = generate_for_merchant(m, global_cfg, outdir, base_seed, timestamp)
+        if show_progress:
+            # Print a header line for the merchant
+            sys.stdout.write(f"\nMerchant: {merchant_name}\n")
+            sys.stdout.flush()
+
+        t0 = time.time()
+        res = generate_for_merchant(m, global_cfg, outdir, base_seed, timestamp, show_progress=show_progress)
+        t1 = time.time()
         manifest["merchants"].append(res)
-        print(f"Done: {res['merchant']} | errors: {list(res['errors'].keys()) or '-'}")
+
+        # Summary line per merchant
+        errs = list(res["errors"].keys())
+        summary = f"Done: {res['merchant']} | errors: {errs or '-'} | {int((t1 - t0) * 1000)} ms"
+        if show_progress:
+            sys.stdout.write(summary + "\n")
+            sys.stdout.flush()
+        else:
+            print(summary)
+
+        # Update overall progress
+        print_overall_progress(idx, total_merchants, prefix="Overall")
 
     # Save manifest
     manifest_path = args.manifest or os.path.join(outdir, f"main_manifest_{timestamp}.json")
@@ -219,4 +350,5 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python .\main_data.py --preset .\preset.json --seed 1234 
+# Example:
+# python .\main_data.py --preset .\preset.json --seed 1234

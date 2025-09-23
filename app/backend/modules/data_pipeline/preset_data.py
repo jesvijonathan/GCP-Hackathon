@@ -274,4 +274,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-#  python .\preset_data.py --num 7
+#  python .\preset_data.py --num 7 --start_date 2022-01-01 --end_date 2023-01-01

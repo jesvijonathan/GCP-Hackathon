@@ -1,6 +1,9 @@
-ijson#==3.4.0
-nltk#==3.9.1
-numpy#==1.26.4
-pandas#==2.3.2
-plotly#==6.3.0
-streamlit#==1.49.1
+ijson #==3.4.0
+nltk #==3.9.1
+numpy #==1.26.4
+pandas #==2.3.2
+plotly #==6.3.0
+streamlit #==1.49.1
+fastapi
+uvicorn
+plotly
