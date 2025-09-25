@@ -18,14 +18,12 @@ def random_ticker(name: str) -> str:
 
 
 def random_trend_plan(start: str, end: str, rng: random.Random, n_min=3, n_max=5) -> List[Dict[str, Any]]:
-    # Simple month-level plan with balanced good/bad/neutral
     from datetime import date
     def parse_month(s):
         y, m, *_ = s.split("-")
         return date(int(y), int(m), 1)
     s = parse_month(start)
     e = parse_month(end)
-    # build list of months
     months = []
     cur_y, cur_m = s.year, s.month
     while (cur_y < e.year) or (cur_y == e.year and cur_m <= e.month):
@@ -60,7 +58,6 @@ def random_trend_plan(start: str, end: str, rng: random.Random, n_min=3, n_max=5
 
 
 def core_to_stream_trends(core: List[Dict[str, Any]], rng: random.Random) -> Dict[str, List[Dict[str, Any]]]:
-    # Copy the core plan for each stream and attach appropriate shares/fields
     import copy
     def with_share(key: str, lo=2, hi=20):
         out = []
@@ -72,14 +69,14 @@ def core_to_stream_trends(core: List[Dict[str, Any]], rng: random.Random) -> Dic
                 ee.pop("posts", None)
             out.append(ee)
         return out
-    # For stock, add return/volume/volatility consistent with label
+
     def stockify():
         out = []
         for e in core:
             ee = {k: e[k] for k in ("month", "intensity", "label")}
             lab = ee["label"].lower()
             if any(k in lab for k in ["breach", "lawsuit", "outage", "recall", "fine", "scandal"]):
-                ret = -random.uniform(0.05, 0.15)
+                ret = random.uniform(-0.15, -0.05)
                 vol = random.choice(["+40%", "+60%", "1.4x", "1.6x"])
                 volm = random.choice(["x1.6", "x2.0", "180%"])
             elif any(k in lab for k in ["launch", "award", "partnership", "buyback", "expansion"]):
@@ -96,12 +93,39 @@ def core_to_stream_trends(core: List[Dict[str, Any]], rng: random.Random) -> Dic
             out.append(ee)
         return out
 
+    def wlify():
+        out = []
+        for e in core:
+            ee = {k: e[k] for k in ("month", "intensity", "label")}
+            # Optionally attach per-month transaction share
+            if rng.random() < 0.6:
+                ee["transactions"] = f"{rng.randint(2, 20)}%"
+            lab = ee["label"].lower()
+            if any(k in lab for k in ["breach", "lawsuit", "scandal", "outage", "recall", "fine"]):
+                ee["high_risk_intensity"] = round(random.uniform(0.30, 0.70), 3)
+                ee["decline_rate"] = round(random.uniform(0.15, 0.35), 3) if rng.random() < 0.6 else None
+                if rng.random() < 0.5:
+                    ee["gambling_share"] = round(random.uniform(0.04, 0.15), 3)
+            elif any(k in lab for k in ["launch","award","partnership","buyback","expansion"]):
+                ee["high_risk_intensity"] = round(random.uniform(0.05, 0.15), 3)
+                ee["decline_rate"] = round(random.uniform(0.02, 0.08), 3) if rng.random() < 0.4 else None
+                if rng.random() < 0.4:
+                    ee["gambling_share"] = round(random.uniform(0.02, 0.08), 3)
+            else:
+                ee["high_risk_intensity"] = round(random.uniform(0.08, 0.22), 3)
+                ee["decline_rate"] = round(random.uniform(0.05, 0.12), 3) if rng.random() < 0.5 else None
+                if rng.random() < 0.5:
+                    ee["gambling_share"] = round(random.uniform(0.03, 0.12), 3)
+            out.append(ee)
+        return out
+
     return {
         "tweets": with_share("posts", 2, 15),
         "reddit": with_share("posts", 2, 15),
         "news": with_share("articles", 2, 15),
         "reviews": with_share("reviews", 2, 22),
-        "stock": stockify()
+        "stock": stockify(),
+        "wl": wlify()
     }
 
 
@@ -111,7 +135,6 @@ def random_merchant_block(name: str, start_date: str, end_date: str, rng: random
     core = random_trend_plan(start_date[:7], end_date[:7], rng)
     tr = core_to_stream_trends(core, rng)
 
-    # Reasonable, proportional ranges (not too "real-world-like" but plausible)
     tweets_n = rng.randint(5000, 20000)
     reddit_n = rng.randint(3000, 12000)
     news_n = rng.randint(3000, 9000)
@@ -124,6 +147,8 @@ def random_merchant_block(name: str, start_date: str, end_date: str, rng: random
     shares_out = rng.randrange(100_000_000, 5_000_000_000, 10_000)
     avg_vol = rng.randrange(1_000_000, 15_000_000, 1000)
     total_ret = round(rng.uniform(-0.25, 0.60), 3)
+
+    wl_n = rng.randint(20000, 180000)
 
     return {
         "merchant_name": name,
@@ -161,15 +186,19 @@ def random_merchant_block(name: str, start_date: str, end_date: str, rng: random
             "shares_outstanding": int(shares_out),
             "target_total_return": total_ret,
             "trend_plan": tr["stock"],
+        },
+        "wl": {
+            "enabled": True,
+            "n_transactions": wl_n,
+            "trend_plan": tr["wl"]
         }
     }
 
 
 def merge_custom_into_random(random_block: Dict[str, Any], custom_block: Dict[str, Any]) -> Dict[str, Any]:
-    # Shallow-merge top-level; deep-merge per-stream dicts if present in custom
     out = dict(random_block)
     for key, val in custom_block.items():
-        if key in ("tweets", "reddit", "news", "reviews", "stock") and isinstance(val, dict):
+        if key in ("tweets", "reddit", "news", "reviews", "stock", "wl") and isinstance(val, dict):
             merged = dict(random_block.get(key, {}))
             merged.update(val)
             out[key] = merged
@@ -193,35 +222,28 @@ def main():
 
     merchants: List[Dict[str, Any]] = []
 
-    # Build base list of merchant names
     base_names = [
         "HomeGear", "BuildPro", "BrightLite", "GardenCore", "FixItCo", "ToolNest",
         "ApexDIY", "PrimeHome", "HandyMart", "CraftWorks", "ValueFix", "MegaBuild",
         "UrbanTools", "GreenWorks", "SmartDIY", "HomeForge", "SolidCore", "EdgeTools"
     ]
 
-    # If --merchant_name provided, create a custom block skeleton
     customs: List[Dict[str, Any]] = []
     if args.merchant_name:
         customs.append({"merchant_name": args.merchant_name})
-
-    # If --custom JSON(s) provided, load and include them
     if args.custom:
         for p in args.custom:
             with open(p, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                # allow either a single dict or list of dicts
                 if isinstance(data, list):
                     customs.extend(data)
                 elif isinstance(data, dict):
                     customs.append(data)
 
-    # Generate random merchants, then merge custom ones (overriding fields)
     count_needed = args.num
     used_names = set()
 
     def next_name():
-        # pick from base_names or synthesize
         if base_names:
             name = base_names.pop(0)
         else:
@@ -231,16 +253,13 @@ def main():
         used_names.add(name)
         return name
 
-    # First, create random blocks for the required count
     for _ in range(count_needed):
         nm = next_name()
         block = random_merchant_block(nm, args.start_date, args.end_date, rng)
         merchants.append(block)
 
-    # Then merge any customs into the first slots (or find by name if provided)
     for c in customs:
         cname = c.get("merchant_name") or next_name()
-        # Find a target idx: if name exists, replace/merge that one; else replace first un-customized
         idx = None
         for i, m in enumerate(merchants):
             if m["merchant_name"].lower() == cname.lower():
@@ -249,10 +268,8 @@ def main():
         if idx is None:
             idx = 0
         merged = merge_custom_into_random(merchants[idx], c)
-        # Ensure start/end date present
         merged["start_date"] = merged.get("start_date", args.start_date)
         merged["end_date"] = merged.get("end_date", args.end_date)
-        # Fill missing merchant_name if needed
         merged["merchant_name"] = merged.get("merchant_name", merchants[idx]["merchant_name"])
         merchants[idx] = merged
 
@@ -261,7 +278,9 @@ def main():
             "start_date": args.start_date,
             "end_date": args.end_date,
             "output_dir": ".",
-            "defaults": {},  # you can add global overrides here later
+            "defaults": {
+                "wl": {"n_transactions": 50000}
+            },
         },
         "merchants": merchants
     }
@@ -273,5 +292,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-#  python .\preset_data.py --num 7 --start_date 2022-01-01 --end_date 2023-01-01
