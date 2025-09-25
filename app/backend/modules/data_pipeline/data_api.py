@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # data_api.py
 # A lightweight realtime-ish API over the generated datasets in ./output
@@ -19,7 +20,6 @@ from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-
 # --------------------------- Config ---------------------------
 
 LOG_REQUESTS: bool = str(os.getenv("DATA_API_LOG_REQUESTS", "true")).lower() in ("1", "true", "yes", "y", "on")
@@ -31,19 +31,18 @@ DEFAULT_WINDOWS = {
     "reddit": "3h",
     "news": "6h",
     "reviews": "1d",
-    "stock": "1d"
+    "stock": "1d",
+    "wl": "6h"  # NEW
 }
 DEFAULT_LIMITS = {
     "tweets": 500,
     "reddit": 500,
     "news": 500,
     "reviews": 500,
-    "stock": 250
+    "stock": 250,
+    "wl": 500  # NEW
 }
-SUPPORTED_STREAMS = ("tweets", "reddit", "news", "reviews", "stock")
-
-
-# --------------------------- Utilities ---------------------------
+SUPPORTED_STREAMS = ("tweets", "reddit", "news", "reviews", "stock", "wl")  # NEW
 
 def log(msg: str):
     if LOG_REQUESTS:
@@ -183,7 +182,6 @@ def robust_json_load(path: str) -> Any:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-
 # --------------------------- DataStore ---------------------------
 
 class DataStore:
@@ -201,46 +199,19 @@ class DataStore:
         self.merchant_map: Dict[str, Dict[str, str]] = self._build_merchant_map(self.manifest)
         self.cache: Dict[str, Dict[str, Dict[str, Any]]] = {}  # merchant -> stream -> {data, path, mtime}
 
-    def _to_abs(self, p: str) -> str:
-        if not p:
-            return p
-        p2 = posix_path(p)
-        if os.path.isabs(p2) and path_exists(p2):
-            return p2
-        cand = os.path.abspath(p2.lstrip("./"))
-        if path_exists(cand):
-            return cand
-        base = os.path.dirname(os.path.abspath(self.manifest_path))
-        cand2 = os.path.abspath(os.path.join(base, p2))
-        if path_exists(cand2):
-            return cand2
-        cand3 = os.path.abspath(os.path.join(self.output_dir, os.path.basename(p2)))
-        if path_exists(cand3):
-            return cand3
-        cand4 = os.path.abspath(os.path.join(os.getcwd(), p2.lstrip("./")))
-        return cand4
-
     def _build_merchant_map(self, manifest: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
-        mm: Dict[str, Dict[str, str]] = {}
-        for m in manifest.get("merchants", []):
+        out: Dict[str, Dict[str, str]] = {}
+        for m in (manifest.get("merchants") or []):
             name = m.get("merchant")
-            paths = m.get("paths", {}) or {}
-            out = {}
-            for k, v in paths.items():
-                if not isinstance(v, str):
-                    continue
-                out[k] = self._to_abs(v)
+            paths = m.get("paths") or {}
             if name:
-                mm[name] = out
-        return mm
-
-    def merchants(self) -> List[str]:
-        return sorted(self.merchant_map.keys(), key=lambda x: x.lower())
+                out[name] = {k: v for k, v in paths.items() if v}
+        return out
 
     def streams_for(self, merchant: str) -> List[str]:
         if merchant not in self.merchant_map:
             return []
-        return [k for k in self.merchant_map[merchant].keys() if k in SUPPORTED_STREAMS]
+        return [k for k in self.merchant_map[merchant].keys() if k in SUPPORTED_STREAMS]  # data_api.py pattern \ue202turn0file8
 
     def reload_manifest_if_changed(self):
         try:
@@ -254,61 +225,6 @@ class DataStore:
                 log("Manifest reloaded.")
         except Exception as e:
             log(f"Manifest reload error: {e}")
-
-    def _ensure_stream_loaded(self, merchant: str, stream: str):
-        if merchant not in self.merchant_map:
-            raise KeyError(f"Merchant not found: {merchant}")
-        if stream not in SUPPORTED_STREAMS:
-            raise KeyError(f"Unsupported stream: {stream}")
-        path = self.merchant_map[merchant].get(stream)
-        if not path or not path_exists(path):
-            raise FileNotFoundError(f"Path not found for {merchant}/{stream}: {path}")
-
-        mcache = self.cache.setdefault(merchant, {})
-        sc = mcache.get(stream)
-        mtime = os.path.getmtime(path)
-        if sc and sc.get("mtime") == mtime:
-            return
-
-        data = robust_json_load(path)
-        if stream == "stock":
-            prices = data.get("prices") or []
-            earnings = data.get("earnings") or []
-            actions = data.get("corporate_actions") or []
-            self._annotate_ts_stock(prices, earnings, actions)
-            payload = {
-                "meta": data.get("meta") or {},
-                "trend_plan": data.get("trend_plan") or [],
-                "prices": prices,
-                "earnings": earnings,
-                "corporate_actions": actions,
-            }
-        else:
-            self._annotate_ts_list(stream, data)
-            payload = data
-        mcache[stream] = {"data": payload, "path": path, "mtime": mtime}
-
-    def _annotate_ts_list(self, stream: str, records: List[Dict[str, Any]]):
-        for rec in records:
-            if "_ts" in rec:
-                continue
-            try:
-                if stream == "reddit":
-                    cu = rec.get("created_utc")
-                    if isinstance(cu, (int, float)) and cu > 0:
-                        rec["_ts"] = float(cu)
-                    else:
-                        ts = parse_any_dt(rec.get("created_at"))
-                        rec["_ts"] = ts.timestamp() if ts else None
-                elif stream == "news":
-                    ts = parse_any_dt(rec.get("published_at"))
-                    rec["_ts"] = ts.timestamp() if ts else None
-                else:
-                    ts = parse_any_dt(rec.get("created_at"))
-                    rec["_ts"] = ts.timestamp() if ts else None
-            except Exception:
-                rec["_ts"] = None
-        records.sort(key=lambda r: (r.get("_ts") or 0.0))
 
     def _annotate_ts_stock(self, prices: List[Dict[str, Any]], earnings: List[Dict[str, Any]], actions: List[Dict[str, Any]]):
         for rec in prices:
@@ -344,6 +260,89 @@ class DataStore:
             except Exception:
                 rec["_ts"] = None
         actions.sort(key=lambda r: (r.get("_ts") or 0.0))
+
+    def _annotate_ts_list(self, stream: str, records: List[Dict[str, Any]]):
+        for rec in records:
+            if "_ts" in rec:
+                continue
+            try:
+                if stream == "reddit":
+                    cu = rec.get("created_utc")
+                    if isinstance(cu, (int, float)) and cu > 0:
+                        rec["_ts"] = float(cu)
+                    else:
+                        ts = parse_any_dt(rec.get("created_at"))
+                        rec["_ts"] = ts.timestamp() if ts else None
+                elif stream == "news":
+                    ts = parse_any_dt(rec.get("published_at"))
+                    rec["_ts"] = ts.timestamp() if ts else None
+                elif stream == "wl":  # NEW: transactions use txn_time
+                    ts = parse_any_dt(rec.get("txn_time"))
+                    rec["_ts"] = ts.timestamp() if ts else None
+                else:
+                    ts = parse_any_dt(rec.get("created_at"))
+                    rec["_ts"] = ts.timestamp() if ts else None
+            except Exception:
+                rec["_ts"] = None
+        records.sort(key=lambda r: (r.get("_ts") or 0.0))  # data_api.py uses per-stream timestamp annotation \ue202turn0file8
+
+    def _ensure_stream_loaded(self, merchant: str, stream: str):
+        if merchant not in self.merchant_map:
+            raise KeyError(f"Merchant not found: {merchant}")
+        if stream not in SUPPORTED_STREAMS:
+            raise KeyError(f"Unsupported stream: {stream}")
+        path = self.merchant_map[merchant].get(stream)
+        if not path or not path_exists(path):
+            raise FileNotFoundError(f"Path not found for {merchant}/{stream}: {path}")
+
+        mcache = self.cache.setdefault(merchant, {})
+        sc = mcache.get(stream)
+        mtime = os.path.getmtime(path)
+        if sc and sc.get("mtime") == mtime:
+            return
+
+        # Load JSON and annotate, stream-specific
+        data = robust_json_load(path)
+        if stream == "stock":
+            prices = data.get("prices") or []
+            earnings = data.get("earnings") or []
+            actions = data.get("corporate_actions") or []
+            self._annotate_ts_stock(prices, earnings, actions)
+            payload = {
+                "meta": data.get("meta") or {},
+                "trend_plan": data.get("trend_plan") or [],
+                "prices": prices,
+                "earnings": earnings,
+                "corporate_actions": actions,
+            }
+        elif stream == "wl":  # NEW: transactions list
+            txns = data.get("transactions") or []
+            self._annotate_ts_list(stream, txns)
+            payload = txns
+        else:
+            self._annotate_ts_list(stream, data)
+            payload = data
+        mcache[stream] = {"data": payload, "path": path, "mtime": mtime}  # coverage same as existing \ue202turn0file8
+
+    def _filter_by_ts(self, records: List[Dict[str, Any]], s_ts: Optional[float], u_ts: Optional[float], desc: bool, limit: int) -> List[Dict[str, Any]]:
+        def in_range(ts: Optional[float]) -> bool:
+            if ts is None:
+                return False
+            if s_ts is not None and ts < s_ts:
+                return False
+            if u_ts is not None and ts > u_ts:
+                return False
+            return True
+        it = (rec for rec in (reversed(records) if desc else records) if in_range(rec.get("_ts")))
+        out = []
+        for rec in it:
+            if "_ts" in rec:
+                rec = dict(rec)
+                rec.pop("_ts", None)
+            out.append(rec)
+            if len(out) >= limit:
+                break
+        return out
 
     def get_data(
         self,
@@ -383,36 +382,15 @@ class DataStore:
                     out["trend_plan"] = payload.get("trend_plan", [])
                 results[stream] = out
             else:
+                # wl and other list streams
                 records = payload
                 flt = self._filter_by_ts(records, s_ts, u_ts, desc, limit)
                 results[stream] = flt
         return results
 
-    def _filter_by_ts(self, records: List[Dict[str, Any]], s_ts: Optional[float], u_ts: Optional[float], desc: bool, limit: int) -> List[Dict[str, Any]]:
-        def in_range(ts: Optional[float]) -> bool:
-            if ts is None:
-                return False
-            if s_ts is not None and ts < s_ts:
-                return False
-            if u_ts is not None and ts > u_ts:
-                return False
-            return True
-
-        it = (rec for rec in (reversed(records) if desc else records) if in_range(rec.get("_ts")))
-        out = []
-        for rec in it:
-            if "_ts" in rec:
-                rec = dict(rec)
-                rec.pop("_ts", None)
-            out.append(rec)
-            if len(out) >= limit:
-                break
-        return out
-
-
 # --------------------------- API Setup ---------------------------
 
-app = FastAPI(title="Merchant Data API", version="1.2.0")
+app = FastAPI(title="Merchant Data API", version="1.3.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
@@ -428,7 +406,6 @@ def get_store() -> DataStore:
         DATASTORE = DataStore(manifest_path=manifest, base_output=DEFAULT_OUTPUT_DIR)
         log(f"DataStore initialized with manifest: {DATASTORE.manifest_path}")
     return DATASTORE
-
 
 # --------------------------- Middleware logging ---------------------------
 
@@ -449,7 +426,6 @@ async def log_requests(request: Request, call_next):
             except Exception:
                 pass
 
-
 # --------------------------- Route helpers ---------------------------
 
 def normalize_streams_param(streams_param: Optional[str]) -> List[str]:
@@ -461,7 +437,7 @@ def normalize_streams_param(streams_param: Optional[str]) -> List[str]:
         if s not in SUPPORTED_STREAMS:
             raise HTTPException(status_code=400, detail=f"Unsupported stream: {s}")
         out.append(s)
-    return list(dict.fromkeys(out))
+    return list(dict.fromkeys(out))  # data_api.py helper keeps streams normalized \ue202turn0file8
 
 def compute_window(
     since: Optional[str],
@@ -512,7 +488,6 @@ def per_stream_limits_param(streams: List[str], limit: Optional[int]) -> Dict[st
         else:
             lims[s] = int(limit)
     return lims
-
 
 # --------------------------- Routes ---------------------------
 
@@ -603,7 +578,6 @@ def get_data_window(
             counts[s] = len(out_data[s].get("prices", []) if isinstance(out_data[s], dict) else [])
         else:
             counts[s] = len(out_data[s] if isinstance(out_data[s], list) else [])
-
     resp = {
         "merchant": merchant,
         "sim_now": dt_to_iso(sim_now),
@@ -659,14 +633,11 @@ def get_single_stream(
         "data": payload["data"].get(stream)
     }
 
-
-# --------------------------- Root/help ---------------------------
-
 @app.get("/")
 def root():
     return {
         "name": "Merchant Data API",
-        "version": "1.2.0",
+        "version": "1.3.0",
         "endpoints": [
             "GET /health",
             "GET /v1/merchants",
@@ -676,7 +647,7 @@ def root():
             "POST /v1/reload"
         ],
         "notes": [
-            "Streams: tweets, reddit, news, reviews, stock",
+            "Streams: tweets, reddit, news, reviews, stock, wl",
             "Simulated 'now' supports ISO (e.g., 2022/10/22 00:00:00), 'now', 'now-1h', or epoch seconds/millis",
             "Windows: 15m, 1h, 3h, 24h, 7d, etc. If omitted, per-stream defaults apply",
             "Absolute range via since/until. 'until' defaults to simulated now and is capped to it unless allow_future=true",
@@ -685,13 +656,8 @@ def root():
         ]
     }
 
-
-# --------------------------- Dev server ---------------------------
-
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "8000"))
     log(f"Starting server on 0.0.0.0:{port}")
     uvicorn.run("data_api:app", host="0.0.0.0", port=port, reload=False)
-
-#  python3 .\data_api.py

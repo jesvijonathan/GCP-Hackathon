@@ -3,69 +3,174 @@
     "start_date": "2020-01-01",
     "end_date": "2024-12-31",
     "output_dir": ".",
-    "defaults": {}
+    "defaults": {
+      "wl": {
+        "n_transactions": 50000
+      }
+    }
   },
   "merchants": [
     {
       "merchant_name": "HomeGear",
       "start_date": "2020-01-01",
       "end_date": "2024-12-31",
-      "seed": 1581412,
+      "seed": 6604045,
       "tweets": {
         "enabled": true,
-        "n_tweets": 14600,
+        "n_tweets": 7753,
         "trend_plan": [
-          { "month": "2021-12", "intensity": 0.82, "label": "outage", "posts": "11%" },
-          { "month": "2022-05", "intensity": 0.58, "label": "seasonal buzz", "posts": "8%" },
-          { "month": "2023-03", "intensity": 0.62, "label": "feature rollout", "posts": "6%" },
-          { "month": "2024-08", "intensity": 0.77, "label": "recall", "posts": "7%" }
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz",
+            "posts": "13%"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal"
+          }
         ]
       },
       "reddit": {
         "enabled": true,
-        "n_posts": 7600,
+        "n_posts": 317,
         "trend_plan": [
-          { "month": "2021-12", "intensity": 0.82, "label": "outage", "posts": "10%" },
-          { "month": "2022-05", "intensity": 0.58, "label": "seasonal buzz", "posts": "7%" },
-          { "month": "2023-03", "intensity": 0.62, "label": "feature rollout" },
-          { "month": "2024-08", "intensity": 0.77, "label": "recall", "posts": "5%" }
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal",
+            "posts": "6%"
+          }
         ]
       },
       "news": {
         "enabled": true,
-        "n_articles": 5850,
+        "n_articles": 98,
         "trend_plan": [
-          { "month": "2021-12", "intensity": 0.82, "label": "outage", "articles": "3%" },
-          { "month": "2022-05", "intensity": 0.58, "label": "seasonal buzz" },
-          { "month": "2023-03", "intensity": 0.62, "label": "feature rollout" },
-          { "month": "2024-08", "intensity": 0.77, "label": "recall", "articles": "6%" }
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage",
+            "posts": "9%",
+            "articles": "3%"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal"
+          }
         ]
       },
       "reviews": {
         "enabled": true,
         "n_products": 8,
-        "merchant_score": 4.18,
-        "n_reviews": 32000,
+        "merchant_score": 4.23,
+        "n_reviews": 9404,
         "trend_plan": [
-          { "month": "2021-12", "intensity": 0.82, "label": "outage", "reviews": "6%" },
-          { "month": "2022-05", "intensity": 0.58, "label": "seasonal buzz" },
-          { "month": "2023-03", "intensity": 0.62, "label": "feature rollout" },
-          { "month": "2024-08", "intensity": 0.77, "label": "recall", "reviews": "5%" }
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage",
+            "posts": "9%",
+            "reviews": "6%"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal"
+          }
         ]
       },
       "stock": {
         "enabled": true,
-        "ticker": "HGR",
-        "base_price": 32.9,
-        "sigma_annual": 0.41,
-        "avg_daily_volume": 13700000,
-        "shares_outstanding": 1540000000,
-        "target_total_return": 0.33,
+        "ticker": "HOM",
+        "base_price": 154.54,
+        "sigma_annual": 0.36,
+        "avg_daily_volume": 8867000,
+        "shares_outstanding": 4354370000,
+        "target_total_return": 0.384,
         "trend_plan": [
-          { "month": "2021-12", "intensity": 0.82, "label": "outage", "return": -0.115, "volatility": "+40%", "volume": "180%" },
-          { "month": "2022-05", "intensity": 0.58, "label": "seasonal buzz", "return": 0.006, "volatility": "+10%", "volume": "110%" },
-          { "month": "2023-03", "intensity": 0.62, "label": "feature rollout", "return": 0.012, "volatility": "1.1x", "volume": "x1.1" },
-          { "month": "2024-08", "intensity": 0.77, "label": "recall", "return": -0.089, "volatility": "1.4x", "volume": "170%" }
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage",
+            "return": -0.145,
+            "volatility": "+60%",
+            "volume": "x2.0"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz",
+            "return": -0.002,
+            "volatility": "1.1x",
+            "volume": "110%"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal",
+            "return": 0.006,
+            "volatility": "1.0x",
+            "volume": "x1.1"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 160560,
+        "trend_plan": [
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage",
+            "transactions": "3%",
+            "high_risk_intensity": 0.548,
+            "decline_rate": 0.191,
+            "gambling_share": 0.046
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz",
+            "transactions": "19%",
+            "high_risk_intensity": 0.103,
+            "decline_rate": null,
+            "gambling_share": 0.067
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal",
+            "high_risk_intensity": 0.136,
+            "decline_rate": 0.093
+          }
         ]
       }
     },
@@ -73,785 +178,248 @@
       "merchant_name": "BuildPro",
       "start_date": "2020-01-01",
       "end_date": "2024-12-31",
-      "seed": 1200882,
+      "seed": 8679094,
       "tweets": {
         "enabled": true,
-        "n_tweets": 6400,
+        "n_tweets": 17804,
         "trend_plan": [
-          { "month": "2020-01", "intensity": 0.58, "label": "partnership", "posts": "4%" },
-          { "month": "2021-02", "intensity": 0.94, "label": "spike - data breach", "posts": "8%" },
-          { "month": "2021-05", "intensity": 0.88, "label": "spike - new product launch", "posts": "9%" },
-          { "month": "2022-05", "intensity": 0.62, "label": "spike - new product launch", "posts": "12%" }
+          {
+            "month": "2020-07",
+            "intensity": 0.59,
+            "label": "normal"
+          },
+          {
+            "month": "2021-01",
+            "intensity": 0.67,
+            "label": "seasonal buzz",
+            "posts": "12%"
+          },
+          {
+            "month": "2021-08",
+            "intensity": 0.62,
+            "label": "normal",
+            "posts": "10%"
+          },
+          {
+            "month": "2021-09",
+            "intensity": 0.59,
+            "label": "partnership",
+            "posts": "14%"
+          },
+          {
+            "month": "2024-12",
+            "intensity": 0.55,
+            "label": "promo period",
+            "posts": "15%"
+          }
         ]
       },
       "reddit": {
         "enabled": true,
-        "n_posts": 7700,
+        "n_posts": 7459,
         "trend_plan": [
-          { "month": "2020-01", "intensity": 0.58, "label": "partnership" },
-          { "month": "2021-02", "intensity": 0.94, "label": "spike - data breach", "posts": "10%" },
-          { "month": "2021-05", "intensity": 0.88, "label": "spike - new product launch", "posts": "14%" },
-          { "month": "2022-05", "intensity": 0.62, "label": "spike - new product launch", "posts": "15%" }
+          {
+            "month": "2020-07",
+            "intensity": 0.59,
+            "label": "normal",
+            "posts": "11%"
+          },
+          {
+            "month": "2021-01",
+            "intensity": 0.67,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2021-08",
+            "intensity": 0.62,
+            "label": "normal",
+            "posts": "8%"
+          },
+          {
+            "month": "2021-09",
+            "intensity": 0.59,
+            "label": "partnership",
+            "posts": "6%"
+          },
+          {
+            "month": "2024-12",
+            "intensity": 0.55,
+            "label": "promo period"
+          }
         ]
       },
       "news": {
         "enabled": true,
-        "n_articles": 5200,
+        "n_articles": 140,
         "trend_plan": [
-          { "month": "2020-01", "intensity": 0.58, "label": "partnership", "articles": "10%" },
-          { "month": "2021-02", "intensity": 0.94, "label": "spike - data breach", "articles": "8%" },
-          { "month": "2021-05", "intensity": 0.88, "label": "spike - new product launch", "articles": "6%" },
-          { "month": "2022-05", "intensity": 0.62, "label": "spike - new product launch" }
+          {
+            "month": "2020-07",
+            "intensity": 0.59,
+            "label": "normal",
+            "posts": "2%",
+            "articles": "15%"
+          },
+          {
+            "month": "2021-01",
+            "intensity": 0.67,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2021-08",
+            "intensity": 0.62,
+            "label": "normal",
+            "articles": "6%"
+          },
+          {
+            "month": "2021-09",
+            "intensity": 0.59,
+            "label": "partnership",
+            "articles": "10%"
+          },
+          {
+            "month": "2024-12",
+            "intensity": 0.55,
+            "label": "promo period"
+          }
         ]
       },
       "reviews": {
         "enabled": true,
-        "n_products": 11,
-        "merchant_score": 3.84,
-        "n_reviews": 22000,
+        "n_products": 5,
+        "merchant_score": 4.36,
+        "n_reviews": 3806,
         "trend_plan": [
-          { "month": "2020-01", "intensity": 0.58, "label": "partnership", "reviews": "14%" },
-          { "month": "2021-02", "intensity": 0.94, "label": "spike - data breach", "reviews": "18%" },
-          { "month": "2021-05", "intensity": 0.88, "label": "spike - new product launch" },
-          { "month": "2022-05", "intensity": 0.62, "label": "spike - new product launch", "reviews": "12%" }
+          {
+            "month": "2020-07",
+            "intensity": 0.59,
+            "label": "normal",
+            "posts": "2%",
+            "reviews": "12%"
+          },
+          {
+            "month": "2021-01",
+            "intensity": 0.67,
+            "label": "seasonal buzz",
+            "reviews": "11%"
+          },
+          {
+            "month": "2021-08",
+            "intensity": 0.62,
+            "label": "normal",
+            "reviews": "15%"
+          },
+          {
+            "month": "2021-09",
+            "intensity": 0.59,
+            "label": "partnership",
+            "reviews": "19%"
+          },
+          {
+            "month": "2024-12",
+            "intensity": 0.55,
+            "label": "promo period",
+            "posts": "12%",
+            "reviews": "20%"
+          }
         ]
       },
       "stock": {
         "enabled": true,
         "ticker": "BUI",
-        "base_price": 224.1,
-        "sigma_annual": 0.38,
-        "avg_daily_volume": 2400000,
-        "shares_outstanding": 980000000,
-        "target_total_return": 0.14,
+        "base_price": 262.45,
+        "sigma_annual": 0.39,
+        "avg_daily_volume": 6418000,
+        "shares_outstanding": 435650000,
+        "target_total_return": -0.199,
         "trend_plan": [
-          { "month": "2020-01", "intensity": 0.58, "label": "partnership", "return": 0.074, "volatility": "1.4x", "volume": "150%" },
-          { "month": "2021-02", "intensity": 0.94, "label": "spike - data breach", "return": -0.074, "volatility": "+40%", "volume": "180%" },
-          { "month": "2021-05", "intensity": 0.88, "label": "spike - new product launch", "return": 0.115, "volatility": "1.4x", "volume": "130%" },
-          { "month": "2022-05", "intensity": 0.62, "label": "spike - new product launch", "return": 0.089, "volatility": "1.2x", "volume": "150%" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "BrightLite",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 4556372,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 13950,
-        "trend_plan": [
-          { "month": "2022-01", "intensity": 0.79, "label": "outage", "posts": "9%" },
-          { "month": "2023-07", "intensity": 0.57, "label": "partnership", "posts": "12%" },
-          { "month": "2024-12", "intensity": 0.78, "label": "lawsuit", "posts": "6%" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 8350,
-        "trend_plan": [
-          { "month": "2022-01", "intensity": 0.79, "label": "outage", "posts": "8%" },
-          { "month": "2023-07", "intensity": 0.57, "label": "partnership" },
-          { "month": "2024-12", "intensity": 0.78, "label": "lawsuit", "posts": "4%" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 4680,
-        "trend_plan": [
-          { "month": "2022-01", "intensity": 0.79, "label": "outage", "articles": "3%" },
-          { "month": "2023-07", "intensity": 0.57, "label": "partnership" },
-          { "month": "2024-12", "intensity": 0.78, "label": "lawsuit", "articles": "11%" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 12,
-        "merchant_score": 3.9,
-        "n_reviews": 39800,
-        "trend_plan": [
-          { "month": "2022-01", "intensity": 0.79, "label": "outage", "reviews": "8%" },
-          { "month": "2023-07", "intensity": 0.57, "label": "partnership", "reviews": "3%" },
-          { "month": "2024-12", "intensity": 0.78, "label": "lawsuit" }
+          {
+            "month": "2020-07",
+            "intensity": 0.59,
+            "label": "normal",
+            "return": 0.002,
+            "volatility": "+10%",
+            "volume": "x1.0"
+          },
+          {
+            "month": "2021-01",
+            "intensity": 0.67,
+            "label": "seasonal buzz",
+            "return": 0.003,
+            "volatility": "+10%",
+            "volume": "110%"
+          },
+          {
+            "month": "2021-08",
+            "intensity": 0.62,
+            "label": "normal",
+            "return": -0.007,
+            "volatility": "+10%",
+            "volume": "110%"
+          },
+          {
+            "month": "2021-09",
+            "intensity": 0.59,
+            "label": "partnership",
+            "return": 0.137,
+            "volatility": "1.4x",
+            "volume": "150%"
+          },
+          {
+            "month": "2024-12",
+            "intensity": 0.55,
+            "label": "promo period",
+            "return": 0.003,
+            "volatility": "1.1x",
+            "volume": "x1.1"
+          }
         ]
       },
-      "stock": {
+      "wl": {
         "enabled": true,
-        "ticker": "BRI",
-        "base_price": 359.7,
-        "sigma_annual": 0.37,
-        "avg_daily_volume": 11400000,
-        "shares_outstanding": 3600000000,
-        "target_total_return": -0.07,
+        "n_transactions": 92708,
         "trend_plan": [
-          { "month": "2022-01", "intensity": 0.79, "label": "outage", "return": -0.104, "volatility": "+40%", "volume": "x2.0" },
-          { "month": "2023-07", "intensity": 0.57, "label": "partnership", "return": 0.058, "volatility": "1.2x", "volume": "150%" },
-          { "month": "2024-12", "intensity": 0.78, "label": "lawsuit", "return": -0.119, "volatility": "1.4x", "volume": "180%" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "GardenCore",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 7585054,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 18400,
-        "trend_plan": [
-          { "month": "2021-05", "intensity": 0.69, "label": "lawsuit", "posts": "3%" },
-          { "month": "2022-01", "intensity": 0.72, "label": "feature rollout", "posts": "5%" },
-          { "month": "2022-07", "intensity": 0.55, "label": "award" },
-          { "month": "2023-05", "intensity": 0.82, "label": "partnership", "posts": "12%" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 7600,
-        "trend_plan": [
-          { "month": "2021-05", "intensity": 0.69, "label": "lawsuit" },
-          { "month": "2022-01", "intensity": 0.72, "label": "feature rollout", "posts": "7%" },
-          { "month": "2022-07", "intensity": 0.55, "label": "award" },
-          { "month": "2023-05", "intensity": 0.82, "label": "partnership", "posts": "5%" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 3970,
-        "trend_plan": [
-          { "month": "2021-05", "intensity": 0.69, "label": "lawsuit" },
-          { "month": "2022-01", "intensity": 0.72, "label": "feature rollout" },
-          { "month": "2022-07", "intensity": 0.55, "label": "award", "articles": "7%" },
-          { "month": "2023-05", "intensity": 0.82, "label": "partnership", "articles": "4%" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 12,
-        "merchant_score": 4.48,
-        "n_reviews": 38400,
-        "trend_plan": [
-          { "month": "2021-05", "intensity": 0.69, "label": "lawsuit", "reviews": "13%" },
-          { "month": "2022-01", "intensity": 0.72, "label": "feature rollout" },
-          { "month": "2022-07", "intensity": 0.55, "label": "award" },
-          { "month": "2023-05", "intensity": 0.82, "label": "partnership" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "GAR",
-        "base_price": 242.6,
-        "sigma_annual": 0.41,
-        "avg_daily_volume": 6300000,
-        "shares_outstanding": 820000000,
-        "target_total_return": 0.56,
-        "trend_plan": [
-          { "month": "2021-05", "intensity": 0.69, "label": "lawsuit", "return": -0.054, "volatility": "1.6x", "volume": "x2.0" },
-          { "month": "2022-01", "intensity": 0.72, "label": "feature rollout", "return": -0.004, "volatility": "1.1x", "volume": "110%" },
-          { "month": "2022-07", "intensity": 0.55, "label": "award", "return": 0.108, "volatility": "1.2x", "volume": "150%" },
-          { "month": "2023-05", "intensity": 0.82, "label": "partnership", "return": 0.045, "volatility": "+20%", "volume": "150%" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "FixItCo",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 8935218,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 11500,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.55, "label": "partnership" },
-          { "month": "2021-12", "intensity": 0.53, "label": "seasonal buzz" },
-          { "month": "2023-05", "intensity": 0.62, "label": "seasonal buzz" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 10200,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.55, "label": "partnership", "posts": "12%" },
-          { "month": "2021-12", "intensity": 0.53, "label": "seasonal buzz", "posts": "9%" },
-          { "month": "2023-05", "intensity": 0.62, "label": "seasonal buzz", "posts": "12%" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 4160,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.55, "label": "partnership" },
-          { "month": "2021-12", "intensity": 0.53, "label": "seasonal buzz" },
-          { "month": "2023-05", "intensity": 0.62, "label": "seasonal buzz" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 7,
-        "merchant_score": 3.82,
-        "n_reviews": 35100,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.55, "label": "partnership" },
-          { "month": "2021-12", "intensity": 0.53, "label": "seasonal buzz", "reviews": "14%" },
-          { "month": "2023-05", "intensity": 0.62, "label": "seasonal buzz", "reviews": "3%" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "FIX",
-        "base_price": 61.3,
-        "sigma_annual": 0.42,
-        "avg_daily_volume": 14900000,
-        "shares_outstanding": 2326000000,
-        "target_total_return": 0.17,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.55, "label": "partnership", "return": 0.047, "volatility": "1.2x", "volume": "130%" },
-          { "month": "2021-12", "intensity": 0.53, "label": "seasonal buzz", "return": 0.001, "volatility": "+10%", "volume": "110%" },
-          { "month": "2023-05", "intensity": 0.62, "label": "seasonal buzz", "return": 0.007, "volatility": "1.0x", "volume": "110%" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "ToolNest",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 9484002,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 16700,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.77, "label": "partnership" },
-          { "month": "2020-12", "intensity": 0.85, "label": "buyback" },
-          { "month": "2023-02", "intensity": 0.60, "label": "seasonal buzz" },
-          { "month": "2023-07", "intensity": 0.47, "label": "promo period" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 8030,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.77, "label": "partnership", "posts": "15%" },
-          { "month": "2020-12", "intensity": 0.85, "label": "buyback", "posts": "13%" },
-          { "month": "2023-02", "intensity": 0.60, "label": "seasonal buzz" },
-          { "month": "2023-07", "intensity": 0.47, "label": "promo period", "posts": "11%" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 8540,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.77, "label": "partnership", "articles": "14%" },
-          { "month": "2020-12", "intensity": 0.85, "label": "buyback", "articles": "13%" },
-          { "month": "2023-02", "intensity": 0.60, "label": "seasonal buzz", "articles": "13%" },
-          { "month": "2023-07", "intensity": 0.47, "label": "promo period" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 11,
-        "merchant_score": 4.28,
-        "n_reviews": 31200,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.77, "label": "partnership", "reviews": "19%" },
-          { "month": "2020-12", "intensity": 0.85, "label": "buyback" },
-          { "month": "2023-02", "intensity": 0.60, "label": "seasonal buzz" },
-          { "month": "2023-07", "intensity": 0.47, "label": "promo period" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "TNS",
-        "base_price": 60.6,
-        "sigma_annual": 0.54,
-        "avg_daily_volume": 5500000,
-        "shares_outstanding": 2065000000,
-        "target_total_return": 0.11,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.77, "label": "partnership", "return": 0.096, "volatility": "+20%", "volume": "x1.6" },
-          { "month": "2020-12", "intensity": 0.85, "label": "buyback", "return": 0.119, "volatility": "1.4x", "volume": "150%" },
-          { "month": "2023-02", "intensity": 0.60, "label": "seasonal buzz", "return": -0.009, "volatility": "+10%", "volume": "x1.0" },
-          { "month": "2023-07", "intensity": 0.47, "label": "promo period", "return": 0.009, "volatility": "1.0x", "volume": "x1.1" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "AudioTech",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 5012341,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 8200,
-        "trend_plan": [
-          { "month": "2021-10", "intensity": 0.63, "label": "feature rollout", "posts": "6%" },
-          { "month": "2022-12", "intensity": 0.58, "label": "award", "posts": "4%" },
-          { "month": "2023-06", "intensity": 0.84, "label": "spike - data breach", "posts": "9%" },
-          { "month": "2024-04", "intensity": 0.73, "label": "partnership", "posts": "8%" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 5300,
-        "trend_plan": [
-          { "month": "2021-10", "intensity": 0.63, "label": "feature rollout", "posts": "5%" },
-          { "month": "2022-12", "intensity": 0.58, "label": "award" },
-          { "month": "2023-06", "intensity": 0.84, "label": "spike - data breach", "posts": "12%" },
-          { "month": "2024-04", "intensity": 0.73, "label": "partnership", "posts": "9%" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 6400,
-        "trend_plan": [
-          { "month": "2021-10", "intensity": 0.63, "label": "feature rollout", "articles": "5%" },
-          { "month": "2022-12", "intensity": 0.58, "label": "award", "articles": "8%" },
-          { "month": "2023-06", "intensity": 0.84, "label": "spike - data breach", "articles": "12%" },
-          { "month": "2024-04", "intensity": 0.73, "label": "partnership", "articles": "9%" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 9,
-        "merchant_score": 4.1,
-        "n_reviews": 28500,
-        "trend_plan": [
-          { "month": "2021-10", "intensity": 0.63, "label": "feature rollout", "reviews": "6%" },
-          { "month": "2022-12", "intensity": 0.58, "label": "award", "reviews": "5%" },
-          { "month": "2023-06", "intensity": 0.84, "label": "spike - data breach", "reviews": "10%" },
-          { "month": "2024-04", "intensity": 0.73, "label": "partnership", "reviews": "6%" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "AUD",
-        "base_price": 118.54,
-        "sigma_annual": 0.44,
-        "avg_daily_volume": 4700000,
-        "shares_outstanding": 2450000000,
-        "target_total_return": 0.27,
-        "trend_plan": [
-          { "month": "2021-10", "intensity": 0.63, "label": "feature rollout", "return": 0.016, "volatility": "1.1x", "volume": "110%" },
-          { "month": "2022-12", "intensity": 0.58, "label": "award", "return": 0.052, "volatility": "1.2x", "volume": "130%" },
-          { "month": "2023-06", "intensity": 0.84, "label": "spike - data breach", "return": -0.112, "volatility": "1.5x", "volume": "x2.0" },
-          { "month": "2024-04", "intensity": 0.73, "label": "partnership", "return": 0.081, "volatility": "1.2x", "volume": "x1.6" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "PrimeHome",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 3739052,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 9600,
-        "trend_plan": [
-          { "month": "2021-11", "intensity": 0.74, "label": "regulatory fine", "posts": "5%" },
-          { "month": "2023-02", "intensity": 0.68, "label": "promo period" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 9700,
-        "trend_plan": [
-          { "month": "2021-11", "intensity": 0.74, "label": "regulatory fine", "posts": "14%" },
-          { "month": "2023-02", "intensity": 0.68, "label": "promo period" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 6800,
-        "trend_plan": [
-          { "month": "2021-11", "intensity": 0.74, "label": "regulatory fine", "articles": "11%" },
-          { "month": "2023-02", "intensity": 0.68, "label": "promo period", "articles": "4%" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 10,
-        "merchant_score": 4.39,
-        "n_reviews": 13850,
-        "trend_plan": [
-          { "month": "2021-11", "intensity": 0.74, "label": "regulatory fine", "reviews": "14%" },
-          { "month": "2023-02", "intensity": 0.68, "label": "promo period" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "PRI",
-        "base_price": 31.8,
-        "sigma_annual": 0.47,
-        "avg_daily_volume": 14100000,
-        "shares_outstanding": 2155000000,
-        "target_total_return": 0.44,
-        "trend_plan": [
-          { "month": "2021-11", "intensity": 0.74, "label": "regulatory fine", "return": -0.098, "volatility": "1.4x", "volume": "x2.0" },
-          { "month": "2023-02", "intensity": 0.68, "label": "promo period", "return": -0.007, "volatility": "1.1x", "volume": "110%" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "HandyMart",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 6628053,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 7000,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.70, "label": "partnership", "posts": "13%" },
-          { "month": "2020-11", "intensity": 0.83, "label": "lawsuit", "posts": "15%" },
-          { "month": "2022-08", "intensity": 0.68, "label": "feature rollout", "posts": "5%" },
-          { "month": "2023-07", "intensity": 0.83, "label": "spike - data breach" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 11750,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.70, "label": "partnership", "posts": "8%" },
-          { "month": "2020-11", "intensity": 0.83, "label": "lawsuit", "posts": "9%" },
-          { "month": "2022-08", "intensity": 0.68, "label": "feature rollout", "posts": "12%" },
-          { "month": "2023-07", "intensity": 0.83, "label": "spike - data breach" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 6930,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.70, "label": "partnership", "articles": "13%" },
-          { "month": "2020-11", "intensity": 0.83, "label": "lawsuit" },
-          { "month": "2022-08", "intensity": 0.68, "label": "feature rollout" },
-          { "month": "2023-07", "intensity": 0.83, "label": "spike - data breach", "articles": "11%" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 8,
-        "merchant_score": 4.24,
-        "n_reviews": 33000,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.70, "label": "partnership", "reviews": "12%" },
-          { "month": "2020-11", "intensity": 0.83, "label": "lawsuit", "reviews": "9%" },
-          { "month": "2022-08", "intensity": 0.68, "label": "feature rollout", "reviews": "11%" },
-          { "month": "2023-07", "intensity": 0.83, "label": "spike - data breach", "reviews": "11%" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "HAN",
-        "base_price": 105.1,
-        "sigma_annual": 0.51,
-        "avg_daily_volume": 6080000,
-        "shares_outstanding": 796000000,
-        "target_total_return": -0.24,
-        "trend_plan": [
-          { "month": "2020-06", "intensity": 0.70, "label": "partnership", "return": 0.108, "volatility": "1.2x", "volume": "150%" },
-          { "month": "2020-11", "intensity": 0.83, "label": "lawsuit", "return": -0.125, "volatility": "1.4x", "volume": "x1.6" },
-          { "month": "2022-08", "intensity": 0.68, "label": "feature rollout", "return": 0.012, "volatility": "+10%", "volume": "x1.1" },
-          { "month": "2023-07", "intensity": 0.83, "label": "spike - data breach", "return": -0.108, "volatility": "+60%", "volume": "x2.0" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "CraftWorks",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 2784319,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 17900,
-        "trend_plan": [
-          { "month": "2021-12", "intensity": 0.87, "label": "partnership" },
-          { "month": "2022-06", "intensity": 0.60, "label": "normal", "posts": "3%" },
-          { "month": "2023-07", "intensity": 0.48, "label": "promo period" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 11800,
-        "trend_plan": [
-          { "month": "2021-12", "intensity": 0.87, "label": "partnership" },
-          { "month": "2022-06", "intensity": 0.60, "label": "normal", "posts": "13%" },
-          { "month": "2023-07", "intensity": 0.48, "label": "promo period" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 8620,
-        "trend_plan": [
-          { "month": "2021-12", "intensity": 0.87, "label": "partnership" },
-          { "month": "2022-06", "intensity": 0.60, "label": "normal" },
-          { "month": "2023-07", "intensity": 0.48, "label": "promo period" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 10,
-        "merchant_score": 4.12,
-        "n_reviews": 36400,
-        "trend_plan": [
-          { "month": "2021-12", "intensity": 0.87, "label": "partnership", "reviews": "7%" },
-          { "month": "2023-07", "intensity": 0.48, "label": "promo period", "reviews": "12%" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "CRA",
-        "base_price": 19.96,
-        "sigma_annual": 0.27,
-        "avg_daily_volume": 14100000,
-        "shares_outstanding": 4040000000,
-        "target_total_return": 0.40,
-        "trend_plan": [
-          { "month": "2021-12", "intensity": 0.87, "label": "partnership", "return": 0.080, "volatility": "1.4x", "volume": "130%" },
-          { "month": "2022-06", "intensity": 0.60, "label": "normal", "return": 0.010, "volatility": "1.1x", "volume": "110%" },
-          { "month": "2023-07", "intensity": 0.48, "label": "promo period", "return": 0.014, "volatility": "+10%", "volume": "110%" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "SolidCore",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 4485194,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 16800,
-        "trend_plan": [
-          { "month": "2022-10", "intensity": 0.68, "label": "award", "posts": "2%" },
-          { "month": "2023-06", "intensity": 0.56, "label": "buyback", "posts": "5%" },
-          { "month": "2023-11", "intensity": 0.60, "label": "award", "posts": "15%" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 4600,
-        "trend_plan": [
-          { "month": "2022-10", "intensity": 0.68, "label": "award" },
-          { "month": "2023-06", "intensity": 0.56, "label": "buyback" },
-          { "month": "2023-11", "intensity": 0.60, "label": "award", "posts": "7%" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 4220,
-        "trend_plan": [
-          { "month": "2022-10", "intensity": 0.68, "label": "award", "articles": "4%" },
-          { "month": "2023-06", "intensity": 0.56, "label": "buyback" },
-          { "month": "2023-11", "intensity": 0.60, "label": "award", "articles": "12%" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 12,
-        "merchant_score": 4.16,
-        "n_reviews": 27700,
-        "trend_plan": [
-          { "month": "2022-10", "intensity": 0.68, "label": "award", "reviews": "9%" },
-          { "month": "2023-06", "intensity": 0.56, "label": "buyback" },
-          { "month": "2023-11", "intensity": 0.60, "label": "award", "reviews": "16%" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "SOL",
-        "base_price": 240.3,
-        "sigma_annual": 0.52,
-        "avg_daily_volume": 11600000,
-        "shares_outstanding": 1770000000,
-        "target_total_return": 0.32,
-        "trend_plan": [
-          { "month": "2022-10", "intensity": 0.68, "label": "award", "return": 0.107, "volatility": "+20%", "volume": "150%" },
-          { "month": "2023-06", "intensity": 0.56, "label": "buyback", "return": 0.087, "volatility": "1.4x", "volume": "150%" },
-          { "month": "2023-11", "intensity": 0.60, "label": "award", "return": 0.135, "volatility": "+20%", "volume": "150%" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "EdgeTools",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 972642,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 9000,
-        "trend_plan": [
-          { "month": "2020-12", "intensity": 0.68, "label": "outage", "posts": "4%" },
-          { "month": "2022-02", "intensity": 0.81, "label": "spike - new product launch", "posts": "15%" },
-          { "month": "2024-04", "intensity": 0.83, "label": "spike - data breach", "posts": "14%" },
-          { "month": "2024-06", "intensity": 0.57, "label": "feature rollout", "posts": "15%" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 8200,
-        "trend_plan": [
-          { "month": "2020-12", "intensity": 0.68, "label": "outage", "posts": "15%" },
-          { "month": "2022-02", "intensity": 0.81, "label": "spike - new product launch", "posts": "9%" },
-          { "month": "2024-04", "intensity": 0.83, "label": "spike - data breach", "posts": "6%" },
-          { "month": "2024-06", "intensity": 0.57, "label": "feature rollout", "posts": "12%" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 3880,
-        "trend_plan": [
-          { "month": "2020-12", "intensity": 0.68, "label": "outage" },
-          { "month": "2022-02", "intensity": 0.81, "label": "spike - new product launch", "articles": "6%" },
-          { "month": "2024-04", "intensity": 0.83, "label": "spike - data breach", "articles": "14%" },
-          { "month": "2024-06", "intensity": 0.57, "label": "feature rollout" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 12,
-        "merchant_score": 4.22,
-        "n_reviews": 13200,
-        "trend_plan": [
-          { "month": "2020-12", "intensity": 0.68, "label": "outage", "reviews": "6%" },
-          { "month": "2022-02", "intensity": 0.81, "label": "spike - new product launch" },
-          { "month": "2024-04", "intensity": 0.83, "label": "spike - data breach" },
-          { "month": "2024-06", "intensity": 0.57, "label": "feature rollout", "reviews": "12%" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "EDG",
-        "base_price": 52.6,
-        "sigma_annual": 0.30,
-        "avg_daily_volume": 1800000,
-        "shares_outstanding": 931000000,
-        "target_total_return": 0.37,
-        "trend_plan": [
-          { "month": "2020-12", "intensity": 0.68, "label": "outage", "return": -0.137, "volatility": "1.6x", "volume": "x1.6" },
-          { "month": "2022-02", "intensity": 0.81, "label": "spike - new product launch", "return": 0.117, "volatility": "+20%", "volume": "x1.3" },
-          { "month": "2024-04", "intensity": 0.83, "label": "spike - data breach", "return": -0.101, "volatility": "+60%", "volume": "x1.6" },
-          { "month": "2024-06", "intensity": 0.57, "label": "feature rollout", "return": -0.003, "volatility": "1.1x", "volume": "110%" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "GreenWorks",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 1283643,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 8500,
-        "trend_plan": [
-          { "month": "2022-02", "intensity": 0.58, "label": "feature rollout" },
-          { "month": "2022-07", "intensity": 0.62, "label": "normal", "posts": "7%" },
-          { "month": "2023-10", "intensity": 0.76, "label": "award" },
-          { "month": "2024-12", "intensity": 0.64, "label": "feature rollout" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 8500,
-        "trend_plan": [
-          { "month": "2022-02", "intensity": 0.58, "label": "feature rollout" },
-          { "month": "2022-07", "intensity": 0.62, "label": "normal", "posts": "12%" },
-          { "month": "2023-10", "intensity": 0.76, "label": "award", "posts": "15%" },
-          { "month": "2024-12", "intensity": 0.64, "label": "feature rollout" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 5220,
-        "trend_plan": [
-          { "month": "2022-02", "intensity": 0.58, "label": "feature rollout", "articles": "14%" },
-          { "month": "2022-07", "intensity": 0.62, "label": "normal", "articles": "6%" },
-          { "month": "2023-10", "intensity": 0.76, "label": "award" },
-          { "month": "2024-12", "intensity": 0.64, "label": "feature rollout", "articles": "14%" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 9,
-        "merchant_score": 4.16,
-        "n_reviews": 29300,
-        "trend_plan": [
-          { "month": "2022-02", "intensity": 0.58, "label": "feature rollout", "reviews": "5%" },
-          { "month": "2022-07", "intensity": 0.62, "label": "normal", "reviews": "12%" },
-          { "month": "2023-10", "intensity": 0.76, "label": "award" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "GRE",
-        "base_price": 204.7,
-        "sigma_annual": 0.45,
-        "avg_daily_volume": 4870000,
-        "shares_outstanding": 3466000000,
-        "target_total_return": 0.47,
-        "trend_plan": [
-          { "month": "2022-02", "intensity": 0.58, "label": "feature rollout", "return": 0.016, "volatility": "1.0x", "volume": "x1.0" },
-          { "month": "2022-07", "intensity": 0.62, "label": "normal", "return": 0.015, "volatility": "1.1x", "volume": "110%" },
-          { "month": "2023-10", "intensity": 0.76, "label": "award", "return": 0.072, "volatility": "1.4x", "volume": "x1.3" },
-          { "month": "2024-12", "intensity": 0.64, "label": "feature rollout", "return": 0.015, "volatility": "1.1x", "volume": "x1.0" }
-        ]
-      }
-    },
-    {
-      "merchant_name": "SmartDIY",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 9595595,
-      "tweets": {
-        "enabled": true,
-        "n_tweets": 11900,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.83, "label": "partnership", "posts": "5%" },
-          { "month": "2023-04", "intensity": 0.70, "label": "regulatory fine" },
-          { "month": "2023-12", "intensity": 0.57, "label": "seasonal buzz", "posts": "14%" },
-          { "month": "2024-06", "intensity": 0.78, "label": "spike - data breach", "posts": "4%" }
-        ]
-      },
-      "reddit": {
-        "enabled": true,
-        "n_posts": 8650,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.83, "label": "partnership" },
-          { "month": "2023-04", "intensity": 0.70, "label": "regulatory fine" },
-          { "month": "2023-12", "intensity": 0.57, "label": "seasonal buzz", "posts": "11%" },
-          { "month": "2024-06", "intensity": 0.78, "label": "spike - data breach" }
-        ]
-      },
-      "news": {
-        "enabled": true,
-        "n_articles": 7980,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.83, "label": "partnership", "articles": "9%" },
-          { "month": "2023-04", "intensity": 0.70, "label": "regulatory fine" },
-          { "month": "2023-12", "intensity": 0.57, "label": "seasonal buzz", "articles": "13%" },
-          { "month": "2024-06", "intensity": 0.78, "label": "spike - data breach", "articles": "4%" }
-        ]
-      },
-      "reviews": {
-        "enabled": true,
-        "n_products": 10,
-        "merchant_score": 4.17,
-        "n_reviews": 12550,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.83, "label": "partnership", "reviews": "8%" },
-          { "month": "2023-12", "intensity": 0.57, "label": "seasonal buzz", "reviews": "19%" },
-          { "month": "2024-06", "intensity": 0.78, "label": "spike - data breach", "reviews": "14%" }
-        ]
-      },
-      "stock": {
-        "enabled": true,
-        "ticker": "SMA",
-        "base_price": 284.9,
-        "sigma_annual": 0.31,
-        "avg_daily_volume": 8330000,
-        "shares_outstanding": 4056000000,
-        "target_total_return": -0.05,
-        "trend_plan": [
-          { "month": "2021-02", "intensity": 0.83, "label": "partnership", "return": 0.093, "volatility": "+40%", "volume": "x1.6" },
-          { "month": "2023-04", "intensity": 0.70, "label": "regulatory fine", "return": -0.104, "volatility": "+60%", "volume": "x1.6" },
-          { "month": "2023-12", "intensity": 0.57, "label": "seasonal buzz", "return": -0.008, "volatility": "+10%", "volume": "110%" },
-          { "month": "2024-06", "intensity": 0.78, "label": "spike - data breach", "return": -0.092, "volatility": "1.4x", "volume": "x2.0" }
+          {
+            "month": "2020-07",
+            "intensity": 0.59,
+            "label": "normal",
+            "transactions": "16%",
+            "high_risk_intensity": 0.108,
+            "decline_rate": null,
+            "gambling_share": 0.047
+          },
+          {
+            "month": "2021-01",
+            "intensity": 0.67,
+            "label": "seasonal buzz",
+            "transactions": "8%",
+            "high_risk_intensity": 0.158,
+            "decline_rate": null
+          },
+          {
+            "month": "2021-08",
+            "intensity": 0.62,
+            "label": "normal",
+            "transactions": "11%",
+            "high_risk_intensity": 0.208,
+            "decline_rate": 0.057
+          },
+          {
+            "month": "2021-09",
+            "intensity": 0.59,
+            "label": "partnership",
+            "transactions": "14%",
+            "high_risk_intensity": 0.066,
+            "decline_rate": 0.023,
+            "gambling_share": 0.055
+          },
+          {
+            "month": "2024-12",
+            "intensity": 0.55,
+            "label": "promo period",
+            "transactions": "7%",
+            "high_risk_intensity": 0.107,
+            "decline_rate": 0.085
+          }
         ]
       }
     }
