@@ -1,10 +1,30 @@
 <template>
+  <div class="page-header">
+    <nav class="breadcrumb">
+      <router-link to="/dashboard" class="breadcrumb-item"
+        >Dashboard</router-link
+      >
+      <span class="breadcrumb-separator">/</span>
+      <span class="breadcrumb-item">Merchants</span>
+      <span class="breadcrumb-separator">/</span>
+      <router-link
+        :to="`/merchant/${merchantId}`"
+        class="breadcrumb-item"
+        v-if="merchantId"
+      >
+        {{ merchantName || "Loading..." }}
+      </router-link>
+      <span class="breadcrumb-item" v-else>{{
+        merchantName || "Loading..."
+      }}</span>
+      <span class="breadcrumb-separator">/</span>
+      <span class="breadcrumb-item current">Social Updates</span>
+    </nav>
+  </div>
   <div class="data-dashboard">
     <!-- Header Buttons -->
     <div class="header-buttons">
-      <button class="back-btn" @click="goBack">
-        ← Back
-      </button>
+      <button class="back-btn" @click="goBack">← Back</button>
       <button class="ai-summary-btn" @click="generateAISummary">
         🤖 AI Summary
       </button>
@@ -15,8 +35,8 @@
       <h2 class="section-title">📰 Latest News</h2>
       <div class="carousel-container">
         <div class="carousel" ref="newsCarousel">
-          <div 
-            v-for="article in socialData.news" 
+          <div
+            v-for="article in socialData.news"
             :key="article.article_id"
             class="card news-card"
           >
@@ -26,9 +46,13 @@
                 {{ article.sentiment_label }}
               </span>
             </div>
-            <p class="card-subtitle" v-if="article.subtitle">{{ article.subtitle }}</p>
+            <p class="card-subtitle" v-if="article.subtitle">
+              {{ article.subtitle }}
+            </p>
             <div class="card-content">
-              <p class="content-preview">{{ truncateText(article.content, 120) }}</p>
+              <p class="content-preview">
+                {{ truncateText(article.content, 120) }}
+              </p>
               <div class="card-meta">
                 <span class="publisher">{{ article.publisher }}</span>
                 <span class="date">{{ formatDate(article.published_at) }}</span>
@@ -36,7 +60,9 @@
               <div class="card-stats">
                 <span class="stat">👁 {{ article.pageviews }}</span>
                 <span class="stat">🔥 {{ Math.round(article.hot_score) }}</span>
-                <span class="stat">📊 {{ article.risk_score.toFixed(1) }}%</span>
+                <span class="stat"
+                  >📊 {{ article.risk_score.toFixed(1) }}%</span
+                >
               </div>
               <button class="details-btn" @click="openModal('news', article)">
                 Details
@@ -52,8 +78,8 @@
       <h2 class="section-title">🔗 Reddit Discussions</h2>
       <div class="carousel-container">
         <div class="carousel" ref="redditCarousel">
-          <div 
-            v-for="post in socialData.reddit" 
+          <div
+            v-for="post in socialData.reddit"
             :key="post.id"
             class="card reddit-card"
           >
@@ -64,7 +90,9 @@
               </span>
             </div>
             <div class="card-content">
-              <p class="content-preview" v-if="post.selftext">{{ truncateText(post.selftext, 80) }}</p>
+              <p class="content-preview" v-if="post.selftext">
+                {{ truncateText(post.selftext, 80) }}
+              </p>
               <div class="card-meta">
                 <span class="subreddit">{{ post.subreddit }}</span>
                 <span class="author">by {{ post.author }}</span>
@@ -72,7 +100,9 @@
               <div class="card-stats">
                 <span class="stat">⬆ {{ post.score }}</span>
                 <span class="stat">💬 {{ post.num_comments }}</span>
-                <span class="stat">📈 {{ (post.upvote_ratio * 100).toFixed(0) }}%</span>
+                <span class="stat"
+                  >📈 {{ (post.upvote_ratio * 100).toFixed(0) }}%</span
+                >
               </div>
               <button class="details-btn" @click="openModal('reddit', post)">
                 Details
@@ -88,26 +118,36 @@
       <h2 class="section-title">⭐ Customer Reviews</h2>
       <div class="carousel-container">
         <div class="carousel" ref="reviewsCarousel">
-          <div 
-            v-for="review in socialData.reviews" 
+          <div
+            v-for="review in socialData.reviews"
             :key="review.review_id"
             class="card review-card"
           >
             <div class="card-header">
               <h3 class="card-title">{{ review.title }}</h3>
               <div class="rating">
-                <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= review.rating }">★</span>
+                <span
+                  v-for="i in 5"
+                  :key="i"
+                  class="star"
+                  :class="{ filled: i <= review.rating }"
+                  >★</span
+                >
               </div>
             </div>
             <div class="card-content">
-              <p class="content-preview">{{ truncateText(review.body, 100) }}</p>
+              <p class="content-preview">
+                {{ truncateText(review.body, 100) }}
+              </p>
               <div class="card-meta">
                 <span class="product">{{ review.product_name }}</span>
                 <span class="username">{{ review.username }}</span>
               </div>
               <div class="card-stats">
                 <span class="stat">👀 {{ review.views }}</span>
-                <span class="stat" v-if="review.verified_purchase">✓ Verified</span>
+                <span class="stat" v-if="review.verified_purchase"
+                  >✓ Verified</span
+                >
                 <span class="stat">{{ review.country }}</span>
               </div>
               <button class="details-btn" @click="openModal('review', review)">
@@ -124,8 +164,8 @@
       <h2 class="section-title">🐦 Social Media</h2>
       <div class="carousel-container">
         <div class="carousel" ref="tweetsCarousel">
-          <div 
-            v-for="tweet in socialData.tweet" 
+          <div
+            v-for="tweet in socialData.tweet"
             :key="tweet.tweet_id"
             class="card tweet-card"
           >
@@ -134,13 +174,19 @@
               <div class="card-meta">
                 <span class="date">{{ formatDate(tweet.created_at) }}</span>
                 <span v-if="tweet.entities.hashtags.length" class="hashtags">
-                  {{ tweet.entities.hashtags.map(h => h).join(' ') }}
+                  {{ tweet.entities.hashtags.map((h) => h).join(" ") }}
                 </span>
               </div>
               <div class="card-stats">
-                <span class="stat">❤ {{ tweet.public_metrics.like_count }}</span>
-                <span class="stat">🔄 {{ tweet.public_metrics.retweet_count }}</span>
-                <span class="stat">💬 {{ tweet.public_metrics.reply_count }}</span>
+                <span class="stat"
+                  >❤ {{ tweet.public_metrics.like_count }}</span
+                >
+                <span class="stat"
+                  >🔄 {{ tweet.public_metrics.retweet_count }}</span
+                >
+                <span class="stat"
+                  >💬 {{ tweet.public_metrics.reply_count }}</span
+                >
               </div>
               <button class="details-btn" @click="openModal('tweet', tweet)">
                 Details
@@ -158,7 +204,7 @@
           <h2 class="modal-title">{{ getModalTitle() }}</h2>
           <button class="close-btn" @click="closeModal">×</button>
         </div>
-        
+
         <div class="modal-body">
           <!-- News Modal -->
           <div v-if="modalType === 'news'" class="news-details">
@@ -179,37 +225,60 @@
               <strong>Author:</strong> {{ selectedItem.author }}
             </div>
             <div class="detail-row">
-              <strong>Published:</strong> {{ formatDate(selectedItem.published_at) }}
+              <strong>Published:</strong>
+              {{ formatDate(selectedItem.published_at) }}
             </div>
             <div class="detail-row">
               <strong>Section:</strong> {{ selectedItem.section }}
             </div>
             <div class="detail-row">
-              <strong>Categories:</strong> {{ selectedItem.categories.join(', ') }}
+              <strong>Categories:</strong>
+              {{ selectedItem.categories.join(", ") }}
             </div>
             <div class="detail-row">
-              <strong>Keywords:</strong> {{ selectedItem.keywords.join(', ') }}
+              <strong>Keywords:</strong> {{ selectedItem.keywords.join(", ") }}
             </div>
             <div class="detail-row">
-              <strong>Sentiment:</strong> 
-              <span class="sentiment-badge" :class="selectedItem.sentiment_label">
-                {{ selectedItem.sentiment_label }} ({{ selectedItem.sentiment_score.toFixed(3) }})
+              <strong>Sentiment:</strong>
+              <span
+                class="sentiment-badge"
+                :class="selectedItem.sentiment_label"
+              >
+                {{ selectedItem.sentiment_label }} ({{
+                  selectedItem.sentiment_score.toFixed(3)
+                }})
               </span>
             </div>
             <div class="detail-row">
               <strong>Metrics:</strong>
               <div class="metrics-grid">
-                <span class="metric">👁 Views: {{ selectedItem.pageviews }}</span>
-                <span class="metric">🔥 Hot Score: {{ Math.round(selectedItem.hot_score) }}</span>
-                <span class="metric">📊 Risk Score: {{ selectedItem.risk_score.toFixed(1) }}%</span>
+                <span class="metric"
+                  >👁 Views: {{ selectedItem.pageviews }}</span
+                >
+                <span class="metric"
+                  >🔥 Hot Score: {{ Math.round(selectedItem.hot_score) }}</span
+                >
+                <span class="metric"
+                  >📊 Risk Score:
+                  {{ selectedItem.risk_score.toFixed(1) }}%</span
+                >
                 <span class="metric">📤 Shares: {{ selectedItem.shares }}</span>
-                <span class="metric">💬 Comments: {{ selectedItem.comments }}</span>
-                <span class="metric">⏱ Reading Time: {{ selectedItem.reading_time_min }} min</span>
+                <span class="metric"
+                  >💬 Comments: {{ selectedItem.comments }}</span
+                >
+                <span class="metric"
+                  >⏱ Reading Time: {{ selectedItem.reading_time_min }} min</span
+                >
               </div>
             </div>
             <div class="detail-row" v-if="selectedItem.url">
-              <strong>URL:</strong> 
-              <a :href="selectedItem.url" target="_blank" class="external-link">{{ selectedItem.url }}</a>
+              <strong>URL:</strong>
+              <a
+                :href="selectedItem.url"
+                target="_blank"
+                class="external-link"
+                >{{ selectedItem.url }}</a
+              >
             </div>
           </div>
 
@@ -229,32 +298,51 @@
               <strong>Author:</strong> {{ selectedItem.author }}
             </div>
             <div class="detail-row">
-              <strong>Created:</strong> {{ formatDate(selectedItem.created_at) }}
+              <strong>Created:</strong>
+              {{ formatDate(selectedItem.created_at) }}
             </div>
             <div class="detail-row">
-              <strong>Flair:</strong> {{ selectedItem.flair_text || 'None' }}
+              <strong>Flair:</strong> {{ selectedItem.flair_text || "None" }}
             </div>
             <div class="detail-row">
-              <strong>Keywords:</strong> {{ selectedItem.keywords.join(', ') }}
+              <strong>Keywords:</strong> {{ selectedItem.keywords.join(", ") }}
             </div>
             <div class="detail-row">
               <strong>Sentiment:</strong>
-              <span class="sentiment-badge" :class="selectedItem.sentiment_label">
-                {{ selectedItem.sentiment_label }} ({{ selectedItem.sentiment_score.toFixed(3) }})
+              <span
+                class="sentiment-badge"
+                :class="selectedItem.sentiment_label"
+              >
+                {{ selectedItem.sentiment_label }} ({{
+                  selectedItem.sentiment_score.toFixed(3)
+                }})
               </span>
             </div>
             <div class="detail-row">
               <strong>Metrics:</strong>
               <div class="metrics-grid">
                 <span class="metric">⬆ Score: {{ selectedItem.score }}</span>
-                <span class="metric">💬 Comments: {{ selectedItem.num_comments }}</span>
-                <span class="metric">📈 Upvote Ratio: {{ (selectedItem.upvote_ratio * 100).toFixed(1) }}%</span>
-                <span class="metric">📊 Risk Score: {{ selectedItem.risk_score.toFixed(1) }}%</span>
+                <span class="metric"
+                  >💬 Comments: {{ selectedItem.num_comments }}</span
+                >
+                <span class="metric"
+                  >📈 Upvote Ratio:
+                  {{ (selectedItem.upvote_ratio * 100).toFixed(1) }}%</span
+                >
+                <span class="metric"
+                  >📊 Risk Score:
+                  {{ selectedItem.risk_score.toFixed(1) }}%</span
+                >
               </div>
             </div>
             <div class="detail-row" v-if="selectedItem.url">
               <strong>URL:</strong>
-              <a :href="selectedItem.url" target="_blank" class="external-link">{{ selectedItem.url }}</a>
+              <a
+                :href="selectedItem.url"
+                target="_blank"
+                class="external-link"
+                >{{ selectedItem.url }}</a
+              >
             </div>
           </div>
 
@@ -266,7 +354,13 @@
             <div class="detail-row">
               <strong>Rating:</strong>
               <div class="rating">
-                <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= selectedItem.rating }">★</span>
+                <span
+                  v-for="i in 5"
+                  :key="i"
+                  class="star"
+                  :class="{ filled: i <= selectedItem.rating }"
+                  >★</span
+                >
                 ({{ selectedItem.rating }}/5)
               </div>
             </div>
@@ -284,7 +378,8 @@
               <strong>Username:</strong> {{ selectedItem.username }}
             </div>
             <div class="detail-row">
-              <strong>Created:</strong> {{ formatDate(selectedItem.created_at) }}
+              <strong>Created:</strong>
+              {{ formatDate(selectedItem.created_at) }}
             </div>
             <div class="detail-row">
               <strong>Country:</strong> {{ selectedItem.country }}
@@ -293,23 +388,33 @@
               <strong>Platform:</strong> {{ selectedItem.platform }}
             </div>
             <div class="detail-row">
-              <strong>Verified Purchase:</strong> {{ selectedItem.verified_purchase ? 'Yes' : 'No' }}
+              <strong>Verified Purchase:</strong>
+              {{ selectedItem.verified_purchase ? "Yes" : "No" }}
             </div>
             <div class="detail-row">
-              <strong>Tags:</strong> {{ selectedItem.tags.join(', ') }}
+              <strong>Tags:</strong> {{ selectedItem.tags.join(", ") }}
             </div>
             <div class="detail-row">
               <strong>Sentiment:</strong>
-              <span class="sentiment-badge" :class="selectedItem.sentiment_label">
-                {{ selectedItem.sentiment_label }} ({{ selectedItem.sentiment_score.toFixed(3) }})
+              <span
+                class="sentiment-badge"
+                :class="selectedItem.sentiment_label"
+              >
+                {{ selectedItem.sentiment_label }} ({{
+                  selectedItem.sentiment_score.toFixed(3)
+                }})
               </span>
             </div>
             <div class="detail-row">
               <strong>Metrics:</strong>
               <div class="metrics-grid">
                 <span class="metric">👀 Views: {{ selectedItem.views }}</span>
-                <span class="metric">👍 Helpful: {{ selectedItem.helpful_votes }}</span>
-                <span class="metric">👎 Unhelpful: {{ selectedItem.unhelpful_votes }}</span>
+                <span class="metric"
+                  >👍 Helpful: {{ selectedItem.helpful_votes }}</span
+                >
+                <span class="metric"
+                  >👎 Unhelpful: {{ selectedItem.unhelpful_votes }}</span
+                >
               </div>
             </div>
           </div>
@@ -321,36 +426,68 @@
               <p class="full-content">{{ selectedItem.content }}</p>
             </div>
             <div class="detail-row">
-              <strong>Created:</strong> {{ formatDate(selectedItem.created_at) }}
+              <strong>Created:</strong>
+              {{ formatDate(selectedItem.created_at) }}
             </div>
             <div class="detail-row">
               <strong>Language:</strong> {{ selectedItem.lang }}
             </div>
-            <div class="detail-row" v-if="selectedItem.entities.hashtags.length">
-              <strong>Hashtags:</strong> {{ selectedItem.entities.hashtags.join(', ') }}
+            <div
+              class="detail-row"
+              v-if="selectedItem.entities.hashtags.length"
+            >
+              <strong>Hashtags:</strong>
+              {{ selectedItem.entities.hashtags.join(", ") }}
             </div>
-            <div class="detail-row" v-if="selectedItem.entities.mentions.length">
-              <strong>Mentions:</strong> {{ selectedItem.entities.mentions.join(', ') }}
+            <div
+              class="detail-row"
+              v-if="selectedItem.entities.mentions.length"
+            >
+              <strong>Mentions:</strong>
+              {{ selectedItem.entities.mentions.join(", ") }}
             </div>
             <div class="detail-row">
               <strong>Public Metrics:</strong>
               <div class="metrics-grid">
-                <span class="metric">❤ Likes: {{ selectedItem.public_metrics.like_count }}</span>
-                <span class="metric">🔄 Retweets: {{ selectedItem.public_metrics.retweet_count }}</span>
-                <span class="metric">💬 Replies: {{ selectedItem.public_metrics.reply_count }}</span>
-                <span class="metric">📝 Quotes: {{ selectedItem.public_metrics.quote_count }}</span>
+                <span class="metric"
+                  >❤ Likes: {{ selectedItem.public_metrics.like_count }}</span
+                >
+                <span class="metric"
+                  >🔄 Retweets:
+                  {{ selectedItem.public_metrics.retweet_count }}</span
+                >
+                <span class="metric"
+                  >💬 Replies:
+                  {{ selectedItem.public_metrics.reply_count }}</span
+                >
+                <span class="metric"
+                  >📝 Quotes:
+                  {{ selectedItem.public_metrics.quote_count }}</span
+                >
               </div>
             </div>
             <div class="detail-row">
               <strong>Engagement Metrics:</strong>
               <div class="metrics-grid">
-                <span class="metric">👁 Impressions: {{ selectedItem.non_public_metrics.impression_count }}</span>
-                <span class="metric">🔗 Link Clicks: {{ selectedItem.non_public_metrics.url_link_clicks }}</span>
-                <span class="metric">👤 Profile Clicks: {{ selectedItem.non_public_metrics.user_profile_clicks }}</span>
+                <span class="metric"
+                  >👁 Impressions:
+                  {{ selectedItem.non_public_metrics.impression_count }}</span
+                >
+                <span class="metric"
+                  >🔗 Link Clicks:
+                  {{ selectedItem.non_public_metrics.url_link_clicks }}</span
+                >
+                <span class="metric"
+                  >👤 Profile Clicks:
+                  {{
+                    selectedItem.non_public_metrics.user_profile_clicks
+                  }}</span
+                >
               </div>
             </div>
             <div class="detail-row">
-              <strong>Sensitive Content:</strong> {{ selectedItem.possibly_sensitive ? 'Yes' : 'No' }}
+              <strong>Sensitive Content:</strong>
+              {{ selectedItem.possibly_sensitive ? "Yes" : "No" }}
             </div>
           </div>
         </div>
@@ -358,7 +495,11 @@
     </div>
 
     <!-- AI Summary Modal -->
-    <div v-if="showAISummaryModal" class="modal-overlay" @click="closeAISummaryModal">
+    <div
+      v-if="showAISummaryModal"
+      class="modal-overlay"
+      @click="closeAISummaryModal"
+    >
       <div class="modal-content ai-summary-modal" @click.stop>
         <div class="modal-header">
           <h2 class="modal-title">🤖 AI Summary</h2>
@@ -375,82 +516,105 @@
 </template>
 
 <script>
-import socialUpdatesData from '@/assets/social-updates-data.json'
+import socialUpdatesData from "@/assets/social-updates-data.json";
 
 export default {
-  name: 'SocialDashboard',
+  name: "SocialDashboard",
   data() {
     return {
       socialData: socialUpdatesData,
       showModal: false,
       showAISummaryModal: false,
-      modalType: '',
+      modalType: "",
       selectedItem: null,
-      aiSummary: ''
-    }
+      aiSummary: "",
+      merchantName: "",
+      merchantId: "",
+    };
+  },
+  created() {
+    this.merchantName = this.$route.query.merchantName || "Unknown Merchant";
+    this.merchantId = this.$route.query.merchantId || this.$route.params.id;
   },
   methods: {
     goBack() {
-      this.$router.go(-1);
+      if (this.merchantId) {
+        this.$router.push(`/merchant/${this.merchantId}`);
+      } else {
+        this.$router.go(-1);
+      }
     },
     truncateText(text, maxLength) {
-      if (!text) return '';
-      return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+      if (!text) return "";
+      return text.length > maxLength
+        ? text.substring(0, maxLength) + "..."
+        : text;
     },
     formatDate(dateString) {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     },
     openModal(type, item) {
       this.modalType = type;
       this.selectedItem = item;
       this.showModal = true;
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     },
     closeModal() {
       this.showModal = false;
-      this.modalType = '';
+      this.modalType = "";
       this.selectedItem = null;
-      document.body.style.overflow = 'auto';
+      document.body.style.overflow = "auto";
     },
     getModalTitle() {
-      switch(this.modalType) {
-        case 'news': return '📰 News Article Details';
-        case 'reddit': return '🔗 Reddit Post Details';
-        case 'review': return '⭐ Review Details';
-        case 'tweet': return '🐦 Tweet Details';
-        default: return 'Details';
+      switch (this.modalType) {
+        case "news":
+          return "📰 News Article Details";
+        case "reddit":
+          return "🔗 Reddit Post Details";
+        case "review":
+          return "⭐ Review Details";
+        case "tweet":
+          return "🐦 Tweet Details";
+        default:
+          return "Details";
       }
     },
     generateAISummary() {
       // Simulate AI summary generation
       this.aiSummary = "Loading AI summary...";
       this.showAISummaryModal = true;
-      
+
       // Simulate API call delay
       setTimeout(() => {
         const totalNews = this.socialData.news.length;
         const totalReddit = this.socialData.reddit.length;
         const totalReviews = this.socialData.reviews.length;
         const totalTweets = this.socialData.tweet.length;
-        
+
         // Calculate sentiment distribution
         const allItems = [
           ...this.socialData.news,
           ...this.socialData.reddit,
           ...this.socialData.reviews,
-          ...this.socialData.tweet.map(t => ({ sentiment_label: 'neutral' }))
+          ...this.socialData.tweet.map((t) => ({ sentiment_label: "neutral" })),
         ];
-        
-        const positive = allItems.filter(item => item.sentiment_label === 'positive').length;
-        const negative = allItems.filter(item => item.sentiment_label === 'negative').length;
-        const neutral = allItems.filter(item => item.sentiment_label === 'neutral').length;
-        
+
+        const positive = allItems.filter(
+          (item) => item.sentiment_label === "positive"
+        ).length;
+        const negative = allItems.filter(
+          (item) => item.sentiment_label === "negative"
+        ).length;
+        const neutral = allItems.filter(
+          (item) => item.sentiment_label === "neutral"
+        ).length;
+
         this.aiSummary = `📊 **AudioTech Social Media Analysis Summary**
         
 **Overall Activity:** 
@@ -460,9 +624,13 @@ export default {
 - ${totalTweets} social media mentions
 
 **Sentiment Analysis:**
-- Positive: ${positive} items (${((positive/allItems.length)*100).toFixed(1)}%)
-- Negative: ${negative} items (${((negative/allItems.length)*100).toFixed(1)}%)
-- Neutral: ${neutral} items (${((neutral/allItems.length)*100).toFixed(1)}%)
+- Positive: ${positive} items (${((positive / allItems.length) * 100).toFixed(
+          1
+        )}%)
+- Negative: ${negative} items (${((negative / allItems.length) * 100).toFixed(
+          1
+        )}%)
+- Neutral: ${neutral} items (${((neutral / allItems.length) * 100).toFixed(1)}%)
 
 **Key Insights:**
 - Recent news coverage shows mixed reactions to AudioTech's latest moves
@@ -477,13 +645,13 @@ export default {
     },
     closeAISummaryModal() {
       this.showAISummaryModal = false;
-      document.body.style.overflow = 'auto';
-    }
+      document.body.style.overflow = "auto";
+    },
   },
   beforeUnmount() {
-    document.body.style.overflow = 'auto';
-  }
-}
+    document.body.style.overflow = "auto";
+  },
+};
 </script>
 
 <style scoped>
@@ -522,7 +690,7 @@ export default {
 }
 
 .ai-summary-btn {
-  background: linear-gradient(135deg, #14B8A6, #0D9488);
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -562,7 +730,7 @@ export default {
   padding: 0.5rem 0;
   scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: #14B8A6 #e5e7eb;
+  scrollbar-color: #14b8a6 #e5e7eb;
 }
 
 .carousel::-webkit-scrollbar {
@@ -575,7 +743,7 @@ export default {
 }
 
 .carousel::-webkit-scrollbar-thumb {
-  background: #14B8A6;
+  background: #14b8a6;
   border-radius: 3px;
 }
 
@@ -667,7 +835,7 @@ export default {
 }
 
 .details-btn {
-  background: #14B8A6;
+  background: #14b8a6;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -679,7 +847,7 @@ export default {
 }
 
 .details-btn:hover {
-  background: #0D9488;
+  background: #0d9488;
 }
 
 .sentiment-badge {
@@ -721,13 +889,15 @@ export default {
   color: #fbbf24;
 }
 
-.publisher, .subreddit, .product {
+.publisher,
+.subreddit,
+.product {
   font-weight: 500;
-  color: #14B8A6;
+  color: #14b8a6;
 }
 
 .hashtags {
-  color: #14B8A6;
+  color: #14b8a6;
   font-weight: 500;
 }
 
@@ -821,7 +991,7 @@ export default {
   padding: 0.75rem;
   background: #f9fafb;
   border-radius: 6px;
-  border-left: 3px solid #14B8A6;
+  border-left: 3px solid #14b8a6;
 }
 
 .metrics-grid {
@@ -840,7 +1010,7 @@ export default {
 }
 
 .external-link {
-  color: #14B8A6;
+  color: #14b8a6;
   text-decoration: none;
   word-break: break-all;
 }
@@ -859,29 +1029,62 @@ export default {
   color: #374151;
 }
 
+.page-header {
+  padding: 16px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.breadcrumb-item {
+  color: #6b7280;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-item:hover {
+  color: #008080;
+}
+
+.breadcrumb-item.current {
+  color: #008080;
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  color: #d1d5db;
+  user-select: none;
+}
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .data-dashboard {
     padding: 1rem;
   }
-  
+
   .header-buttons {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .back-btn,
   .ai-summary-btn {
     padding: 0.65rem 1.25rem;
     justify-content: center;
   }
-  
+
   .card {
     flex: 0 0 280px;
     padding: 1rem;
   }
-  
+
   .section-title {
     font-size: 1.25rem;
   }

@@ -1,10 +1,9 @@
 <template>
   <div class="dashboard-view">
     <div class="page-header">
-      <h1 class="page-title">Merchant Management Dashboard</h1>
+      <!-- <h1 class="page-title">Merchant Management Dashboard</h1> -->
       <nav class="breadcrumb">
-        <router-link to="/">Home</router-link> > 
-        <span>Merchants</span>
+        <span>Home / Dashboard</span>
       </nav>
     </div>
     

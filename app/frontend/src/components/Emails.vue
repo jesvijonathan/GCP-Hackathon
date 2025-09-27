@@ -1,4 +1,13 @@
 <template>
+  <div class="page-header">
+    <nav class="breadcrumb">
+      <router-link to="/dashboard" class="breadcrumb-item"
+        >Home</router-link
+      >
+      <span class="breadcrumb-separator">/</span>
+      <span class="breadcrumb-item">Mailbox</span>
+    </nav>
+  </div>
   <div class="email-view-container">
     <!-- Email List Panel -->
     <div class="email-list-panel">
@@ -8,7 +17,7 @@
             <span class="back-icon">←</span>
             Back
           </button>
-          <h2>Emails</h2>
+          <!-- <h2>Emails</h2> -->
         </div>
       </div>
 
@@ -167,8 +176,10 @@ export default {
 
 .email-list-header .header-content {
   display: flex;
-  flex-direction: column;
+  /* flex-direction: column; */
   gap: 12px;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .back-btn {
@@ -483,6 +494,40 @@ export default {
 .email-body :deep(th) {
   background: #f8f9fa;
   font-weight: 600;
+}
+
+.page-header {
+  padding: 16px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.breadcrumb-item {
+  color: #6b7280;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-item:hover {
+  color: #008080;
+}
+
+.breadcrumb-item.current {
+  color: #008080;
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  color: #d1d5db;
+  user-select: none;
 }
 
 /* Responsive Design */
