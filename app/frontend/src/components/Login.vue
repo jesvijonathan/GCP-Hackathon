@@ -104,7 +104,7 @@ const handleSubmit = (event) => {
   padding: 40px 30px;
   background: white;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); */
   border: 1px solid #e9ecef;
   display: flex;
   flex-direction: column;
