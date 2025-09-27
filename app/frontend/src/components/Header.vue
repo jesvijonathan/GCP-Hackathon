@@ -10,7 +10,7 @@
         />
       </div>
       
-      <nav class="nav" aria-label="Main navigation">
+      <nav v-if="isAuthenticated" class="nav" aria-label="Main navigation" >
         <button @click="redirectToDashboard"  class="action-center" aria-label="Action Center">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="button-icon">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
@@ -42,6 +42,21 @@
           </svg>
           {{ isAuthenticated ? 'Logout' : 'Login' }}
         </button>
+      </nav>
+      <nav v-else class="nav" aria-label="Main navigation">
+            <img
+            @click="redirectToAboutUs"
+            class="wl-logo"
+            src="https://nullbyte-ticketing-system.vercel.app/assets/logo-fFaqgoXu.png"
+            alt="NullByte"
+            />
+            |
+            <img
+            @click="redirectToAboutUs"
+            class="wl-logo_g"
+            src="https://nullbyte-ticketing-system.vercel.app/assets/Google_2015_logo.svg-CnFd-Bbr.webp"
+            alt="NullByte"
+            />
       </nav>
     </div>
   </header>
@@ -115,6 +130,37 @@ watch(isAuthenticated, (newValue) => {
   z-index: 1000;
 }
 
+.wl-logo{
+    height: 22px;
+    width: auto;
+    display: block;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    filter: brightness(0) invert(1);
+    margin-right: 2rem;
+    margin: 1rem 1rem;
+}
+.wl-logo:hover{
+  transform: scale(1.02);
+  filter: brightness(0) invert(1) drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+}
+
+.wl-logo_g{
+    height: 30px;
+    width: auto;
+    display: block;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    filter: brightness(0) invert(1);
+    margin-right: 2rem;
+    margin-left: 1rem;
+    margin-top: 4px;
+}
+.wl-logo_g:hover{
+  transform: scale(1.02);
+  filter: brightness(0) invert(1) drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+}
+
 .container {
   display: flex;
   justify-content: space-between;
@@ -128,11 +174,11 @@ watch(isAuthenticated, (newValue) => {
 .header-left {
   display: flex;
   align-items: center;
-  margin-left: 0.5rem;
+  margin-left: 3rem;
 }
 
 .logo {
-  height: 40px;
+  height: 32px;
   width: auto;
   display: block;
   cursor: pointer;
@@ -141,7 +187,7 @@ watch(isAuthenticated, (newValue) => {
 }
 
 .logo:hover {
-  transform: scale(1.05) rotate(5deg);
+  transform: scale(1.15, 1.05) rotate(-1deg);
   filter: brightness(0) invert(1) drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
 }
 
@@ -158,7 +204,7 @@ watch(isAuthenticated, (newValue) => {
   color: #008080;
   border: none;
   padding: 0.75rem 1.25rem;
-  border-radius: 12px;
+  border-radius: 7px;
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 600;
@@ -167,9 +213,11 @@ watch(isAuthenticated, (newValue) => {
   align-items: center;
   gap: 0.5rem;
   backdrop-filter: blur(10px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
   position: relative;
   overflow: hidden;
+      background: #008080;
+  color: white;
 }
 
 .action-center::before,
@@ -180,7 +228,7 @@ watch(isAuthenticated, (newValue) => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    background: white;
   transition: left 0.5s ease;
 }
 
@@ -191,9 +239,9 @@ watch(isAuthenticated, (newValue) => {
 
 .action-center:hover,
 .auth-button:hover {
-  background: rgba(224, 247, 250, 0.95);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  color: #008080;
+     background: white;
+          text-decoration: underline;
 }
 
 .action-center:active,
@@ -203,31 +251,33 @@ watch(isAuthenticated, (newValue) => {
 }
 
 .merchant-btn {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(224, 247, 250, 0.9));
+    background: #008080;
+  color: white;
 }
 
 .merchant-btn:hover {
-  background: linear-gradient(135deg, rgba(224, 247, 250, 0.95), rgba(178, 223, 219, 0.9));
+  color: #008080;
+     background: white;
+          text-decoration: underline;
 }
 
 .auth-button {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(240, 248, 255, 0.9));
-  border: 2px solid rgba(255, 255, 255, 0.3);
+    background: #008080;
+  color: white;
+
 }
 
 .auth-button:hover {
-  background: linear-gradient(135deg, rgba(224, 247, 250, 0.95), rgba(178, 223, 219, 0.9));
-  border-color: rgba(255, 255, 255, 0.5);
+  color: #008080;
+     background: white;
+     text-decoration: underline;
 }
 
 .button-icon {
-  transition: transform 0.3s ease;
+  transition: transform 0.1s ease;
 }
 
-.action-center:hover .button-icon,
-.auth-button:hover .button-icon {
-  transform: scale(1.1);
-}
+
 
 /* Responsive Design */
 @media (max-width: 768px) {

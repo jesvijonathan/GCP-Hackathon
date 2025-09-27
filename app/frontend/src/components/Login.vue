@@ -3,6 +3,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { ref, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 
+
 const router = useRouter();
 const { login } = useAuth(); // Get the login function from useAuth
 
@@ -36,12 +37,13 @@ const handleSubmit = (event) => {
 <template>
   <div class="login-container">
     <form class="login-form">
-      <h2 class="heading">Welcome!</h2>
+      <h2 class="heading">Sign In</h2>
       <!-- <p class="subtitle">Sign in to continue</p> -->
 
-      <div class="form-group">
+<div class="form-group-container">
+        <div class="form-group">
         <div class="input-wrapper">
-          <span class="input-icon">👤</span>
+          <span class="input-icon"></span>
           <input
             type="text"
             id="username"
@@ -53,19 +55,20 @@ const handleSubmit = (event) => {
 
       <div class="form-group">
         <div class="input-wrapper">
-          <span class="input-icon">🔒</span>
           <input
             type="password"
             id="password"
             placeholder="Enter your password"
             v-model="password"
           />
+          <span class="input-icon"></span>
         </div>
       </div>
+</div>
 
       <button @click="handleSubmit" type="submit" class="login-button">
         <span>Login</span>
-        <span class="button-arrow">→</span>
+        <!-- <span class="button-arrow">→</span> -->
       </button>
     </form>
   </div>
@@ -81,10 +84,17 @@ const handleSubmit = (event) => {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 80vh;
+  min-height: 72vh;
   margin: 0;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background-color: #f8f9fa;
+  background-color: #ffffffff;
+/* background: linear-gradient(
+  150deg,
+  rgba(59, 156, 156, 0.4) 0%,
+  rgba(255, 255, 255, 1) 50%,
+  rgba(47, 59, 59, 0.5) 100%
+); */
+
   padding: 20px;
 }
 
@@ -96,14 +106,18 @@ const handleSubmit = (event) => {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   border: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  padding: 3.5rem 3rem;
 }
 
 .heading {
   text-align: center;
-  margin-bottom: 20px;
-  font-size: 24px;
+  font-size: 1.8rem;
   color: #188882;
-  font-weight: 600;
+  font-weight: 900;
+  margin-top: 0.5rem;
+  margin-bottom: 2.3rem;
 }
 
 .subtitle {
@@ -115,6 +129,10 @@ const handleSubmit = (event) => {
 
 .form-group {
   margin-bottom: 20px;
+}
+.form-group-container{
+display: flex;
+flex-direction: column;
 }
 
 .input-wrapper {
@@ -133,7 +151,7 @@ const handleSubmit = (event) => {
 
 .form-group input {
   width: 100%;
-  padding: 12px 12px 12px 40px;
+  padding: 12px 12px 12px 20px;
   background: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 6px;
@@ -144,7 +162,10 @@ const handleSubmit = (event) => {
 
 .form-group input::placeholder {
   color: #adb5bd;
+  text-align: center;
 }
+
+
 
 .form-group input:focus {
   outline: none;
@@ -153,6 +174,9 @@ const handleSubmit = (event) => {
   box-shadow: 0 0 0 3px rgba(32, 178, 170, 0.1);
 }
 
+.form-group input:focus::placeholder {
+  text-align: left;
+}
 .login-button {
   width: 100%;
   padding: 12px 20px;
@@ -160,7 +184,7 @@ const handleSubmit = (event) => {
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -189,19 +213,4 @@ const handleSubmit = (event) => {
   transform: translateX(2px);
 }
 
-/* Responsive Design */
-@media (max-width: 480px) {
-  .login-container {
-    padding: 15px;
-  }
-
-  .login-form {
-    padding: 30px 20px;
-    max-width: 100%;
-  }
-
-  .heading {
-    font-size: 22px;
-  }
-}
 </style>
