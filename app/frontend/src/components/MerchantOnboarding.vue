@@ -7,44 +7,49 @@ export default {
     const currentStep = ref(1);
 
     const steps = ref([
-      { title: "Personal Info" },
-      { title: "Address" },
-      { title: "Additional" },
+      { title: "Basic Information" },
+      { title: "Location & Contact" },
+      { title: "Financial & Operational" },
     ]);
 
     const formData = ref({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      address: "",
+      id: "",
+      name: "",
+      legal_name: "",
+      acceptor_name: "",
+      acceptor_category_code: "",
+      url: "",
+      language_code: "",
+      time_zone_id: "",
+      country_code: "",
+      country_sub_division_code: "",
+      home_country_code: "",
+      region_id: "",
       city: "",
-      state: "",
-      zipCode: "",
-      country: "",
-      company: "",
-      position: "",
-      experience: "",
-      interests: [],
-      comments: "",
+      postal_code: "",
+      street: "",
+      currency_code: "",
+      tax_id: "",
+      trade_register_number: "",
+      iban: "",
+      domiciliary_bank_number: "",
+      cut_off_time: "",
+      activation_flag: false,
+      activation_time: "",
+      activation_start_time: "",
+      activation_end_time: "",
+      city_category_code: "",
+      business_service_phone_number: "",
+      customer_service_phone_number: "",
+      additional_contact_information: "",
     });
 
     const isCurrentStepValid = computed(() => {
       switch (currentStep.value) {
         case 1:
-          return (
-            formData.value.firstName &&
-            formData.value.lastName &&
-            formData.value.email
-          );
+          return formData.value.id && formData.value.name;
         case 2:
-          return (
-            formData.value.address &&
-            formData.value.city &&
-            formData.value.state &&
-            formData.value.zipCode &&
-            formData.value.country
-          );
+          return true; // No required fields in step 2
         case 3:
           return true; // No required fields in step 3
         default:
@@ -66,9 +71,18 @@ export default {
 
     const handleSubmit = () => {
       if (isCurrentStepValid.value) {
-        console.log("Form submitted:", formData.value);
+        // Create the final JSON object
+        const submissionData = {
+          ...formData.value,
+          // Convert string dates to proper format if needed
+          activation_time: formData.value.activation_time || null,
+          activation_start_time: formData.value.activation_start_time || null,
+          activation_end_time: formData.value.activation_end_time || null,
+          cut_off_time: formData.value.cut_off_time || null,
+        };
 
-        alert("Form submitted successfully!");
+        console.log("Form submitted with data:", JSON.stringify(submissionData, null, 2));
+        alert("Form submitted successfully! Check console for JSON data.");
       }
     };
 
@@ -90,7 +104,7 @@ export default {
     <div class="form-card">
       <!-- Progress Bar -->
       <div class="progress-header">
-        <h2 class="form-title">Application Form</h2>
+        <h2 class="form-title">Merchant Registration Form</h2>
         <div class="progress-bar">
           <div class="progress-steps">
             <div
@@ -120,189 +134,353 @@ export default {
 
       <!-- Form Content -->
       <form @submit.prevent="handleSubmit" class="form-content">
-        <!-- Step 1: Personal Information -->
+        <!-- Step 1: Basic Information -->
         <div v-if="currentStep === 1" class="form-step">
-          <h3 class="step-title">Personal Information</h3>
+          <h3 class="step-title">Basic Information</h3>
           <div class="form-grid">
             <div class="form-group">
-              <label for="firstName">First Name *</label>
+              <label for="id">ID *</label>
               <input
-                id="firstName"
-                v-model="formData.firstName"
+                id="id"
+                v-model="formData.id"
                 type="text"
                 required
+                maxlength="20"
                 class="form-input"
-                placeholder="Enter your first name"
+                placeholder="Enter unique ID (max 20 chars)"
               />
             </div>
             <div class="form-group">
-              <label for="lastName">Last Name *</label>
+              <label for="name">Name *</label>
               <input
-                id="lastName"
-                v-model="formData.lastName"
+                id="name"
+                v-model="formData.name"
                 type="text"
                 required
+                maxlength="255"
                 class="form-input"
-                placeholder="Enter your last name"
+                placeholder="Enter name"
               />
             </div>
             <div class="form-group">
-              <label for="email">Email Address *</label>
+              <label for="legal_name">Legal Name</label>
               <input
-                id="email"
-                v-model="formData.email"
-                type="email"
-                required
+                id="legal_name"
+                v-model="formData.legal_name"
+                type="text"
+                maxlength="255"
                 class="form-input"
-                placeholder="Enter your email address"
+                placeholder="Enter legal name"
               />
             </div>
             <div class="form-group">
-              <label for="phone">Phone Number</label>
+              <label for="acceptor_name">Acceptor Name</label>
               <input
-                id="phone"
-                v-model="formData.phone"
-                type="tel"
+                id="acceptor_name"
+                v-model="formData.acceptor_name"
+                type="text"
+                maxlength="255"
                 class="form-input"
-                placeholder="Enter your phone number"
+                placeholder="Enter acceptor name"
               />
+            </div>
+            <div class="form-group">
+              <label for="acceptor_category_code">Acceptor Category Code</label>
+              <input
+                id="acceptor_category_code"
+                v-model="formData.acceptor_category_code"
+                type="text"
+                maxlength="10"
+                class="form-input"
+                placeholder="Enter category code"
+              />
+            </div>
+            <div class="form-group">
+              <label for="url">Website URL</label>
+              <input
+                id="url"
+                v-model="formData.url"
+                type="url"
+                maxlength="255"
+                class="form-input"
+                placeholder="https://example.com"
+              />
+            </div>
+            <div class="form-group">
+              <label for="language_code">Language Code</label>
+              <select
+                id="language_code"
+                v-model="formData.language_code"
+                class="form-input"
+              >
+                <option value="">Select language</option>
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="it">Italian</option>
+                <option value="pt">Portuguese</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="time_zone_id">Time Zone</label>
+              <select
+                id="time_zone_id"
+                v-model="formData.time_zone_id"
+                class="form-input"
+              >
+                <option value="">Select timezone</option>
+                <option value="UTC">UTC</option>
+                <option value="America/New_York">Eastern Time</option>
+                <option value="America/Chicago">Central Time</option>
+                <option value="America/Denver">Mountain Time</option>
+                <option value="America/Los_Angeles">Pacific Time</option>
+                <option value="Europe/London">London</option>
+                <option value="Europe/Paris">Paris</option>
+                <option value="Asia/Tokyo">Tokyo</option>
+              </select>
             </div>
           </div>
         </div>
 
-        <!-- Step 2: Address Information -->
+        <!-- Step 2: Location & Contact -->
         <div v-if="currentStep === 2" class="form-step">
-          <h3 class="step-title">Address Information</h3>
+          <h3 class="step-title">Location & Contact Information</h3>
           <div class="form-grid">
-            <div class="form-group full-width">
-              <label for="address">Street Address *</label>
+            <div class="form-group">
+              <label for="country_code">Country Code</label>
               <input
-                id="address"
-                v-model="formData.address"
+                id="country_code"
+                v-model="formData.country_code"
                 type="text"
-                required
+                maxlength="5"
                 class="form-input"
-                placeholder="Enter your street address"
+                placeholder="e.g., US, CA, GB"
               />
             </div>
             <div class="form-group">
-              <label for="city">City *</label>
+              <label for="country_sub_division_code">State/Province Code</label>
+              <input
+                id="country_sub_division_code"
+                v-model="formData.country_sub_division_code"
+                type="text"
+                maxlength="5"
+                class="form-input"
+                placeholder="e.g., CA, NY, ON"
+              />
+            </div>
+            <div class="form-group">
+              <label for="home_country_code">Home Country Code</label>
+              <input
+                id="home_country_code"
+                v-model="formData.home_country_code"
+                type="text"
+                maxlength="5"
+                class="form-input"
+                placeholder="Home country code"
+              />
+            </div>
+            <div class="form-group">
+              <label for="region_id">Region ID</label>
+              <input
+                id="region_id"
+                v-model="formData.region_id"
+                type="text"
+                maxlength="20"
+                class="form-input"
+                placeholder="Enter region ID"
+              />
+            </div>
+            <div class="form-group">
+              <label for="city">City</label>
               <input
                 id="city"
                 v-model="formData.city"
                 type="text"
-                required
+                maxlength="100"
                 class="form-input"
-                placeholder="Enter your city"
+                placeholder="Enter city"
               />
             </div>
             <div class="form-group">
-              <label for="state">State/Province *</label>
+              <label for="postal_code">Postal Code</label>
               <input
-                id="state"
-                v-model="formData.state"
+                id="postal_code"
+                v-model="formData.postal_code"
                 type="text"
-                required
+                maxlength="20"
                 class="form-input"
-                placeholder="Enter your state"
+                placeholder="Enter postal code"
               />
             </div>
-            <div class="form-group">
-              <label for="zipCode">ZIP Code *</label>
+            <div class="form-group full-width">
+              <label for="street">Street Address</label>
               <input
-                id="zipCode"
-                v-model="formData.zipCode"
+                id="street"
+                v-model="formData.street"
                 type="text"
-                required
+                maxlength="255"
                 class="form-input"
-                placeholder="Enter your ZIP code"
+                placeholder="Enter street address"
               />
             </div>
             <div class="form-group">
-              <label for="country">Country *</label>
-              <select
-                id="country"
-                v-model="formData.country"
-                required
+              <label for="city_category_code">City Category Code</label>
+              <input
+                id="city_category_code"
+                v-model="formData.city_category_code"
+                type="text"
+                maxlength="10"
                 class="form-input"
-              >
-                <option value="">Select a country</option>
-                <option value="US">United States</option>
-                <option value="CA">Canada</option>
-                <option value="UK">United Kingdom</option>
-                <option value="AU">Australia</option>
-                <option value="DE">Germany</option>
-                <option value="FR">France</option>
-                <option value="other">Other</option>
-              </select>
+                placeholder="City category"
+              />
+            </div>
+            <div class="form-group">
+              <label for="business_service_phone_number">Business Phone</label>
+              <input
+                id="business_service_phone_number"
+                v-model="formData.business_service_phone_number"
+                type="tel"
+                maxlength="20"
+                class="form-input"
+                placeholder="Business phone number"
+              />
+            </div>
+            <div class="form-group">
+              <label for="customer_service_phone_number">Customer Service Phone</label>
+              <input
+                id="customer_service_phone_number"
+                v-model="formData.customer_service_phone_number"
+                type="tel"
+                maxlength="20"
+                class="form-input"
+                placeholder="Customer service phone"
+              />
+            </div>
+            <div class="form-group full-width">
+              <label for="additional_contact_information">Additional Contact Information</label>
+              <textarea
+                id="additional_contact_information"
+                v-model="formData.additional_contact_information"
+                class="form-input"
+                rows="4"
+                placeholder="Any additional contact information..."
+              ></textarea>
             </div>
           </div>
         </div>
 
-        <!-- Step 3: Additional Information -->
+        <!-- Step 3: Financial & Operational -->
         <div v-if="currentStep === 3" class="form-step">
-          <h3 class="step-title">Additional Information</h3>
+          <h3 class="step-title">Financial & Operational Information</h3>
           <div class="form-grid">
             <div class="form-group">
-              <label for="company">Company/Organization</label>
-              <input
-                id="company"
-                v-model="formData.company"
-                type="text"
-                class="form-input"
-                placeholder="Enter your company name"
-              />
-            </div>
-            <div class="form-group">
-              <label for="position">Position/Title</label>
-              <input
-                id="position"
-                v-model="formData.position"
-                type="text"
-                class="form-input"
-                placeholder="Enter your position"
-              />
-            </div>
-            <div class="form-group">
-              <label for="experience">Years of Experience</label>
+              <label for="currency_code">Currency Code</label>
               <select
-                id="experience"
-                v-model="formData.experience"
+                id="currency_code"
+                v-model="formData.currency_code"
                 class="form-input"
               >
-                <option value="">Select experience</option>
-                <option value="0-1">0-1 years</option>
-                <option value="2-5">2-5 years</option>
-                <option value="6-10">6-10 years</option>
-                <option value="10+">10+ years</option>
+                <option value="">Select currency</option>
+                <option value="USD">USD - US Dollar</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - British Pound</option>
+                <option value="CAD">CAD - Canadian Dollar</option>
+                <option value="JPY">JPY - Japanese Yen</option>
+                <option value="AUD">AUD - Australian Dollar</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="interests">Areas of Interest</label>
-              <select
-                id="interests"
-                v-model="formData.interests"
-                multiple
+              <label for="tax_id">Tax ID</label>
+              <input
+                id="tax_id"
+                v-model="formData.tax_id"
+                type="text"
+                maxlength="50"
                 class="form-input"
-                size="4"
-              >
-                <option value="technology">Technology</option>
-                <option value="finance">Finance</option>
-                <option value="marketing">Marketing</option>
-                <option value="design">Design</option>
-                <option value="consulting">Consulting</option>
-                <option value="education">Education</option>
-              </select>
+                placeholder="Enter tax ID"
+              />
             </div>
-            <div class="form-group full-width">
-              <label for="comments">Additional Comments</label>
-              <textarea
-                id="comments"
-                v-model="formData.comments"
+            <div class="form-group">
+              <label for="trade_register_number">Trade Register Number</label>
+              <input
+                id="trade_register_number"
+                v-model="formData.trade_register_number"
+                type="text"
+                maxlength="50"
                 class="form-input"
-                rows="4"
-                placeholder="Any additional information you'd like to share..."
-              ></textarea>
+                placeholder="Trade register number"
+              />
+            </div>
+            <div class="form-group">
+              <label for="iban">IBAN</label>
+              <input
+                id="iban"
+                v-model="formData.iban"
+                type="text"
+                maxlength="34"
+                class="form-input"
+                placeholder="International Bank Account Number"
+              />
+            </div>
+            <div class="form-group">
+              <label for="domiciliary_bank_number">Domiciliary Bank Number</label>
+              <input
+                id="domiciliary_bank_number"
+                v-model="formData.domiciliary_bank_number"
+                type="text"
+                maxlength="50"
+                class="form-input"
+                placeholder="Bank number"
+              />
+            </div>
+            <div class="form-group">
+              <label for="cut_off_time">Cut-off Time</label>
+              <input
+                id="cut_off_time"
+                v-model="formData.cut_off_time"
+                type="time"
+                class="form-input"
+              />
+            </div>
+            <div class="form-group">
+              <label for="activation_flag">Activation Status</label>
+              <div class="checkbox-wrapper">
+                <input
+                  id="activation_flag"
+                  v-model="formData.activation_flag"
+                  type="checkbox"
+                  class="form-checkbox"
+                />
+                <label for="activation_flag" class="checkbox-label">Active</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="activation_time">Activation Time</label>
+              <input
+                id="activation_time"
+                v-model="formData.activation_time"
+                type="datetime-local"
+                class="form-input"
+              />
+            </div>
+            <div class="form-group">
+              <label for="activation_start_time">Activation Start Time</label>
+              <input
+                id="activation_start_time"
+                v-model="formData.activation_start_time"
+                type="datetime-local"
+                class="form-input"
+              />
+            </div>
+            <div class="form-group">
+              <label for="activation_end_time">Activation End Time</label>
+              <input
+                id="activation_end_time"
+                v-model="formData.activation_end_time"
+                type="datetime-local"
+                class="form-input"
+              />
             </div>
           </div>
         </div>
@@ -356,7 +534,7 @@ export default {
   background: white;
   border-radius: 16px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  max-width: 800px;
+  max-width: 900px;
   width: 100%;
   overflow: hidden;
 }
@@ -511,8 +689,22 @@ textarea.form-input {
   min-height: 100px;
 }
 
-select.form-input[multiple] {
-  background: white;
+.checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.form-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.checkbox-label {
+  margin: 0;
+  cursor: pointer;
 }
 
 .form-navigation {

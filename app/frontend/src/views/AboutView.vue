@@ -372,7 +372,7 @@ const looper = 800;
         <div class="description ">
             <p>
                We’re a group of four developers working together at Worldline Global Services on some pretty cool projects. 
-               Our team includes Jesvi Jonathan, Akileswar Prathapkumar,  Rashmi Abdulrahim, and Rajashree Dinakaran. 
+               Our team includes Jesvi Jonathan, Akileswar Prathapkumar,  Atharva Kutwal, and Shrutika Donde. 
                We bring different strengths to the table, and together, we handle everything from coding to problem-solving. </p>
             <p> Whether it’s tackling tricky bugs, optimizing systems, or coming up with new features, we work together to get things done. 
                Each of us plays a unique role, but it’s our teamwork that really makes things happen. 
@@ -415,20 +415,20 @@ const looper = 800;
                     <p class="tops">THE DEPLOYER 👨‍💻</p>
                 </div>
             </a>
-            <a class="profcon" target="_blank" href="https://www.linkedin.com/in/rashmi2001/">
+            <a class="profcon" target="_blank" href="https://www.linkedin.com/in/shrutika-donde/">
 
                 <img :src=pp3 alt="Avatar" style="width:100%">
-                <div class="profname">Rashmi Abdulrahim</div>
+                <div class="profname">Shrutika Donde</div>
                 <div class="profdesc">
                     <p>Worldline > MS > WLPFO</p>
                     <p>Associate Engineer </p><br>
                     <p id="tops_skib" class="tops">PPT Pro Max</p>
                 </div>
             </a>
-            <a class="profcon" target="_blank" href="https://www.linkedin.com/in/rajashree-g-d-5907821b1/">
+            <a class="profcon" target="_blank" href="https://www.linkedin.com/in/atharva-kutwal-588a8a219/">
 
                 <img :src=pp2 alt="Avatar" style="width:100%">
-                <div class="profname">Rajashree Dinakaran</div>
+                <div class="profname">Atharva Kutwal</div>
                 <div class="profdesc">
                     <p>Worldline > MS > WLPFO</p>
                     <p>Associate Engineer</p>
