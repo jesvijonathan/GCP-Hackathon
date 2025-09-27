@@ -2,7 +2,7 @@
   <footer class="footer">
     <div class="container footer-content">
       <div class="footer-left">
-        <router-link to="/dashboard" class="footer-logo-link">
+        <router-link to="/about" class="footer-logo-link">
           <img class="footer-logo" :src="logo" alt="NullByte" />
         </router-link>
       </div>

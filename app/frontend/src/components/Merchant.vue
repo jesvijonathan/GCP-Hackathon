@@ -1,4 +1,17 @@
 <template>
+  <div class="page-header">
+    <nav class="breadcrumb">
+      <router-link to="/dashboard" class="breadcrumb-item"
+        >Dashboard</router-link
+      >
+      <span class="breadcrumb-separator">/</span>
+      <span class="breadcrumb-item">Merchants</span>
+      <span class="breadcrumb-separator">/</span>
+      <span class="breadcrumb-item current">{{
+        merchant?.name || "Loading..."
+      }}</span>
+    </nav>
+  </div>
   <div class="merchant-detail-container">
     <div v-if="loading" class="loading">Loading merchant details...</div>
     <div class="side-panel">
@@ -520,10 +533,16 @@ export default {
     },
 
     openSocialUpdates() {
-      this.$router.push(`/merchant/${this.merchant.id}/social-updates`);
+      this.$router.push({
+        path: `/merchant/${this.merchant.id}/social-updates`,
+        query: {
+          merchantName: this.merchant.name,
+          merchantId: this.merchant.id,
+        },
+      });
     },
 
-    openEmailBox(){
+    openEmailBox() {
       this.$router.push("/mailbox");
     },
 
@@ -580,17 +599,14 @@ export default {
 
       console.log("Applied restrictions:", restrictionSummary);
       // alert(`Restrictions applied to ${this.merchant.name}!`);
-      toast.success(
-        `Restrictions applied on ${this.merchant.name} !`,
-        {
-          autoClose: 4000,
-          position: "top-right",
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        }
-      );
+      toast.success(`Restrictions applied on ${this.merchant.name} !`, {
+        autoClose: 4000,
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     },
 
     // Category code methods
@@ -709,8 +725,6 @@ export default {
   background: #008080;
   color: #f0fdfa;
 }
-
-
 
 .action-center-dropdown {
   display: flex;
@@ -1187,6 +1201,40 @@ export default {
 
 .remove-tag:hover {
   color: #006666;
+}
+
+.page-header {
+  padding: 16px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.breadcrumb-item {
+  color: #6b7280;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-item:hover {
+  color: #008080;
+}
+
+.breadcrumb-item.current {
+  color: #008080;
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  color: #d1d5db;
+  user-select: none;
 }
 
 /* Responsive Design */

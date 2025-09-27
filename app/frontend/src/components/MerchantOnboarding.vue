@@ -100,6 +100,15 @@ export default {
 </script>
 
 <template>
+  <div class="page-header">
+    <nav class="breadcrumb">
+      <router-link to="/dashboard" class="breadcrumb-item"
+        >Home</router-link
+      >
+      <span class="breadcrumb-separator">/</span>
+      <span class="breadcrumb-item">merchant-onboarding</span>
+    </nav>
+  </div>
   <div class="progressive-form-container">
     <div class="form-card">
       <!-- Progress Bar -->
@@ -758,6 +767,40 @@ textarea.form-input {
   cursor: not-allowed;
   transform: none !important;
   box-shadow: none !important;
+}
+
+.page-header {
+  padding: 16px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.breadcrumb-item {
+  color: #6b7280;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-item:hover {
+  color: #008080;
+}
+
+.breadcrumb-item.current {
+  color: #008080;
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  color: #d1d5db;
+  user-select: none;
 }
 
 @media (max-width: 768px) {

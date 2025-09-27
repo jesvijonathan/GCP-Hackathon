@@ -3,7 +3,7 @@
     <div class="container">
       <div class="header-left">
         <img 
-          @click="redirectToDashboard" 
+          @click="redirectToAboutUs" 
           class="logo" 
           :src="logo" 
           alt="NullByte" 
@@ -85,6 +85,13 @@ const redirectToMerchantOnboarding = () => {
 const redirectToDashboard = () => {
   if (isAuthenticated.value) {
     router.push('/dashboard')
+  } else {
+    router.push('/login')
+  }
+}
+const redirectToAboutUs = () => {
+  if (isAuthenticated.value) {
+    router.push('/about')
   } else {
     router.push('/login')
   }
