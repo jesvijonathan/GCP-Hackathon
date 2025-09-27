@@ -8,7 +8,8 @@
       </div>
       <button @click="goBack" class="back-btn">← Back to Dashboard</button>
 
-      <div class="notification">Notifications</div>
+      <div @click="openEmailBox" class="notification">Notifications</div>
+      <div @click="openSocialUpdates" class="notification">Social Updates</div>
 
       <div class="action-center-dropdown">
         <button @click="openPermanentBanModal">Permanent Ban</button>
@@ -518,6 +519,14 @@ export default {
       this.selectedCategoryCode = "";
     },
 
+    openSocialUpdates() {
+      this.$router.push(`/merchant/${this.merchant.id}/social-updates`);
+    },
+
+    openEmailBox(){
+      this.$router.push("/mailbox");
+    },
+
     // Action confirmation methods
     confirmPermanentBan() {
       console.log("Permanent ban confirmed for:", this.merchant.name);
@@ -693,7 +702,15 @@ export default {
   font-weight: 600;
   text-align: center;
   box-shadow: 0 2px 4px rgba(20, 184, 166, 0.1);
+  cursor: pointer;
 }
+
+.notification:hover {
+  background: #008080;
+  color: #f0fdfa;
+}
+
+
 
 .action-center-dropdown {
   display: flex;

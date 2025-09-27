@@ -1,0 +1,296 @@
+{
+  "emails": [
+    {
+      "id": 1,
+      "sender": {
+        "name": "Risk Management System",
+        "email": "alerts@riskmanagement.com",
+        "avatar": null
+      },
+      "subject": "🚨 HIGH RISK ALERT - EdgeTools (ID: M-4502) - Immediate Action Required",
+      "preview": "URGENT: EdgeTools has exceeded critical risk thresholds. Risk score increased from 45.2 to 87.3 within 24 hours. Multiple suspicious transaction patterns detected. Immediate review and potential account restriction recommended.",
+      "body": "<div style='background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin-bottom: 20px;'><h3 style='color: #dc2626; margin-top: 0;'>⚠️ HIGH RISK ALERT</h3></div><p><strong>Merchant:</strong> EdgeTools<br><strong>Merchant ID:</strong> M-4502<br><strong>Current Risk Score:</strong> 87.3 (Previously: 45.2)<br><strong>Alert Triggered:</strong> January 15, 2024 at 14:30 UTC</p><h3>Risk Factors Detected:</h3><ul><li>🔴 <strong>Transaction Velocity:</strong> 340% increase in daily volume</li><li>🔴 <strong>Geographic Anomaly:</strong> Transactions from 15 new countries in 48 hours</li><li>🔴 <strong>Chargeback Rate:</strong> Increased to 8.2% (threshold: 2.5%)</li><li>🔴 <strong>Suspicious Patterns:</strong> Multiple round-number transactions</li><li>🟡 <strong>Account Age:</strong> Recently onboarded (12 days ago)</li></ul><h3>Recommended Actions:</h3><ol><li>Place immediate transaction limits ($5,000 daily)</li><li>Require additional verification for transactions >$1,000</li><li>Conduct enhanced due diligence review</li><li>Contact merchant for explanation within 24 hours</li></ol><p><strong>Next Review:</strong> January 16, 2024<br><strong>Case ID:</strong> RISK-2024-0156</p>",
+      "date": "2024-01-15T14:30:00Z",
+      "read": false,
+      "hasAttachments": true,
+      "recipients": ["risk-team@company.com"],
+      "cc": ["compliance@company.com", "fraud@company.com"],
+      "attachments": [
+        {
+          "id": 1,
+          "name": "EdgeTools-Risk-Analysis-Report.pdf",
+          "size": 1024000
+        },
+        {
+          "id": 2,
+          "name": "Transaction-Pattern-Analysis.xlsx",
+          "size": 512000
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "sender": {
+        "name": "Compliance Department",
+        "email": "compliance@financialservices.com",
+        "avatar": "https://via.placeholder.com/50/008080/ffffff?text=CD"
+      },
+      "subject": "Merchant Compliance Review - AudioTech (ID: M-7891) - KYC Documentation Required",
+      "preview": "AudioTech's annual compliance review is due. Several KYC documents have expired and require immediate renewal. Business license expires in 15 days. Enhanced due diligence required due to recent regulatory changes.",
+      "body": "<p>Dear Risk Management Team,</p><p>AudioTech's annual compliance review is due. Our assessment has identified several compliance gaps that require immediate attention.</p><h3>📋 Required Documentation:</h3><ul><li>🔴 <strong>Business License:</strong> Expires January 30, 2024 (15 days)</li><li>🔴 <strong>Financial Statements:</strong> 2023 audited statements missing</li><li>🟡 <strong>Beneficial Ownership:</strong> Form needs updating (>25% ownership change)</li><li>🟡 <strong>Bank References:</strong> Expired November 2023</li><li>✅ <strong>Tax ID Verification:</strong> Current and valid</li></ul><h3>📊 Current Merchant Status:</h3><ul><li><strong>Risk Rating:</strong> Medium (Score: 42.1)</li><li><strong>Transaction Volume:</strong> $2.4M monthly average</li><li><strong>Account Status:</strong> Active with conditions</li><li><strong>Regulatory Category:</strong> Standard monitoring</li></ul><h3>🎯 Action Items:</h3><ol><li>Contact merchant within 48 hours for document collection</li><li>Impose transaction limits if documentation not received by January 25</li><li>Schedule enhanced due diligence interview</li><li>Update risk profile based on new information</li></ol><p><strong>Compliance Officer:</strong> Sarah Mitchell<br><strong>Review Due Date:</strong> January 20, 2024<br><strong>Case Reference:</strong> COMP-2024-AT-001</p>",
+      "date": "2024-01-14T09:15:00Z",
+      "read": false,
+      "hasAttachments": true,
+      "recipients": ["compliance@company.com"],
+      "cc": ["risk-team@company.com", "merchant-relations@company.com"],
+      "attachments": [
+        {
+          "id": 3,
+          "name": "AudioTech-Compliance-Checklist.pdf",
+          "size": 256000
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "sender": {
+        "name": "Fraud Detection Unit",
+        "email": "fraud-alerts@securityteam.com",
+        "avatar": null
+      },
+      "subject": "🔍 Fraud Investigation - TechSolutions Inc (ID: M-2203) - Suspicious Activity Report",
+      "preview": "TechSolutions Inc showing patterns consistent with friendly fraud. Multiple disputed transactions with similar characteristics. Customer complaints indicate potential account compromise. Investigation status: Active.",
+      "body": "<div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 20px;'><h3 style='color: #d97706; margin-top: 0;'>🔍 FRAUD INVESTIGATION</h3></div><p><strong>Merchant:</strong> TechSolutions Inc<br><strong>Merchant ID:</strong> M-2203<br><strong>Investigation Type:</strong> Friendly Fraud<br><strong>Priority Level:</strong> Medium<br><strong>Case Opened:</strong> January 13, 2024</p><h3>🚩 Suspicious Indicators:</h3><ul><li><strong>Chargeback Pattern:</strong> 23 disputes in 7 days (normal: 2-3 monthly)</li><li><strong>Transaction Timing:</strong> Most disputes occur 45-60 days post-purchase</li><li><strong>Geographic Pattern:</strong> 67% of disputes from same metropolitan area</li><li><strong>Amount Pattern:</strong> Average dispute value $299 (just under $300 threshold)</li><li><strong>Product Category:</strong> Digital services and software licenses</li></ul><h3>📈 Financial Impact:</h3><ul><li><strong>Total Disputed Amount:</strong> $6,877</li><li><strong>Estimated Loss:</strong> $4,251 (including fees)</li><li><strong>Chargeback Ratio:</strong> 4.7% (threshold: 2.5%)</li></ul><h3>🎯 Investigation Actions:</h3><ol><li>Review merchant's fraud prevention measures</li><li>Analyze customer authentication processes</li><li>Cross-reference with industry fraud database</li><li>Recommend enhanced verification protocols</li></ol><p><strong>Lead Investigator:</strong> Detective Mark Thompson<br><strong>Next Update:</strong> January 18, 2024<br><strong>Case Status:</strong> Under Investigation</p>",
+      "date": "2024-01-13T16:20:00Z",
+      "read": true,
+      "hasAttachments": true,
+      "recipients": ["fraud-team@company.com"],
+      "cc": ["risk-team@company.com", "legal@company.com"],
+      "attachments": [
+        {
+          "id": 4,
+          "name": "TechSolutions-Fraud-Report.pdf",
+          "size": 768000
+        },
+        {
+          "id": 5,
+          "name": "Dispute-Transaction-Log.csv",
+          "size": 128000
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "sender": {
+        "name": "Regulatory Affairs",
+        "email": "regulatory@compliance.gov",
+        "avatar": "https://via.placeholder.com/50/6b7280/ffffff?text=RA"
+      },
+      "subject": "Regulatory Update - New AML Requirements Effective February 1, 2024",
+      "preview": "New Anti-Money Laundering regulations take effect February 1st. All merchants processing >$100K monthly must implement enhanced customer due diligence. Updated reporting requirements for suspicious activities.",
+      "body": "<p>Dear Financial Services Partners,</p><p>Please be advised of new Anti-Money Laundering (AML) regulations taking effect February 1, 2024. These changes will impact merchant onboarding and monitoring procedures.</p><h3>📋 Key Regulatory Changes:</h3><ul><li><strong>Enhanced Due Diligence:</strong> Required for merchants processing >$100K monthly</li><li><strong>Beneficial Ownership:</strong> Must identify individuals owning >10% (reduced from 25%)</li><li><strong>Suspicious Activity Reporting:</strong> Lowered threshold from $5K to $3K</li><li><strong>Record Retention:</strong> Increased from 5 to 7 years</li><li><strong>Real-time Monitoring:</strong> Mandatory for high-risk merchants</li></ul><h3>🎯 Affected Merchant Categories:</h3><ul><li>Money Service Businesses (MSBs)</li><li>Cryptocurrency exchanges</li><li>High-volume e-commerce platforms</li><li>International wire transfer services</li><li>Cash-intensive businesses</li></ul><h3>⚖️ Compliance Timeline:</h3><ul><li><strong>February 1, 2024:</strong> New regulations effective</li><li><strong>March 1, 2024:</strong> First enhanced reports due</li><li><strong>April 1, 2024:</strong> Full compliance audit begins</li></ul><h3>📞 Required Actions:</h3><ol><li>Update all merchant risk assessments by January 25</li><li>Implement new screening procedures</li><li>Train staff on updated requirements</li><li>Review and update internal policies</li></ol><p>Non-compliance may result in penalties up to $1M per violation.</p><p><strong>Regulatory Contact:</strong> James Patterson, Senior Compliance Officer<br><strong>Reference:</strong> AML-REG-2024-001</p>",
+      "date": "2024-01-12T11:30:00Z",
+      "read": false,
+      "hasAttachments": true,
+      "recipients": ["all-compliance@company.com"],
+      "cc": ["executive-team@company.com", "legal@company.com"],
+      "attachments": [
+        {
+          "id": 6,
+          "name": "AML-Regulations-2024-Summary.pdf",
+          "size": 2048000
+        },
+        {
+          "id": 7,
+          "name": "Compliance-Checklist-Updated.xlsx",
+          "size": 384000
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "sender": {
+        "name": "Merchant Onboarding",
+        "email": "onboarding@merchantservices.com",
+        "avatar": "https://via.placeholder.com/50/14b8a6/ffffff?text=MO"
+      },
+      "subject": "New Merchant Application - CryptoTrade Solutions (High Risk Category)",
+      "preview": "New application from CryptoTrade Solutions requires enhanced review. Business operates in cryptocurrency exchange sector. Enhanced due diligence required due to high-risk classification and regulatory complexity.",
+      "body": "<p>Dear Risk Assessment Team,</p><p>We have received a new merchant application requiring enhanced review due to high-risk classification.</p><h3>🏢 Merchant Information:</h3><ul><li><strong>Business Name:</strong> CryptoTrade Solutions LLC</li><li><strong>Application ID:</strong> APP-2024-0098</li><li><strong>Business Type:</strong> Cryptocurrency Exchange</li><li><strong>Incorporation:</strong> Delaware, USA (2023)</li><li><strong>Expected Volume:</strong> $5-10M monthly</li></ul><h3>⚠️ Risk Factors Identified:</h3><ul><li>🔴 <strong>High-Risk Industry:</strong> Cryptocurrency exchange</li><li>🔴 <strong>New Business:</strong> Operating less than 12 months</li><li>🟡 <strong>International Exposure:</strong> Plans to serve 50+ countries</li><li>🟡 <strong>High Transaction Volume:</strong> Expected $10M+ monthly</li><li>🟡 <strong>Multiple Currencies:</strong> Plans to support 15+ cryptocurrencies</li></ul><h3>📋 Required Enhanced Reviews:</h3><ul><li>Comprehensive background checks on all beneficial owners</li><li>Technology security assessment</li><li>AML/KYC program evaluation</li><li>Regulatory compliance verification</li><li>Financial stability analysis</li></ul><h3>📊 Preliminary Assessment:</h3><ul><li><strong>Estimated Risk Score:</strong> 75-85 (High)</li><li><strong>Recommended Monitoring:</strong> Real-time transaction monitoring</li><li><strong>Suggested Limits:</strong> $1M daily transaction cap initially</li></ul><h3>🎯 Next Steps:</h3><ol><li>Schedule enhanced due diligence interview</li><li>Request additional documentation</li><li>Conduct on-site verification (if approved)</li><li>Implement enhanced monitoring protocols</li></ol><p><strong>Assigned Analyst:</strong> Jennifer Kim<br><strong>Review Deadline:</strong> January 25, 2024<br><strong>Decision Required By:</strong> January 30, 2024</p>",
+      "date": "2024-01-11T08:45:00Z",
+      "read": true,
+      "hasAttachments": true,
+      "recipients": ["risk-assessment@company.com"],
+      "cc": ["onboarding@company.com", "compliance@company.com"],
+      "attachments": [
+        {
+          "id": 8,
+          "name": "CryptoTrade-Application-Package.pdf",
+          "size": 3072000
+        },
+        {
+          "id": 9,
+          "name": "High-Risk-Assessment-Template.docx",
+          "size": 256000
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "sender": {
+        "name": "Transaction Monitoring",
+        "email": "monitoring@transactionsecurity.com",
+        "avatar": null
+      },
+      "subject": "Weekly Risk Summary - 15 Merchants Flagged for Review",
+      "preview": "Weekly automated risk assessment completed. 15 merchants flagged for various risk factors. 3 require immediate attention, 8 need standard review, 4 are informational alerts. Overall portfolio risk level: Moderate.",
+      "body": "<p>Weekly Risk Assessment Summary - Week of January 8-14, 2024</p><h3>📊 Portfolio Overview:</h3><ul><li><strong>Total Active Merchants:</strong> 2,847</li><li><strong>Merchants Flagged:</strong> 15 (0.53%)</li><li><strong>New High-Risk Alerts:</strong> 3</li><li><strong>Portfolio Risk Level:</strong> Moderate</li></ul><h3>🚨 Immediate Attention Required:</h3><ol><li><strong>EdgeTools (M-4502)</strong> - Risk Score: 87.3<br><em>Multiple risk factors, transaction velocity spike</em></li><li><strong>GlobalPay Inc (M-1156)</strong> - Risk Score: 79.1<br><em>Suspicious transaction patterns, geographic anomalies</em></li><li><strong>QuickTransfer Ltd (M-3398)</strong> - Risk Score: 76.8<br><em>Chargeback ratio exceeded, customer complaints</em></li></ol><h3>📋 Standard Review Queue (8 merchants):</h3><ul><li>TechSolutions Inc (M-2203) - Chargeback pattern analysis</li><li>RetailMax Corp (M-5501) - Volume increase verification</li><li>ServiceHub LLC (M-4402) - Geographic expansion review</li><li>DataFlow Systems (M-6789) - KYC documentation update</li><li>CloudConnect Inc (M-3344) - Business model change assessment</li><li>FinanceFirst Ltd (M-2255) - Regulatory compliance check</li><li>TradePlatform Co (M-7788) - Enhanced monitoring setup</li><li>SecureVault Inc (M-9911) - Annual risk reassessment</li></ul><h3>ℹ️ Informational Alerts (4 merchants):</h3><ul><li>Standard Industries - Seasonal volume increase (expected)</li><li>LocalMart Chain - New location onboarding</li><li>EduTech Platform - Student enrollment surge</li><li>HealthServices Inc - Insurance claim processing increase</li></ul><h3>📈 Risk Trends:</h3><ul><li>Cryptocurrency-related businesses showing higher activity</li><li>Cross-border transactions increased 23%</li><li>Average transaction amount up 15% from last month</li></ul><p><strong>Report Generated:</strong> January 15, 2024<br><strong>Next Weekly Report:</strong> January 22, 2024</p>",
+      "date": "2024-01-15T06:00:00Z",
+      "read": false,
+      "hasAttachments": true,
+      "recipients": ["risk-management@company.com"],
+      "cc": ["compliance@company.com", "executive-summary@company.com"],
+      "attachments": [
+        {
+          "id": 10,
+          "name": "Weekly-Risk-Summary-Jan15.pdf",
+          "size": 1536000
+        },
+        {
+          "id": 11,
+          "name": "Flagged-Merchants-Details.xlsx",
+          "size": 512000
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "sender": {
+        "name": "Legal Department",
+        "email": "legal@riskmanagement.com",
+        "avatar": "https://via.placeholder.com/50/8b5cf6/ffffff?text=LD"
+      },
+      "subject": "Legal Notice - Account Termination Proceedings for HighRisk Ventures (M-8844)",
+      "preview": "Formal notice of account termination proceedings for HighRisk Ventures due to multiple compliance violations. 30-day notice period begins today. Merchant has option to appeal or provide corrective action plan.",
+      "body": "<div style='background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin-bottom: 20px;'><h3 style='color: #dc2626; margin-top: 0;'>⚖️ LEGAL NOTICE - ACCOUNT TERMINATION</h3></div><p><strong>Merchant:</strong> HighRisk Ventures LLC<br><strong>Merchant ID:</strong> M-8844<br><strong>Notice Date:</strong> January 14, 2024<br><strong>Effective Date:</strong> February 13, 2024 (30 days)</p><h3>📋 Grounds for Termination:</h3><ol><li><strong>Repeated Compliance Violations:</strong><ul><li>Failed to provide required KYC documentation (3 requests)</li><li>Non-compliance with AML reporting requirements</li><li>Exceeded agreed-upon transaction limits</li></ul></li><li><strong>Risk Management Concerns:</strong><ul><li>Risk score consistently above 85 for 60+ days</li><li>Chargeback ratio of 12.3% (limit: 2.5%)</li><li>Multiple fraud alerts unresolved</li></ul></li><li><strong>Contractual Breaches:</strong><ul><li>Violation of Acceptable Use Policy</li><li>Failure to maintain required insurance coverage</li><li>Unauthorized business model changes</li></ul></li></ol><h3>⚖️ Legal Options Available:</h3><ul><li><strong>Appeal Process:</strong> 15-day window to submit formal appeal</li><li><strong>Corrective Action Plan:</strong> Submit plan addressing all violations</li><li><strong>Voluntary Termination:</strong> Agree to terms and expedite closure</li></ul><h3>💰 Financial Settlement:</h3><ul><li><strong>Outstanding Disputes:</strong> $47,233</li><li><strong>Pending Chargebacks:</strong> $23,891</li><li><strong>Security Deposit:</strong> $25,000 (held for 180 days)</li><li><strong>Processing Fees Due:</strong> $3,456</li></ul><h3>📅 Important Dates:</h3><ul><li><strong>Appeal Deadline:</strong> January 29, 2024</li><li><strong>Final Settlement Date:</strong> February 13, 2024</li><li><strong>Account Closure:</strong> February 13, 2024</li><li><strong>Fund Release:</strong> August 13, 2024 (if no disputes)</li></ul><p>Merchant has been served notice via certified mail and email. All processing capabilities will be suspended on the effective date.</p><p><strong>Legal Counsel:</strong> Attorney Michael Foster<br><strong>Case Reference:</strong> LEGAL-2024-TERM-001<br><strong>Contact:</strong> legal@riskmanagement.com</p>",
+      "date": "2024-01-14T15:30:00Z",
+      "read": true,
+      "hasAttachments": true,
+      "recipients": ["legal@company.com"],
+      "cc": [
+        "risk-management@company.com",
+        "merchant-relations@company.com",
+        "finance@company.com"
+      ],
+      "attachments": [
+        {
+          "id": 12,
+          "name": "Termination-Notice-M8844.pdf",
+          "size": 384000
+        },
+        {
+          "id": 13,
+          "name": "Violation-History-Summary.pdf",
+          "size": 256000
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "sender": {
+        "name": "External Audit Team",
+        "email": "audit@riskaudit.com",
+        "avatar": "https://via.placeholder.com/50/f59e0b/ffffff?text=EA"
+      },
+      "subject": "Q4 2023 Risk Management Audit - Preliminary Findings",
+      "preview": "Q4 risk management audit completed. Overall rating: Satisfactory with minor deficiencies. 12 recommendations for improvement identified. Formal report will be issued within 5 business days.",
+      "body": "<p>Dear Risk Management Leadership,</p><p>We have completed our Q4 2023 risk management audit. Please find below our preliminary findings and recommendations.</p><h3>📊 Overall Assessment:</h3><ul><li><strong>Audit Rating:</strong> Satisfactory</li><li><strong>Previous Rating:</strong> Good (Q3 2023)</li><li><strong>Audit Period:</strong> October 1 - December 31, 2023</li><li><strong>Merchants Reviewed:</strong> 450 (sample size)</li></ul><h3>✅ Strengths Identified:</h3><ul><li>Robust transaction monitoring systems</li><li>Effective fraud detection protocols</li><li>Comprehensive merchant onboarding procedures</li><li>Strong documentation practices</li><li>Timely regulatory reporting</li></ul><h3>⚠️ Areas for Improvement:</h3><ol><li><strong>Risk Score Calibration:</strong> Some high-risk merchants showing lower scores</li><li><strong>Response Time:</strong> Average alert response time 4.2 hours (target: 2 hours)</li><li><strong>Documentation Gaps:</strong> 8% of files missing required updates</li><li><strong>Staff Training:</strong> Need enhanced AML training for new hires</li><li><strong>Technology Updates:</strong> Risk scoring algorithm needs recalibration</li></ol><h3>📋 Key Recommendations:</h3><ol><li>Implement real-time risk score updates</li><li>Reduce alert response times through automation</li><li>Establish quarterly documentation review cycles</li><li>Enhance staff training programs</li><li>Upgrade risk assessment technology</li><li>Improve inter-departmental communication</li><li>Strengthen vendor due diligence processes</li><li>Enhance customer complaint tracking</li><li>Implement advanced analytics for pattern detection</li><li>Establish clear escalation procedures</li><li>Improve record retention practices</li><li>Enhance reporting dashboard functionality</li></ol><h3>🎯 Priority Actions (Next 30 Days):</h3><ul><li>Address critical documentation gaps</li><li>Implement automated alert prioritization</li><li>Schedule staff training sessions</li><li>Begin technology upgrade planning</li></ul><p><strong>Lead Auditor:</strong> Patricia Williams, CPA, CISA<br><strong>Audit Team:</strong> RiskAudit Partners LLP<br><strong>Final Report Due:</strong> January 22, 2024<br><strong>Follow-up Audit:</strong> April 2024</p>",
+      "date": "2024-01-12T14:15:00Z",
+      "read": false,
+      "hasAttachments": true,
+      "recipients": ["executive-team@company.com"],
+      "cc": [
+        "risk-management@company.com",
+        "compliance@company.com",
+        "board@company.com"
+      ],
+      "attachments": [
+        {
+          "id": 14,
+          "name": "Q4-Audit-Preliminary-Findings.pdf",
+          "size": 2048000
+        },
+        {
+          "id": 15,
+          "name": "Recommendations-Action-Plan.xlsx",
+          "size": 384000
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "sender": {
+        "name": "Data Analytics Team",
+        "email": "analytics@datainsights.com",
+        "avatar": null
+      },
+      "subject": "Monthly Risk Analytics Report - December 2023 Trends & Predictions",
+      "preview": "December 2023 risk analytics completed. Notable trends: 15% increase in cryptocurrency-related fraud attempts, seasonal shopping surge impacted chargeback rates, geographic risk patterns shifting toward Southeast Asia.",
+      "body": "<p>Monthly Risk Analytics Report - December 2023</p><h3>📈 Executive Summary:</h3><ul><li><strong>Total Transactions Analyzed:</strong> 12.4M</li><li><strong>Merchants Monitored:</strong> 2,891</li><li><strong>Risk Alerts Generated:</strong> 1,247</li><li><strong>False Positive Rate:</strong> 12.3% (improved from 15.8%)</li></ul><h3>🔍 Key Trends Identified:</h3><h4>1. Fraud Pattern Analysis:</h4><ul><li><strong>Cryptocurrency Fraud:</strong> 15% increase in attempts</li><li><strong>Card-Not-Present Fraud:</strong> Stable at 2.1% of transactions</li><li><strong>Account Takeover:</strong> 8% decrease (improved security measures)</li><li><strong>Synthetic Identity Fraud:</strong> Emerging threat, 23 cases detected</li></ul><h4>2. Geographic Risk Patterns:</h4><ul><li><strong>High-Risk Regions:</strong> Southeast Asia (+34% alerts)</li><li><strong>Emerging Concerns:</strong> Eastern Europe payment method abuse</li><li><strong>Improved Regions:</strong> South America (-18% risk incidents)</li></ul><h4>3. Merchant Behavior Patterns:</h4><ul><li><strong>Seasonal Impact:</strong> Holiday shopping increased chargeback rates by 45%</li><li><strong>New Merchant Risk:</strong> 78% of high-risk alerts from businesses <6 months old</li><li><strong>Transaction Timing:</strong> 67% of suspicious activity occurs outside business hours</li></ul><h3>🎯 Predictive Analysis for January 2024:</h3><ul><li><strong>Expected Risk Level:</strong> Moderate to High</li><li><strong>Seasonal Factors:</strong> Post-holiday returns and chargebacks</li><li><strong>Regulatory Impact:</strong> New AML requirements may increase compliance alerts</li><li><strong>Technology Trends:</strong> AI-driven fraud attempts likely to increase</li></ul><h3>🛡️ Recommended Risk Mitigation:</h3><ol><li>Enhanced monitoring for cryptocurrency merchants</li><li>Implement stricter controls for new merchant onboarding</li><li>Increase Southeast Asia transaction scrutiny</li><li>Deploy advanced machine learning algorithms</li><li>Strengthen after-hours monitoring capabilities</li></ol><h3>📊 Performance Metrics:</h3><ul><li><strong>Detection Rate:</strong> 94.7% (target: 95%)</li><li><strong>Response Time:</strong> 3.2 hours average</li><li><strong>Cost per Detection:</strong> $127 (budget: $150)</li><li><strong>Customer Satisfaction:</strong> 87% (merchant feedback)</li></ul><p><strong>Report Generated By:</strong> Dr. Analytics Team Lead<br><strong>Data Period:</strong> December 1-31, 2023<br><strong>Next Report:</strong> February 15, 2024</p>",
+      "date": "2024-01-10T10:00:00Z",
+      "read": true,
+      "hasAttachments": true,
+      "recipients": ["analytics@company.com"],
+      "cc": [
+        "risk-management@company.com",
+        "executive-team@company.com",
+        "compliance@company.com"
+      ],
+      "attachments": [
+        {
+          "id": 16,
+          "name": "December-2023-Risk-Analytics.pdf",
+          "size": 4096000
+        },
+        {
+          "id": 17,
+          "name": "Fraud-Trends-Dashboard.xlsx",
+          "size": 1024000
+        },
+        {
+          "id": 18,
+          "name": "Predictive-Model-Results.csv",
+          "size": 256000
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "sender": {
+        "name": "Merchant Relations",
+        "email": "relations@merchantsupport.com",
+        "avatar": "https://via.placeholder.com/50/14b8a6/ffffff?text=MR"
+      },
+      "subject": "Merchant Communication - Risk Level Changes Notification (Batch Update)",
+      "preview": "Monthly risk level updates for 47 merchants. 12 upgraded to higher risk categories, 8 downgraded to lower risk, 27 maintained current status. Merchants have been notified of changes and new requirements.",
+      "body": "<p>Dear Risk Management Team,</p><p>Monthly merchant risk level updates have been completed and communicated to affected merchants.</p><h3>📊 Risk Level Changes Summary:</h3><ul><li><strong>Total Merchants Reviewed:</strong> 47</li><li><strong>Risk Level Increased:</strong> 12 merchants</li><li><strong>Risk Level Decreased:</strong> 8 merchants</li><li><strong>No Change:</strong> 27 merchants</li></ul><h3>⬆️ Risk Level Increases (12 merchants):</h3><table style='border-collapse: collapse; width: 100%;'><tr style='background: #f8f9fa;'><th style='border: 1px solid #ddd; padding: 8px;'>Merchant</th><th style='border: 1px solid #ddd; padding: 8px;'>Previous</th><th style='border: 1px solid #ddd; padding: 8px;'>New</th><th style='border: 1px solid #ddd; padding: 8px;'>Reason</th></tr><tr><td style='border: 1px solid #ddd; padding: 8px;'>TechSolutions Inc</td><td style='border: 1px solid #ddd; padding: 8px;'>Medium</td><td style='border: 1px solid #ddd; padding: 8px;'>High</td><td style='border: 1px solid #ddd; padding: 8px;'>Chargeback increase</td></tr><tr><td style='border: 1px solid #ddd; padding: 8px;'>GlobalTrade Corp</td><td style='border: 1px solid #ddd; padding: 8px;'>Low</td><td style='border: 1px solid #ddd; padding: 8px;'>Medium</td><td style='border: 1px solid #ddd; padding: 8px;'>Volume spike</td></tr><tr><td style='border: 1px solid #ddd; padding: 8px;'>CryptoExchange Ltd</td><td style='border: 1px solid #ddd; padding: 8px;'>Medium</td><td style='border: 1px solid #ddd; padding: 8px;'>High</td><td style='border: 1px solid #ddd; padding: 8px;'>Regulatory changes</td></tr></table><h3>⬇️ Risk Level Decreases (8 merchants):</h3><ul><li><strong>RetailChain Inc:</strong> High → Medium (Improved compliance)</li><li><strong>ServiceHub LLC:</strong> Medium → Low (Stable operations)</li><li><strong>LocalMart Corp:</strong> Medium → Low (Strong performance)</li><li><em>...and 5 others (see detailed report)</em></li></ul><h3>📋 Actions Taken:</h3><ul><li>All affected merchants notified via email and portal</li><li>New monitoring protocols activated</li><li>Updated transaction limits implemented</li><li>Additional verification requirements communicated</li><li>Appeal process information provided</li></ul><h3>📞 Merchant Responses:</h3><ul><li><strong>Positive Reception:</strong> 34 merchants (72%)</li><li><strong>Requested Appeals:</strong> 6 merchants</li><li><strong>Requested Clarification:</strong> 7 merchants</li><li><strong>No Response Yet:</strong> 0 merchants</li></ul><h3>🎯 Follow-up Actions Required:</h3><ol><li>Process appeal requests within 5 business days</li><li>Schedule clarification calls with 7 merchants</li><li>Update internal risk profiles in system</li><li>Monitor compliance with new requirements</li><li>Prepare for next monthly review cycle</li></ol><h3>📈 Next Review Cycle:</h3><ul><li><strong>Quarterly Reviews:</strong> 23 merchants (February 15)</li><li><strong>Semi-Annual Reviews:</strong> 12 merchants (March 1)</li><li><strong>Annual Reviews:</strong> 8 merchants (March 30)</li><li><strong>Ad-hoc Reviews:</strong> 4 merchants (as needed)</li></ul><p><strong>Communication Lead:</strong> Amanda Foster<br><strong>Completion Date:</strong> January 9, 2024<br><strong>Next Batch Update:</strong> February 9, 2024</p>",
+      "date": "2024-01-09T13:45:00Z",
+      "read": false,
+      "hasAttachments": true,
+      "recipients": ["merchant-relations@company.com"],
+      "cc": ["risk-management@company.com", "compliance@company.com"],
+      "attachments": [
+        {
+          "id": 19,
+          "name": "Risk-Level-Changes-January-2024.pdf",
+          "size": 512000
+        },
+        {
+          "id": 20,
+          "name": "Merchant-Communication-Log.xlsx",
+          "size": 256000
+        }
+      ]
+    }
+  ]
+}

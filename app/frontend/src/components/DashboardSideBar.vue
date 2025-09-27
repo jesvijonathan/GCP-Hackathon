@@ -22,6 +22,7 @@
             :checked="filters.riskHigh"
             @change="$emit('update:filters', { ...filters, riskHigh: $event.target.checked })"
           />
+          <span class="checkmark"></span>
           High Risk Level
         </label>
         <label class="actual-filters">
@@ -30,6 +31,7 @@
             :checked="filters.statusActive"
             @change="$emit('update:filters', { ...filters, statusActive: $event.target.checked })"
           />
+          <span class="checkmark"></span>
           Active Status
         </label>
         <label class="actual-filters">
@@ -38,6 +40,7 @@
             :checked="filters.dateRangeThisMonth"
             @change="$emit('update:filters', { ...filters, dateRangeThisMonth: $event.target.checked })"
           />
+          <span class="checkmark"></span>
           This Month
         </label>
       </div>
@@ -55,7 +58,12 @@
         role="option"
       >
         <div class="merchant-summary">
-          <div class="merchant-name">{{ m.name }}</div>
+          <div class="merchant-header">
+            <div class="merchant-name">{{ m.name }}</div>
+            <div class="selected-badge" v-if="selectedMerchant && m.id === selectedMerchant.id">
+              ✓
+            </div>
+          </div>
           <div class="merchant-details-div">
             <div class="merchant-risk" v-if="m.riskMetrics">
               Risk: {{ m.riskMetrics.riskScore ?? "—" }}
@@ -69,6 +77,10 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="results-footer">
+      {{ filteredMerchants.length }} merchant{{ filteredMerchants.length !== 1 ? 's' : '' }}
     </div>
   </aside>
 </template>
@@ -143,7 +155,6 @@ export default {
 </script>
 
 <style scoped>
-/* Styles copied from original Dashboard.vue */
 .sidebar {
   background: #ffffff;
   border-radius: 12px;
@@ -185,7 +196,7 @@ export default {
 .search-input {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #14b8a6;
+  border: 1.5px solid #14b8a6;
   border-radius: 8px;
   background: #fff;
   color: #374151;
@@ -206,11 +217,15 @@ export default {
 
 .filters {
   margin-top: 15px;
+  background: #f8fafa;
+  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid #e6fbf8;
 }
 
 .filter-title {
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   color: #008080;
   font-size: 14px;
 }
@@ -220,10 +235,12 @@ export default {
   align-items: center;
   color: #374151;
   font-size: 13px;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 10px;
   cursor: pointer;
   transition: color 0.2s ease;
+  position: relative;
+  padding-left: 0;
 }
 
 .actual-filters:hover {
@@ -231,8 +248,37 @@ export default {
 }
 
 .actual-filters input[type="checkbox"] {
-  cursor: pointer;
-  accent-color: #14b8a6;
+  opacity: 0;
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.checkmark {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #14b8a6;
+  border-radius: 3px;
+  display: inline-block;
+  position: relative;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.actual-filters input[type="checkbox"]:checked + .checkmark {
+  background: #14b8a6;
+  border-color: #008080;
+}
+
+.actual-filters input[type="checkbox"]:checked + .checkmark::after {
+  content: '✓';
+  position: absolute;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .merchant-list {
@@ -251,11 +297,12 @@ export default {
 }
 
 .merchant-list::-webkit-scrollbar-thumb {
+  background: #14b8a6;
   border-radius: 3px;
 }
 
 .merchant-item {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   border-radius: 8px;
@@ -266,22 +313,60 @@ export default {
 }
 
 .merchant-item.selected {
-  background: #e6fbf8;
-  border-left: 3px solid #14b8a6;
+  transform: translateX(4px);
+}
+
+.merchant-item.selected .merchant-summary {
+  background: linear-gradient(135deg, #008080, #14b8a6);
+  box-shadow: 0 4px 12px rgba(0, 128, 128, 0.25);
+  border-left: 4px solid #0d9488;
 }
 
 .merchant-summary {
   background: linear-gradient(135deg, #008080, #0f9a92);
   border-radius: 8px;
   color: white;
-  padding: 12px;
-  box-shadow: 0 2px 6px rgba(0, 128, 128, 0.2);
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 128, 128, 0.2);
+  transition: all 0.2s ease;
+}
+
+.merchant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .merchant-name {
   font-weight: 600;
   font-size: 16px;
-  margin-bottom: 8px;
+}
+
+.selected-badge {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
 }
 
 .merchant-details-div {
@@ -294,28 +379,43 @@ export default {
 .merchant-risk {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.1);
-  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 4px 8px;
   border-radius: 10px;
   font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .merchant-summary-button {
   background: #ffffff;
   color: #008080;
   border: none;
-  border-radius: 5px;
-  padding: 6px 12px;
+  border-radius: 6px;
+  padding: 7px 12px;
   cursor: pointer;
   font-weight: 600;
   font-size: 12px;
   transition: all 0.2s ease;
+  border: 1px solid rgba(0, 128, 128, 0.1);
 }
 
 .merchant-summary-button:hover {
   background: #f0fdfa;
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 128, 128, 0.2);
+  box-shadow: 0 3px 8px rgba(0, 128, 128, 0.2);
+}
+
+.results-footer {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e6fbf8;
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+  background: #f8fafa;
+  padding: 10px;
+  border-radius: 6px;
+  font-weight: 500;
 }
 
 /* Screen reader only class */
