@@ -6,3 +6,8 @@ app/backend/modules/data_pipeline/output/*
 app/backend/modules/data_pipeline/__pycache__/
 app/backend/modules/data_pipeline/preset.txt
 app/backend/modules/data_pipeline/output/main_manifest_20250925_214020.json
+app/deployment/*.tfstate
+app/deployment/*.tfstate.backup
+app/deployment/.terraform/
+app/deployment/*.hcl
+

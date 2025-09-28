@@ -1,0 +1,18 @@
+version: '3.8'
+
+# Defines the services that make up your app
+services:
+  # The frontend service
+  frontend:
+    # Configuration for the container build process
+    build:
+      # The path to the directory containing the Dockerfile
+      context: ./frontend
+      # The name of the Dockerfile
+      dockerfile: Dockerfile
+    # Port mapping: <host_port>:<container_port>
+    # This exposes the container's port 8080 to port 8080 on your local machine.
+    ports:
+      - "8080:8080"
+    # A friendly name for the container
+    container_name: local-frontend
