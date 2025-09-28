@@ -3,7 +3,7 @@
     <div class="container">
       <div class="header-left">
         <img 
-          @click="redirectToAboutUs" 
+          @click="redirectToDashboard" 
           class="logo" 
           :src="logo" 
           alt="NullByte" 
@@ -12,9 +12,6 @@
       
       <nav v-if="isAuthenticated" class="nav" aria-label="Main navigation" >
         <button @click="redirectToDashboard"  class="action-center" aria-label="Action Center">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="button-icon">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-          </svg>
           Action Center
         </button>
         
@@ -23,10 +20,11 @@
           class="action-center merchant-btn"
           aria-label="Onboard Merchant"
         >
+
+          Onboard Merchant
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="button-icon">
             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
           </svg>
-          Onboard Merchant
         </button>
         
         <button 
