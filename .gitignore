@@ -1,8 +1,3 @@
-app/backend/modules/data_pipeline/tweets_*.json
-app/backend/modules/data_pipeline/reddit_*.json
-app/backend/modules/data_pipeline/news_*.json
-app/backend/modules/data_pipeline/output/*
-!app/backend/modules/data_pipeline/output/main_manifest_*.json
-app/backend/modules/data_pipeline/__pycache__/
-app/backend/modules/data_pipeline/preset.txt
-app/backend/modules/data_pipeline/output/main_manifest_20250925_214020.json
+app/backend/modules/*
+app/backend/modules
+app/backend/data_pipeline/__pycache__/*
