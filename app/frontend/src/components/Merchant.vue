@@ -16,73 +16,218 @@
 
     <div v-if="merchant && !loading" class="layout">
       <!-- Side summary panel -->
-      <aside class="side-panel">
-        <div class="merchant-header">
-          <div class="title-row">
-            <span class="status-dot" :class="{ active: isActive, inactive: !isActive }"></span>
-            <h1 class="merchant-title">{{ merchant.name || "Merchant" }}</h1>
+      <div class="side-column" style="display:flex;flex-direction:column;gap:20px;">
+        <aside class="side-panel">
+          <div class="merchant-header">
+        <div class="title-row">
+          <span class="status-dot" :class="{ active: isActive, inactive: !isActive }"></span>
+          <h1 class="merchant-title">{{ merchant.name || "Merchant" }}</h1>
+        </div>
+        <p class="merchant-id">ID: {{ merchant.id || "-" }}</p>
           </div>
-          <p class="merchant-id">ID: {{ merchant.id || "-" }}</p>
+
+          <div class="summary-list">
+        <div class="summary-item">
+          <span class="label">Region</span>
+          <span class="value">{{ merchant.region_id || "-" }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Timezone</span>
+          <span class="value">{{ merchant.time_zone_id || "-" }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Status</span>
+          <span class="value">{{ isActive ? "Active" : "Inactive" }}</span>
+        </div>
+          </div>
+
+          <!-- Navigation / Notifications -->
+          <div class="panel-section">
+        <div class="panel-actions">
+          <div @click="openEmailBox" class="notification">Notifications</div>
+          <div @click="openExplore" class="notification">Explore</div>
+        </div>
+          </div>
+
+        <!-- Auto refresh (quick toggle) -->
+          <div class="panel-section">
+        <div class="action-center-dropdown">
+          <label class="checkbox-label">
+            <input v-model="autoRefresh" type="checkbox" class="form-checkbox" />
+            Auto refresh
+          </label>
+          <div v-if="autoRefresh" class="form-group">
+            <label for="refreshSec">Refresh interval (seconds)</label>
+            <input id="refreshSec" v-model.number="refreshSec" type="number" min="2" class="form-input" />
+          </div>
+        </div>
+          </div>
+
+          <!-- Admin actions -->
+          <div class="panel-section action-center-dropdown">
+        <button @click="openPermanentBanModal">Permanent Ban</button>
+        <button @click="openShadowBanModal">Shadow Ban</button>
+        <button @click="openRestrictModal">Restrict Merchant</button>
+          </div>
+
+          <!-- Save -->
+          <div class="panel-section action-center-dropdown">
+        <button class="btn btn-primary primary-btn" @click="saveUpdates" :disabled="!hasChanges || saving">
+          {{ saving ? "Saving..." : "Update Changes" }}
+        </button>
+          </div>
+
+          <div class="actions-taken">
+        <h1>Actions Taken On {{ merchant.name }}</h1>
+        <p class="actions-taken-data">
+          {{ actionsTaken.length > 0 ? actionsTaken.join(", ") : "No actions taken" }}
+        </p>
+          </div>
+        </aside>
+
+        <!-- NEW: Data Controls separate card -->
+        <section
+          class="card"
+          style="
+            padding:0;
+            z-index:99;
+            position:sticky;
+            top:10px;
+            border:1px solid #e2e8f0;
+            box-shadow:
+              0 -8px 18px -6px rgba(0,0,0,0.18),      /* soft top glow */
+              0 4px 14px -4px rgba(0,128,128,0.25),   /* subtle depth below */
+              0 0 0 1px rgba(255,255,255,0.6) inset;  /* crisp edge */
+            backdrop-filter: blur(3px);
+            background: rgba(255,255,255,0.92);
+            border-radius:14px;
+            overflow:hidden;
+          "
+        >
+          <div class="card-header" style="position:relative;padding-top:18px;">
+            <span
+              style="
+          content:'';
+          position:absolute;
+          top:0;
+          left:0;
+          right:0;
+          height:6px;
+          background:linear-gradient(90deg,#008080,#14b8a6,#0d9488);
+          box-shadow:0 2px 6px -2px rgba(0,0,0,0.25);
+              "
+            ></span>
+        <h3>Data Controls</h3>
+          </div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:14px;height: 76vh;">
+        <!-- Mode Toggle -->
+        <div style="display:flex;gap:6px;">
+          <button
+            type="button"
+            @click="sinceStr='', untilStr='', streamWindow = streamWindow || '7d'"
+            :class="{'active': !!streamWindow}"
+            style="flex:1;padding:8px 10px;font-size:12px;font-weight:600;border:1px solid #14b8a6;border-radius:6px;background:var(--c-win,#f0fdfa);color:#008080;cursor:pointer;"
+          >Window</button>
+          <button
+            type="button"
+            @click="streamWindow='', sinceStr = sinceStr || new Date(Date.now()-24*3600*1000).toISOString(), untilStr=''"
+            :class="{'active': !streamWindow}"
+            style="flex:1;padding:8px 10px;font-size:12px;font-weight:600;border:1px solid #14b8a6;border-radius:6px;background:var(--c-su,#ffffff);color:#008080;cursor:pointer;"
+          >Since / Until</button>
         </div>
 
-        <div class="summary-list">
-          <div class="summary-item">
-            <span class="label">Region</span>
-            <span class="value">{{ merchant.region_id || "-" }}</span>
+        <!-- Window Mode -->
+        <div v-if="streamWindow" style="display:grid;gap:10px;">
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Window (e.g. 1h, 6h, 1d, 7d)</label>
+            <input v-model.trim="streamWindow" class="form-input" placeholder="7d" />
           </div>
-          <div class="summary-item">
-            <span class="label">Timezone</span>
-            <span class="value">{{ merchant.time_zone_id || "-" }}</span>
-          </div>
-          <div class="summary-item">
-            <span class="label">Status</span>
-            <span class="value">{{ isActive ? "Active" : "Inactive" }}</span>
-          </div>
-        </div>
-
-        <!-- Navigation / Notifications -->
-        <div class="panel-section">
-          <div class="panel-actions">
-            <div @click="openEmailBox" class="notification">Notifications</div>
-            <div @click="openExplore" class="notification">Explore</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Aggregate Unit</label>
+            <select v-model="unit" class="form-input">
+          <option value="hour">Hour</option>
+          <option value="day">Day</option>
+          <option value="week">Week</option>
+            </select>
           </div>
         </div>
 
-        <!-- Auto refresh -->
-        <div class="panel-section">
-          <div class="action-center-dropdown">
-            <label class="checkbox-label">
-              <input v-model="autoRefresh" type="checkbox" class="form-checkbox" />
-              Auto refresh
-            </label>
-            <div v-if="autoRefresh" class="form-group">
-              <label for="refreshSec">Refresh interval (seconds)</label>
-              <input id="refreshSec" v-model.number="refreshSec" type="number" min="2" class="form-input" />
-            </div>
+        <!-- Since / Until Mode -->
+        <div v-else style="display:grid;gap:10px;">
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Since (ISO / epoch)</label>
+            <input v-model.trim="sinceStr" class="form-input" placeholder="2025-01-01T00:00:00Z" />
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Until (ISO / epoch)</label>
+            <input v-model.trim="untilStr" class="form-input" placeholder="Optional" />
+          </div>
+          <small style="font-size:11px;color:#6b7280;line-height:1.3;">
+            Leave Until blank for open-ended range. Clearing both re-enables Window mode.
+          </small>
+        </div>
+
+        <!-- Shared Controls -->
+        <div style="display:grid;gap:10px;">
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Limit</label>
+            <input type="number" min="1" v-model.number="streamLimit" class="form-input" />
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Order</label>
+            <select v-model="streamOrder" class="form-input">
+          <option value="desc">Newest First</option>
+          <option value="asc">Oldest First</option>
+            </select>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Allow Future</label>
+            <input type="checkbox" v-model="allowFuture" />
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Override Now (ISO)</label>
+            <input v-model.trim="nowIso" class="form-input" placeholder="Leave blank for real now" />
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Auto Refresh</label>
+            <input type="checkbox" v-model="autoRefresh" />
+          </div>
+
+          <div v-if="autoRefresh" style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Refresh Interval (s)</label>
+            <input type="number" min="2" v-model.number="refreshSec" class="form-input" />
           </div>
         </div>
 
-        <!-- Admin actions -->
-        <div class="panel-section action-center-dropdown">
-          <button @click="openPermanentBanModal">Permanent Ban</button>
-          <button @click="openShadowBanModal">Shadow Ban</button>
-          <button @click="openRestrictModal">Restrict Merchant</button>
-        </div>
-
-        <!-- Save -->
-        <div class="panel-section action-center-dropdown">
-          <button class="btn btn-primary primary-btn" @click="saveUpdates" :disabled="!hasChanges || saving">
-            {{ saving ? "Saving..." : "Update Changes" }}
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button
+            class="btn-primary"
+            style="flex:1;padding:10px 14px;border-radius:6px;border:none;font-weight:600;font-size:13px;"
+            @click="fetchStreams"
+            :disabled="tweetsLoading"
+          >
+            {{ tweetsLoading ? 'Fetching...' : 'Fetch Data' }}
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            style="padding:10px 14px;border-radius:6px;font-weight:600;font-size:13px;"
+            @click="streamWindow ? (streamWindow='') : (sinceStr='', untilStr='')"
+          >
+            {{ streamWindow ? 'Use Since/Until' : 'Use Window' }}
           </button>
         </div>
 
-        <div class="actions-taken">
-          <h1>Actions Taken On {{ merchant.name }}</h1>
-          <p class="actions-taken-data">
-            {{ actionsTaken.length > 0 ? actionsTaken.join(", ") : "No actions taken" }}
-          </p>
+        <div v-if="tweetsError" style="font-size:11px;color:#b91c1c;font-weight:600;white-space:pre-line;">
+          {{ tweetsError }}
         </div>
-      </aside>
+          </div>
+        </section>
+      </div>
 
       <!-- Main cards -->
 
@@ -1777,4 +1922,5 @@ export default {
   /* border-color: #9ca3af; */
   background: #f3f4f6;
 }
+
 </style>
