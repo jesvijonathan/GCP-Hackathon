@@ -1,3 +1,7 @@
 app/backend/modules/*
 app/backend/modules
 app/backend/data_pipeline/__pycache__/*
+app/backend/__pycache__/*
+app/backend/manual_data/__pycache__/*
+app/backend/manual_data/*/*json
+app/backend/manual_data/output/*

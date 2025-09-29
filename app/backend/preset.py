@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 Preset generator and bulk ingestion tool for merchants.
@@ -7,34 +6,22 @@ Features:
 - CLI with subcommands:
   - generate: creates a preset.json for N merchants (with optional explicit names or a base set)
   - ingest: reads a preset.json and bulk-loads into MongoDB using MerchantService
+  - streams: reads a preset.json and generates stream data (reddit, news, reviews, stock, wl) into MongoDB
 - The preset contains:
   - global: start_date, end_date, output_dir, defaults
   - merchants: each has merchant_name, start_date, end_date, seed, and nested blocks
     for tweets, reddit, news, reviews, stock, wl (with trend_plan data)
 - Ingestion uses the existing MerchantService (from merchant.py) to onboard and generate presets.
 - You can pass --mongo-uri and --db to override environment defaults.
-- In generate mode you can supply customJSON blocks to override per-merchant fields.
+- In generate mode you can supply custom JSON blocks to override per-merchant fields.
 
 Usage examples:
   - Generate 20 merchants with a custom date window and default seed:
       python preset.py generate --num 20 --start_date 2020-01-01 --end_date 2023-01-01 --out preset.json --seed 1234
-
-  - Generate with explicit merchant names:
-      python preset.py generate --names "Acme,Zenith,NorthStar" --start_date 2020-01-01 --end_date 2023-01-01 --out preset.json
-
   - Ingest an existing preset.json into MongoDB:
       python preset.py ingest --preset preset.json --mongo-uri mongodb://127.0.0.1:27017 --db merchant_analytics --deep-scan
-
-  - Combine both (generate then ingest) via two-step workflow:
-      python preset.py generate --num 50 --out preset.json
-      # edit if needed, then ingest:
-      python preset.py ingest --preset preset.json --mongo-uri mongodb://127.0.0.1:27017 --db merchant_analytics
-
-Note:
-- This module uses the MerchantService class from merchant.py to write to MongoDB.
-- The default date range (if you don’t override) is start_date = now-3y, end_date = now+1y for convenience.
-- You can customize per-merchant blocks by passing --custom or --customs JSON files containing dicts to merge into the generated blocks.
-
+  - Generate streams for all merchants in preset.json:
+      python preset.py streams --preset preset.json --mongo-uri mongodb://127.0.0.1:27017 --db merchant_analytics
 """
 
 import os
@@ -42,13 +29,17 @@ import json
 import argparse
 import random
 import datetime as dt
+import time
 from typing import Any, Dict, List, Optional
 
-# Mongo/DB/Service
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
 from merchant import MerchantService
 
-# ---------------- Helpers (ported/refactored from your old preset code) ----------------
+# Stream generators (as a package)
+from data_pipeline.base import init_env as dp_init_env
+from data_pipeline import reddit_direct, news_direct, reviews_direct, stock_direct, wl_direct
+
+# ---------------- Helpers ----------------
 
 BASE_NAMES = [
     "HomeGear","BuildPro","BrightLite","GardenCore","FixItCo","ToolNest",
@@ -61,9 +52,7 @@ def slugify(text: str) -> str:
 
 def random_ticker(name: str) -> str:
     letters = "".join([c for c in (name or "").upper() if c.isalpha()])
-    if len(letters) >= 3:
-        return letters[:3]
-    return "MRC"
+    return letters[:3] if len(letters) >= 3 else "MRC"
 
 def random_time_hms(rng: random.Random) -> str:
     h = rng.randint(0,23); m = rng.randint(0,59); s = rng.randint(0,59)
@@ -127,16 +116,16 @@ def core_to_stream_trends(core: List[Dict[str, Any]], rng: random.Random) -> Dic
             lab = ee["label"].lower()
             if any(k in lab for k in ["breach", "lawsuit", "outage", "recall", "fine", "scandal"]):
                 ret = rng.uniform(-0.15, -0.05)
-                vol = rng.choice(["+40%", "+60%", "1.4x", "1.6x"])
-                volm = rng.choice(["x1.6", "x2.0", "180%"])
+                vol = rng.choice(["+20%","+40%","1.2x","1.4x","1.6x"])
+                volm = rng.choice(["x1.3","x1.6","150%","180%"])
             elif any(k in lab for k in ["launch", "award", "partnership", "buyback", "expansion"]):
                 ret = rng.uniform(0.04, 0.14)
-                vol = rng.choice(["+20%", "+40%", "1.2x", "1.4x"])
-                volm = rng.choice(["x1.3", "x1.6", "150%"])
+                vol = rng.choice(["+10%","+20%","+40%","1.2x","1.4x"])
+                volm = rng.choice(["x1.1","x1.3","x1.6","110%","150%"])
             else:
                 ret = rng.uniform(-0.01, 0.02)
-                vol = rng.choice(["+10%", "1.1x", "1.0x"])
-                volm = rng.choice(["x1.1", "110%", "x1.0"])
+                vol = rng.choice(["+10%","1.1x","1.0x"])
+                volm = rng.choice(["x1.1","110%","x1.0"])
             ee["return"] = round(float(ret), 3)
             ee["volatility"] = vol
             ee["volume"] = volm
@@ -178,8 +167,6 @@ def core_to_stream_trends(core: List[Dict[str, Any]], rng: random.Random) -> Dic
     }
 
 def random_merchant_block(name: str, start_date: str, end_date: str, rng: random.Random) -> Dict[str, Any]:
-    slug = slugify(name)
-    ticker = random_ticker(name)
     core = random_trend_plan(start_date[:7], end_date[:7], rng)
     tr = core_to_stream_trends(core, rng)
 
@@ -197,34 +184,17 @@ def random_merchant_block(name: str, start_date: str, end_date: str, rng: random
     total_ret = round(rng.uniform(-0.25, 0.60), 3)
 
     wl_n = rng.randint(20000, 180000)
+    ticker = random_ticker(name)
 
     return {
         "merchant_name": name,
         "start_date": start_date,
         "end_date": end_date,
         "seed": rng.randint(1, 10_000_000),
-        "tweets": {
-            "enabled": True,
-            "n_tweets": tweets_n,
-            "trend_plan": tr["tweets"],
-        },
-        "reddit": {
-            "enabled": True,
-            "n_posts": reddit_n,
-            "trend_plan": tr["reddit"],
-        },
-        "news": {
-            "enabled": True,
-            "n_articles": news_n,
-            "trend_plan": tr["news"],
-        },
-        "reviews": {
-            "enabled": True,
-            "n_products": products_n,
-            "merchant_score": merchant_score,
-            "n_reviews": reviews_n,
-            "trend_plan": tr["reviews"],
-        },
+        "tweets": {"enabled": True, "n_tweets": tweets_n, "trend_plan": tr["tweets"]},
+        "reddit": {"enabled": True, "n_posts": reddit_n, "trend_plan": tr["reddit"]},
+        "news": {"enabled": True, "n_articles": news_n, "trend_plan": tr["news"]},
+        "reviews": {"enabled": True, "n_products": products_n, "merchant_score": merchant_score, "n_reviews": reviews_n, "trend_plan": tr["reviews"]},
         "stock": {
             "enabled": True,
             "ticker": ticker,
@@ -235,11 +205,7 @@ def random_merchant_block(name: str, start_date: str, end_date: str, rng: random
             "target_total_return": total_ret,
             "trend_plan": tr["stock"],
         },
-        "wl": {
-            "enabled": True,
-            "n_transactions": wl_n,
-            "trend_plan": tr["wl"]
-        }
+        "wl": {"enabled": True, "n_transactions": wl_n, "trend_plan": tr["wl"]},
     }
 
 def merge_custom_into_random(random_block: Dict[str, Any], custom_block: Dict[str, Any]) -> Dict[str, Any]:
@@ -256,10 +222,8 @@ def merge_custom_into_random(random_block: Dict[str, Any], custom_block: Dict[st
 def generate_preset(merchant_names: List[str], start_date: str, end_date: str, seed: int, customs: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     rng = random.Random(seed)
     merchants: List[Dict[str, Any]] = []
-
     used_names = set()
     for nm in merchant_names:
-        # Ensure unique
         base_nm = nm
         if base_nm in used_names:
             base_nm = f"{nm}_{rng.randint(1000,9999)}"
@@ -267,14 +231,11 @@ def generate_preset(merchant_names: List[str], start_date: str, end_date: str, s
         block = random_merchant_block(base_nm, start_date, end_date, rng)
         merchants.append(block)
 
-    # Apply customs (if any)
     if customs:
         for c in customs:
             cname = c.get("merchant_name") or (merchant_names[0] if merchant_names else "Merchant")
-            # Find a merchant to merge into, or append as new
             idx = next((i for i, m in enumerate(merchants) if m.get("merchant_name", "").lower() == str(cname).lower()), None)
             if idx is None:
-                # If not found, create a new merchant block with provided name
                 nm = cname
                 new_block = random_merchant_block(nm, start_date, end_date, rng)
                 merged = merge_custom_into_random(new_block, c)
@@ -302,6 +263,21 @@ def save_preset(preset: Dict[str, Any], out_path: str) -> str:
         json.dump(preset, f, ensure_ascii=False, indent=2)
     return os.path.abspath(out_path)
 
+# ---------------- Index helpers ----------------
+
+def ensure_stream_indexes(mongo_uri: str, db_name: str):
+    client = MongoClient(mongo_uri); db = client[db_name]
+    cols = ["reddit","news","reviews","wl_transactions","stocks_prices","stocks_earnings","stocks_actions"]
+    for c in cols:
+        try: db[c].create_index([("doc_key", ASCENDING)], unique=True, name="uniq_doc_key", background=True)
+        except Exception: pass
+        try: db[c].create_index([("merchant", ASCENDING)], name="idx_merchant", background=True)
+        except Exception: pass
+    for c in ["stocks_prices","stocks_earnings","stocks_actions"]:
+        try: db[c].create_index([("date", ASCENDING)], name="idx_date", background=True)
+        except Exception: pass
+    client.close()
+
 # ---------------- Ingestion helpers ----------------
 
 def _ensure_mongo(conn_uri: Optional[str], db_name: Optional[str]):
@@ -313,8 +289,7 @@ def _ensure_mongo(conn_uri: Optional[str], db_name: Optional[str]):
     db = client[db_name]
     return client, db
 
-def ingest_preset_to_mongo(preset_path: str, mongo_uri: Optional[str] = None, db_name: Optional[str] = None, deep_scan: bool = False, seed_override: Optional[int] = None, max_workers: int = 8) -> List[Dict[str, Any]]:
-    # Load preset
+def ingest_preset_to_mongo(preset_path: str, mongo_uri: Optional[str] = None, db_name: Optional[str] = None, deep_scan: bool = False, seed_override: Optional[int] = None, max_workers: int = 8, single: bool = False) -> List[Dict[str, Any]]:
     with open(preset_path, "r", encoding="utf-8") as f:
         preset = json.load(f)
     merchants = preset.get("merchants", [])
@@ -325,7 +300,6 @@ def ingest_preset_to_mongo(preset_path: str, mongo_uri: Optional[str] = None, db
     service = MerchantService(db)
     results: List[Dict[str, Any]] = []
 
-    # Ensure indexes (best effort)
     try:
         service.ensure_indexes()
     except Exception:
@@ -333,80 +307,255 @@ def ingest_preset_to_mongo(preset_path: str, mongo_uri: Optional[str] = None, db
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
+    total = len(merchants)
+    print(f"[ingest] Starting onboarding for {total} merchants (single={single}, workers={max_workers if not single else 1})...")
+    started = time.time()
+    processed = 0
+
     def ingest_block(block: Dict[str, Any]) -> Dict[str, Any]:
         name = block.get("merchant_name")
         if not name:
-            return {"merchant_name": None, "error": "missing merchant_name"}
-
+            return {"merchant_name": None, "status":"error", "error": "missing merchant_name"}
         s_date = block.get("start_date") or global_start
         e_date = block.get("end_date") or global_end
         details = {k: v for k, v in block.items() if k not in ("merchant_name",)}
-        # seed may be present; otherwise fallback to provided seed
         seed = block.get("seed", seed_override)
-        try:
-            res = service.onboard_and_generate_preset(
-                merchant_name=name,
-                start_date=s_date,
-                end_date=e_date,
-                deep_scan=deep_scan,
-                details=details,
-                preset_overrides={},
-                seed=seed
-            )
-            return {"merchant_name": name, "status": "ok", "result": res}
-        except Exception as ex:
-            return {"merchant_name": name, "status": "error", "error": str(ex)}
+        res = service.onboard_and_generate_preset(
+            merchant_name=name,
+            start_date=s_date,
+            end_date=e_date,
+            deep_scan=deep_scan,
+            details=details,
+            preset_overrides={},
+            seed=seed
+        )
+        return {"merchant_name": name, "status": "ok", "result": res}
 
-    # Run ingestion in parallel
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = [ex.submit(ingest_block, m) for m in merchants]
-        for fut in as_completed(futures):
-            results.append(fut.result())
+    if single:
+        for m in merchants:
+            try:
+                r = ingest_block(m)
+                results.append(r)
+                processed += 1
+                print(f"[ingest] {processed}/{total} done: {r.get('merchant_name')} -> {r.get('status')}")
+            except Exception as ex2:
+                processed += 1
+                print(f"[ingest] {processed}/{total} error: {ex2}")
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = [ex.submit(ingest_block, m) for m in merchants]
+            for fut in as_completed(futures):
+                processed += 1
+                try:
+                    r = fut.result()
+                    results.append(r)
+                    nm = r.get("merchant_name")
+                    st = r.get("status")
+                    print(f"[ingest] {processed}/{total} done: {nm} -> {st}")
+                except Exception as ex2:
+                    print(f"[ingest] {processed}/{total} error: {ex2}")
 
+    took = int(time.time() - started)
+    print(f"[ingest] Completed {processed}/{total} merchants in {took}s.")
     client.close()
     return results
 
-# ---------------- CLI / API surface ----------------
+# ---------------- Streams generation helpers ----------------
 
-def generate_cli():
-    """
-    Expose a CLI with two subcommands:
-    - generate: create a preset.json
-    - ingest: ingest a preset.json into MongoDB
-    """
-    parser = argparse.ArgumentParser(description="Preset: generate and/or ingest merchant data presets.")
-    sub = parser.add_subparsers(dest="command", required=True)
+def _date(s: str) -> dt.date:
+    return dt.date.fromisoformat(s)
 
-    # generate
-    gen = sub.add_parser("generate", help="Generate a preset.json for N merchants.")
-    gen.add_argument("--num", type=int, required=True, help="Number of merchants to generate.")
-    gen.add_argument("--start_date", type=str, default=None, help="Start date (YYYY-MM-DD). If omitted, defaults to now-3y.")
-    gen.add_argument("--end_date", type=str, default=None, help="End date (YYYY-MM-DD). If omitted, defaults to now+1y.")
-    gen.add_argument("--names", type=str, default=None, help="Comma-separated merchant names.")
-    gen.add_argument("--names-file", type=str, default=None, help="Path to a file containing merchant names (one per line).")
-    gen.add_argument("--out", type=str, default="preset.json", help="Output preset.json path.")
-    gen.add_argument("--seed", type=int, default=777, help="Base RNG seed for reproducibility.")
-    gen.add_argument("--custom", type=str, nargs="*", default=None, help="Path(s) to custom JSON blocks to override per-merchant blocks.")
-    gen.add_argument("--merchant-name", type=str, default=None, help="Optional quick single merchant name.")
-    gen.add_argument("--no-confirm", action="store_true", help="Do not wait for user confirmation before ingest (generate only).")
+def _days_between(start_date: str, end_date: str) -> int:
+    try:
+        s = _date(start_date)
+        e = _date(end_date)
+        return (e - s).days + 1 if e >= s else 0
+    except Exception:
+        return 0
 
-    # ingest
-    ing = sub.add_parser("ingest", help="Ingest a preset.json into MongoDB using MerchantService.")
-    ing.add_argument("--preset", type=str, required=True, help="Path to preset.json to ingest.")
-    ing.add_argument("--mongo-uri", type=str, default=None, help="Mongo URI (overrides MONGO_URI env).")
-    ing.add_argument("--db", type=str, default=None, help="Database name (overrides DB_NAME env).")
-    ing.add_argument("--deep-scan", action="store_true", help="Run deep scan (force regen).")
-    ing.add_argument("--max-workers", type=int, default=8, help="Max parallel ingestion workers.")
+def estimate_counts_for_block(block: Dict[str, Any], global_start: str, global_end: str, scale: float, scale_stocks: bool) -> Dict[str, int]:
+    start_date = block.get("start_date", global_start)
+    end_date = block.get("end_date", global_end)
+    r = block.get("reddit", {}) or {}
+    n = block.get("news", {}) or {}
+    rv = block.get("reviews", {}) or {}
+    st = block.get("stock", {}) or {}
+    wl = block.get("wl", {}) or {}
 
-    args = parser.parse_args()
+    stock_tp = st.get("trend_plan", []) or []
+    rp = int(r.get("n_posts", 0)) if r.get("enabled") else 0
+    na = int(n.get("n_articles", 0)) if n.get("enabled") else 0
+    rr = int(rv.get("n_reviews", 0)) if rv.get("enabled") else 0
+    wt = int(wl.get("n_transactions", 0)) if wl.get("enabled") else 0
+    sd = _days_between(start_date, end_date) if st.get("enabled") else 0
 
-    if args.command == "generate":
-        generate_preset_cli(args)
-    elif args.command == "ingest":
-        ingest_preset_cli(args)
+    if scale < 1.0:
+        rp = int(rp * scale)
+        na = int(na * scale)
+        rr = int(rr * scale)
+        wt = int(wt * scale)
+        if scale_stocks and sd > 0:
+            sd = max(1, int(sd * scale))
+
+    return {
+        "reddit": rp,
+        "news": na,
+        "reviews": rr,
+        "stocks_prices": sd,
+        "stocks_earnings": len(stock_tp) if st.get("enabled") else 0,
+        "stocks_actions": len(stock_tp) if st.get("enabled") else 0,
+        "wl_transactions": wt,
+    }
+
+def sum_counts(a: Dict[str, int], b: Dict[str, int]) -> Dict[str, int]:
+    keys = {"reddit","news","reviews","stocks_prices","stocks_earnings","stocks_actions","wl_transactions"}
+    return {k: int(a.get(k,0)) + int(b.get(k,0)) for k in keys}
+
+def fmt_int(n: int) -> str:
+    return f"{n:,}"
+
+def print_counts(prefix: str, counts: Dict[str, int]) -> None:
+    print(
+        f"{prefix} reddit={fmt_int(counts['reddit'])}, "
+        f"news={fmt_int(counts['news'])}, "
+        f"reviews={fmt_int(counts['reviews'])}, "
+        f"stocks_prices={fmt_int(counts['stocks_prices'])}, "
+        f"stocks_earnings={fmt_int(counts['stocks_earnings'])}, "
+        f"stocks_actions={fmt_int(counts['stocks_actions'])}, "
+        f"wl_transactions={fmt_int(counts['wl_transactions'])}"
+    )
+
+def generate_streams_from_preset(
+    preset_path: str,
+    mongo_uri: Optional[str] = None,
+    db_name: Optional[str] = None,
+    max_workers: int = 8,
+    only: Optional[List[str]] = None,
+    scale: float = 1.0,
+    scale_stocks: bool = False,
+    single: bool = False
+) -> List[Dict[str, Any]]:
+    if mongo_uri is None:
+        mongo_uri = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017")
+    if db_name is None:
+        db_name = os.getenv("DB_NAME", "merchant_analytics")
+    dp_init_env(mongo_uri, db_name)
+    ensure_stream_indexes(mongo_uri, db_name)
+
+    with open(preset_path, "r", encoding="utf-8") as f:
+        preset = json.load(f)
+
+    merchants = preset.get("merchants", [])
+    global_start = preset.get("global", {}).get("start_date") or preset.get("start_date", "now")
+    global_end = preset.get("global", {}).get("end_date") or preset.get("end_date", "now")
+
+    streams = [s.strip() for s in (only or ["reddit","news","reviews","stock","wl"])]
+
+    total_counts = {"reddit":0,"news":0,"reviews":0,"stocks_prices":0,"stocks_earnings":0,"stocks_actions":0,"wl_transactions":0}
+    for m in merchants:
+        total_counts = sum_counts(total_counts, estimate_counts_for_block(m, global_start, global_end, scale, scale_stocks))
+    print_counts(f"[streams] Estimated totals (scale={scale}, stocks_scaled={scale_stocks}):", total_counts)
+
+    results: List[Dict[str, Any]] = []
+    total = len(merchants)
+    processed = 0
+    started = time.time()
+    done_counts = {"reddit":0,"news":0,"reviews":0,"stocks_prices":0,"stocks_earnings":0,"stocks_actions":0,"wl_transactions":0}
+
+    def scaled_value(v: int) -> int:
+        return int(v * scale) if scale < 1.0 else int(v)
+
+    def run_one(block: Dict[str, Any]) -> Dict[str, Any]:
+        name = block.get("merchant_name")
+        seed = block.get("seed")
+        exp = estimate_counts_for_block(block, global_start, global_end, scale, scale_stocks)
+        t0 = time.time()
+
+        # reddit
+        if "reddit" in streams and block.get("reddit", {}).get("enabled"):
+            r = block["reddit"]
+            n_posts = scaled_value(int(r.get("n_posts", 0)))
+            reddit_direct.generate_stream(mongo_uri, db_name, name, n_posts, r.get("trend_plan", []), seed)
+
+        # news
+        if "news" in streams and block.get("news", {}).get("enabled"):
+            n = block["news"]
+            n_articles = scaled_value(int(n.get("n_articles", 0)))
+            news_direct.generate_stream(mongo_uri, db_name, name, n_articles, n.get("trend_plan", []), seed)
+
+        # reviews
+        if "reviews" in streams and block.get("reviews", {}).get("enabled"):
+            rv = block["reviews"]
+            n_reviews = scaled_value(int(rv.get("n_reviews", 0)))
+            n_products = max(1, scaled_value(int(rv.get("n_products", 0))) or int(rv.get("n_products", 0)))
+            reviews_direct.generate_stream(mongo_uri, db_name, name, n_reviews, n_products, rv.get("merchant_score", 0.0), rv.get("trend_plan", []), seed)
+
+        # stock (optional scale via window compression)
+        if "stock" in streams and block.get("stock", {}).get("enabled"):
+            st = block["stock"]
+            s_date = block.get("start_date", global_start)
+            e_date = block.get("end_date", global_end)
+            if scale_stocks:
+                days = _days_between(s_date, e_date)
+                target_days = max(1, int(days * scale)) if days > 0 else 0
+                if target_days > 0 and s_date and e_date:
+                    # Compress window by moving end_date earlier
+                    try:
+                        sd = dt.date.fromisoformat(s_date)
+                        ed_scaled = sd + dt.timedelta(days=target_days - 1)
+                        e_date = ed_scaled.isoformat()
+                    except Exception:
+                        pass
+            stock_direct.generate_stream(mongo_uri, db_name, name, st, s_date, e_date, seed)
+
+        # wl
+        if "wl" in streams and block.get("wl", {}).get("enabled"):
+            wl = block["wl"]
+            n_txn = scaled_value(int(wl.get("n_transactions", 0)))
+            wl_direct.generate_stream(mongo_uri, db_name, name, n_txn, wl.get("trend_plan", []), seed)
+
+        t1 = time.time()
+        return {"merchant_name": name, "status": "ok", "counts": exp, "elapsed": round(t1 - t0, 2)}
+
+    print(f"[streams] Generating streams for {total} merchants (single={single}, workers={max_workers if not single else 1})...")
+    if single:
+        for m in merchants:
+            processed += 1
+            try:
+                r = run_one(m)
+                results.append(r)
+                nm = r.get("merchant_name")
+                cnt = r.get("counts", {})
+                done_counts = sum_counts(done_counts, cnt)
+                print_counts(f"[streams] {processed}/{total} done: {nm} ->", cnt)
+                print_counts(f"[streams] cumulative:", done_counts)
+            except Exception as ex2:
+                print(f"[streams] {processed}/{total} error: {ex2}")
+    else:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futs = [ex.submit(run_one, m) for m in merchants]
+            for fut in as_completed(futs):
+                processed += 1
+                try:
+                    r = fut.result()
+                    results.append(r)
+                    nm = r.get("merchant_name")
+                    cnt = r.get("counts", {})
+                    done_counts = sum_counts(done_counts, cnt)
+                    print_counts(f"[streams] {processed}/{total} done: {nm} ->", cnt)
+                    print_counts(f"[streams] cumulative:", done_counts)
+                except Exception as ex2:
+                    print(f"[streams] {processed}/{total} error: {ex2}")
+
+    took = round(time.time() - started, 2)
+    print(f"[streams] Completed {processed}/{total} merchants in {took}s.")
+    print_counts("[streams] Final cumulative:", done_counts)
+    return results
+
+# ---------------- CLI ----------------
 
 def generate_preset_cli(args: argparse.Namespace) -> None:
-    # Determine names
     names: List[str] = []
     if args.names:
         names = [n.strip() for n in args.names.split(",") if n.strip()]
@@ -421,28 +570,22 @@ def generate_preset_cli(args: argparse.Namespace) -> None:
             print(f"Error reading names file: {e}")
             return
     if not names and args.num > 0:
-        # Use a subset of BASE_NAMES
         names = BASE_NAMES[: min(args.num, len(BASE_NAMES))]
-        # If more merchants requested than base_names, fill with generated names
         i = 0
-        while len(names) < min(args.num, 5000):  # cap reasonable
+        while len(names) < min(args.num, 5000):
             names.append(f"Merchant_{i}_{random.randint(1000,9999)}")
             i += 1
 
-    # If a single merchant_name is directly provided, ensure at least that one exists
     if args.merchant_name:
         if not any(n.lower() == args.merchant_name.lower() for n in names):
             names.append(args.merchant_name)
 
-    # Date window defaults
     now = dt.datetime.now(dt.timezone.utc)
     start_date = args.start_date or (now - dt.timedelta(days=365*3)).strftime("%Y-%m-%d")
     end_date = args.end_date or (now + dt.timedelta(days=365)).strftime("%Y-%m-%d")
 
-    # Build Customs
     customs: List[Dict[str, Any]] = []
     if args.custom:
-        import pathlib
         for p in args.custom:
             try:
                 with open(p, "r", encoding="utf-8") as f:
@@ -454,20 +597,23 @@ def generate_preset_cli(args: argparse.Namespace) -> None:
             except Exception as e:
                 print(f"Warning: could not load custom {p}: {e}")
 
+    print(f"[generate] Building preset for {len(names)} merchants...")
+    t0 = time.time()
     preset = generate_preset(names, start_date, end_date, args.seed, customs or None)
     out_path = args.out or "preset.json"
     saved = save_preset(preset, out_path)
+    t1 = time.time()
+    print(f"[generate] Preset written to: {saved} in {round(t1 - t0, 2)}s")
 
-    print(f"Preset written to: {saved}")
+    totals = {"reddit":0,"news":0,"reviews":0,"stocks_prices":0,"stocks_earnings":0,"stocks_actions":0,"wl_transactions":0}
+    for m in preset.get("merchants", []):
+        totals = sum_counts(totals, estimate_counts_for_block(m, start_date, end_date, scale=1.0, scale_stocks=False))
+    print_counts("[generate] Estimated stream docs if you run 'streams':", totals)
+
     if not args.no_confirm:
         proceed = input("Ingest into MongoDB now? (y/N): ").strip().lower()
         if proceed in ("y", "yes"):
-            # Ingest automatically
-            ink = preset.get("global", {}).get("start_date") or start_date
-            ink2 = preset.get("global", {}).get("end_date") or end_date
-            # If you want to pass a temporary custom, you can pass none here
-            # Ingest blocks
-            results = ingest_preset_to_mongo(saved, mongo_uri=None, db_name=None, deep_scan=False, max_workers=8)
+            results = ingest_preset_to_mongo(saved, mongo_uri=None, db_name=None, deep_scan=False, max_workers=8, single=False)
             print("Ingestion results:")
             for r in results:
                 print(r)
@@ -479,17 +625,98 @@ def ingest_preset_cli(args: argparse.Namespace) -> None:
     if not os.path.exists(preset_path):
         print(f"Preset file not found: {preset_path}")
         return
-    results = ingest_preset_to_mongo(preset_path, mongo_uri=args.mongo_uri, db_name=args.db, deep_scan=args.deep_scan, max_workers=args.max_workers)
+    results = ingest_preset_to_mongo(
+        preset_path,
+        mongo_uri=args.mongo_uri,
+        db_name=args.db,
+        deep_scan=args.deep_scan,
+        max_workers=args.max_workers,
+        single=args.single
+    )
     print("Ingestion completed. Summary:")
     for r in results:
         print(r)
 
-# Entry point
+    if getattr(args, "with_streams", False):
+        print("Generating streams as requested (--with-streams)...")
+        sres = generate_streams_from_preset(
+            preset_path,
+            mongo_uri=args.mongo_uri,
+            db_name=args.db,
+            max_workers=args.max_workers,
+            only=None,
+            scale=args.scale,
+            scale_stocks=args.scale_stocks,
+            single=args.single
+        )
+        for r in sres:
+            print(r)
+
+def streams_preset_cli(args: argparse.Namespace) -> None:
+    preset_path = args.preset
+    if not os.path.exists(preset_path):
+        print(f"Preset file not found: {preset_path}")
+        return
+    only = [s.strip() for s in (args.only or "").split(",")] if args.only else None
+    results = generate_streams_from_preset(
+        preset_path,
+        mongo_uri=args.mongo_uri,
+        db_name=args.db,
+        max_workers=args.max_workers,
+        only=only,
+        scale=args.scale,
+        scale_stocks=args.scale_stocks,
+        single=args.single
+    )
+    print("Streams generation completed. Summary:")
+    for r in results:
+        print(r)
+
+def generate_cli():
+    parser = argparse.ArgumentParser(description="Preset: generate and/or ingest merchant data presets.")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    gen = sub.add_parser("generate", help="Generate a preset.json for N merchants.")
+    gen.add_argument("--num", type=int, required=True, help="Number of merchants to generate.")
+    gen.add_argument("--start_date", type=str, default=None, help="Start date (YYYY-MM-DD). If omitted, defaults to now-3y.")
+    gen.add_argument("--end_date", type=str, default=None, help="End date (YYYY-MM-DD). If omitted, defaults to now+1y.")
+    gen.add_argument("--names", type=str, default=None, help="Comma-separated merchant names.")
+    gen.add_argument("--names-file", type=str, default=None, help="Path to a file containing merchant names (one per line).")
+    gen.add_argument("--out", type=str, default="preset.json", help="Output preset.json path.")
+    gen.add_argument("--seed", type=int, default=777, help="Base RNG seed for reproducibility.")
+    gen.add_argument("--custom", type=str, nargs="*", default=None, help="Path(s) to custom JSON blocks to override per-merchant blocks.")
+    gen.add_argument("--merchant-name", type=str, default=None, help="Optional quick single merchant name.")
+    gen.add_argument("--no-confirm", action="store_true", help="Do not wait for user confirmation before ingest (generate only).")
+
+    ing = sub.add_parser("ingest", help="Ingest a preset.json into MongoDB using MerchantService.")
+    ing.add_argument("--preset", type=str, required=True, help="Path to preset.json to ingest.")
+    ing.add_argument("--mongo-uri", type=str, default=None, help="Mongo URI (overrides MONGO_URI env).")
+    ing.add_argument("--db", type=str, default=None, help="Database name (overrides DB_NAME env).")
+    ing.add_argument("--deep-scan", action="store_true", help="Run deep scan (force regen).")
+    ing.add_argument("--max-workers", type=int, default=8, help="Max parallel ingestion workers.")
+    ing.add_argument("--with-streams", action="store_true", help="Generate streams right after ingest.")
+    ing.add_argument("--single", action="store_true", help="Run in single-threaded mode (no parallel workers).")
+    ing.add_argument("--scale", type=float, default=1.0, help="Scale factor for counts when auto-running streams (0.0-1.0).")
+    ing.add_argument("--scale-stocks", action="store_true", help="Scale stocks by compressing date window.")
+
+    st = sub.add_parser("streams", help="Generate stream data for merchants from preset.json.")
+    st.add_argument("--preset", type=str, required=True, help="Path to preset.json.")
+    st.add_argument("--mongo-uri", type=str, default=None, help="Mongo URI (overrides env).")
+    st.add_argument("--db", type=str, default=None, help="Database name (overrides env).")
+    st.add_argument("--max-workers", type=int, default=8, help="Parallel workers.")
+    st.add_argument("--only", type=str, default=None, help="Comma-separated subset: reddit,news,reviews,stock,wl")
+    st.add_argument("--scale", type=float, default=1.0, help="Scale factor for counts (0.0-1.0).")
+    st.add_argument("--scale-stocks", action="store_true", help="Scale stocks by compressing date window.")
+    st.add_argument("--single", action="store_true", help="Run in single-threaded mode (no parallel workers).")
+
+    args = parser.parse_args()
+
+    if args.command == "generate":
+        generate_preset_cli(args)
+    elif args.command == "ingest":
+        ingest_preset_cli(args)
+    elif args.command == "streams":
+        streams_preset_cli(args)
+
 if __name__ == "__main__":
     generate_cli()
-
-
-
-# python3 preset.py generate --num 20 --start_date 2020-01-01 --end_date 2023-01-01 --out preset.json --seed 1234
-#  python3 preset.py generate --num 10 --out preset.json --seed 1234
-# python3 preset.py ingest --preset preset.json --mongo-uri mongodb://127.0.0.1:27017 --db merchant_analytics
