@@ -44,7 +44,6 @@
         <div class="panel-section">
           <div class="panel-actions">
             <div @click="openEmailBox" class="notification">Notifications</div>
-            <div @click="openSocialUpdates" class="notification">Social Updates</div>
             <div @click="openExplore" class="notification">Explore</div>
           </div>
         </div>
@@ -86,116 +85,483 @@
       </aside>
 
       <!-- Main cards -->
+
       <main class="merchant-detail">
-        <!-- Overview & Identifiers -->
         <section class="card">
           <div class="card-header">
-            <h3>Overview & Identifiers</h3>
+            <h3>Twitter Data Pipeline</h3>
           </div>
+
+          <!-- pass the json to the merchant_twitter component -->
           <div class="card-body">
-            <p class="row-display"><strong>Merchant Name:</strong> <span>{{ merchant.name || "N/A" }}</span></p>
-            <p class="row-display"><strong>Merchant ID:</strong> <span>{{ merchant.id || "N/A" }}</span></p>
-            <FieldRow label="Merchant Code" field="merchant_code" v-model="merchant.merchant_code" :edit.sync="editFields.merchant_code" />
-            <FieldRow label="Acceptor Name" field="acceptor_name" v-model="merchant.acceptor_name" :edit.sync="editFields.acceptor_name" />
-            <FieldRow label="Acceptor Category Code (MCC)" field="acceptor_category_code" v-model="merchant.acceptor_category_code" :edit.sync="editFields.acceptor_category_code" />
+            <MerchantTwitter :tweets="tweets" :loading="tweetsLoading" :unit="unit" />
           </div>
         </section>
 
-        <!-- Business & Web -->
+
+
+
         <section class="card">
           <div class="card-header">
-            <h3>Business & Web</h3>
+        <h3>Merchant Actions & Restrictions</h3>
           </div>
-          <div class="card-body">
-            <FieldRow label="Website URL" field="url" v-model="merchant.url" :edit.sync="editFields.url" />
-            <div class="desc-row">
-              <label class="desc-label">Description</label>
-              <div class="desc-content">
-                <div v-if="!editFields.description" class="desc-text">
-                  {{ merchant.description || "No description provided." }}
-                </div>
-                <div v-else class="desc-edit">
-                  <textarea v-model="merchant.description" class="form-textarea" rows="3" placeholder="Merchant profile notes"></textarea>
-                </div>
-              </div>
-              <button class="edit-btn" @click="editFields.description = !editFields.description" title="Edit">✎</button>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:18px;">
+
+        <!-- Current Action Chips -->
+        <div>
+          <div style="font-weight:600;font-size:13px;color:#6b7280;margin-bottom:6px;">Current Actions</div>
+          <div v-if="actionsTaken.length" style="display:flex;flex-wrap:wrap;gap:6px;">
+            <span
+          v-for="(a,i) in actionsTaken"
+          :key="i"
+          :title="a"
+          style="background:#f0fdfa;color:#008080;border:1px solid #14b8a6;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;line-height:1;"
+            >{{ a }}</span>
+          </div>
+          <div v-else style="font-size:13px;color:#9ca3af;font-style:italic;">No actions or restrictions in place.</div>
+        </div>
+
+        <!-- Status Summary -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;padding:10px;border-radius:6px;">
+            <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.5px;">ENFORCEMENT STATUS</div>
+            <div style="margin-top:4px;font-weight:600;color:#111827;">
+          <template v-if="actionsTaken.includes('Permanent Ban')">Permanently Banned</template>
+          <template v-else-if="actionsTaken.includes('Shadow Ban')">Shadow Banned</template>
+          <template v-else-if="actionsTaken.includes('Restricted')">Restricted</template>
+          <template v-else>{{ isActive ? 'Active' : 'Inactive' }}</template>
             </div>
-            <FieldRow label="Trade Register Number" field="trade_register_number" v-model="merchant.trade_register_number" :edit.sync="editFields.trade_register_number" />
-            <FieldRow label="Legal Name" field="legal_name" v-model="merchant.legal_name" :edit.sync="editFields.legal_name" />
-            <FieldRow label="Language Code" field="language_code" v-model="merchant.language_code" :edit.sync="editFields.language_code" />
-            <FieldRow label="Time Zone" field="time_zone_id" v-model="merchant.time_zone_id" :edit.sync="editFields.time_zone_id" />
           </div>
-        </section>
 
-        <!-- Location -->
-        <section class="card">
-          <div class="card-header">
-            <h3>Location</h3>
+          <div v-if="actionsTaken.includes('Permanent Ban')" style="background:#fff1f2;border:1px solid #fecdd3;padding:10px;border-radius:6px;">
+            <div style="font-size:11px;font-weight:700;color:#b91c1c;">PERMANENT BAN</div>
+            <div style="margin-top:4px;font-size:13px;color:#7f1d1d;">All activity disabled.</div>
           </div>
-          <div class="card-body">
-            <FieldRow label="Country Code" field="country_code" v-model="merchant.country_code" :edit.sync="editFields.country_code" />
-            <FieldRow label="Home Country Code" field="home_country_code" v-model="merchant.home_country_code" :edit.sync="editFields.home_country_code" />
-            <FieldRow label="Region ID" field="region_id" v-model="merchant.region_id" :edit.sync="editFields.region_id" />
-            <FieldRow label="State/Province (Subdivision)" field="country_sub_division_code" v-model="merchant.country_sub_division_code" :edit.sync="editFields.country_sub_division_code" />
-            <FieldRow label="City" field="city" v-model="merchant.city" :edit.sync="editFields.city" />
-            <FieldRow label="Street" field="street" v-model="merchant.street" :edit.sync="editFields.street" />
-            <FieldRow label="Postal Code" field="postal_code" v-model="merchant.postal_code" :edit.sync="editFields.postal_code" />
-            <FieldRow label="City Category Code" field="city_category_code" v-model="merchant.city_category_code" :edit.sync="editFields.city_category_code" />
-            <p class="row-display"><strong>Address:</strong> <span>{{ fullAddress || "N/A" }}</span></p>
-          </div>
-        </section>
 
-        <!-- Contact -->
-        <section class="card">
-          <div class="card-header">
-            <h3>Contact</h3>
+          <div v-else-if="actionsTaken.includes('Shadow Ban')" style="background:#fff7ed;border:1px solid #fed7aa;padding:10px;border-radius:6px;">
+            <div style="font-size:11px;font-weight:700;color:#c2410c;">SHADOW BAN</div>
+            <div style="margin-top:4px;font-size:13px;color:#7c2d12;">Visibility & capabilities reduced.</div>
           </div>
-          <div class="card-body">
-            <FieldRow label="Business Service Phone" field="business_service_phone_number" v-model="merchant.business_service_phone_number" :edit.sync="editFields.business_service_phone_number" />
-            <FieldRow label="Customer Service Phone" field="customer_service_phone_number" v-model="merchant.customer_service_phone_number" :edit.sync="editFields.customer_service_phone_number" />
-            <FieldRow label="Additional Contact Information" field="additional_contact_information" v-model="merchant.additional_contact_information" :edit.sync="editFields.additional_contact_information" type="textarea" />
-          </div>
-        </section>
+        </div>
 
-        <!-- Finance & Banking -->
-        <section class="card">
-          <div class="card-header">
-            <h3>Finance & Banking</h3>
+        <!-- Restriction Detail Block -->
+        <div
+          v-if="actionsTaken.includes('Restricted')"
+          style="display:flex;flex-direction:column;gap:14px;background:#f9fafb;border:1px solid #e5e7eb;padding:14px 16px;border-radius:8px;"
+        >
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;font-weight:700;color:#6b7280;letter-spacing:.5px;">RESTRICTION DETAILS</span>
           </div>
-          <div class="card-body">
-            <div class="finance-badges">
-              <div><strong>Country:</strong> <span>{{ merchant.country_code || "-" }}</span></div>
-              <div><strong>Currency:</strong> <span>{{ merchant.currency_code || "-" }}</span></div>
-              <div><strong>Category:</strong> <span>{{ merchant.acceptor_category_code || "-" }} {{ mccLabel }}</span></div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+            <div v-if="restrictionData.dailyTransactionLimit != null">
+          <div style="font-size:11px;color:#6b7280;font-weight:600;">Daily Limit</div>
+          <div style="font-weight:600;">${{ restrictionData.dailyTransactionLimit }}</div>
             </div>
+            <div v-if="restrictionData.monthlyTransactionLimit != null">
+          <div style="font-size:11px;color:#6b7280;font-weight:600;">Monthly Limit</div>
+          <div style="font-weight:600;">${{ restrictionData.monthlyTransactionLimit }}</div>
+            </div>
+            <div v-if="restrictionData.maxTransactionAmount != null">
+          <div style="font-size:11px;color:#6b7280;font-weight:600;">Max Single Tx</div>
+          <div style="font-weight:600;">${{ restrictionData.maxTransactionAmount }}</div>
+            </div>
+            <div v-if="restrictionData.allowedCountries">
+          <div style="font-size:11px;color:#6b7280;font-weight:600;">Allowed Countries</div>
+          <div style="font-weight:600;">{{ restrictionData.allowedCountries }}</div>
+            </div>
+            <div>
+          <div style="font-size:11px;color:#6b7280;font-weight:600;">Intl Transactions</div>
+          <div style="font-weight:600;">
+            {{ restrictionData.blockInternationalTransactions ? 'Blocked' : 'Allowed' }}
+          </div>
+            </div>
+            <div>
+          <div style="font-size:11px;color:#6b7280;font-weight:600;">Extra Verification</div>
+          <div style="font-weight:600;">
+            {{ restrictionData.requireAdditionalVerification ? 'Required' : 'Not Required' }}
+          </div>
+            </div>
+            <div v-if="restrictionData.startDate">
+          <div style="font-size:11px;color:#6b7280;font-weight:600;">Start Date</div>
+          <div style="font-weight:600;">{{ restrictionData.startDate }}</div>
+            </div>
+            <div v-if="restrictionData.endDate">
+          <div style="font-size:11px;color:#6b7280;font-weight:600;">End Date</div>
+          <div style="font-weight:600;">{{ restrictionData.endDate }}</div>
+            </div>
+          </div>
 
-            <FieldRow label="Currency Code" field="currency_code" v-model="merchant.currency_code" :edit.sync="editFields.currency_code" />
-            <FieldRow label="Tax ID" field="tax_id" v-model="merchant.tax_id" :edit.sync="editFields.tax_id" />
-            <FieldRow label="IBAN" field="iban" v-model="merchant.iban" :edit.sync="editFields.iban" />
-            <FieldRow label="Domiciliary Bank Number" field="domiciliary_bank_number" v-model="merchant.domiciliary_bank_number" :edit.sync="editFields.domiciliary_bank_number" />
-            <FieldRow label="Cut-off Time" field="cut_off_time" v-model="merchant.cut_off_time" :edit.sync="editFields.cut_off_time" type="time" />
+          <div v-if="restrictionData.restrictedCategoryCodes.length">
+            <div style="font-size:11px;color:#6b7280;font-weight:600;margin-bottom:4px;">Restricted MCCs</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <span
+            v-for="c in restrictionData.restrictedCategoryCodes"
+            :key="c"
+            style="background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;padding:4px 8px;font-size:11px;font-weight:600;border-radius:4px;"
+          >{{ c }}</span>
+            </div>
+          </div>
+
+          <div v-if="restrictionData.reason">
+            <div style="font-size:11px;color:#6b7280;font-weight:600;margin-bottom:4px;">Reason</div>
+            <div style="font-size:13px;white-space:pre-line;">{{ restrictionData.reason }}</div>
+          </div>
+        </div>
+
           </div>
         </section>
+      
+  <!-- Single, comprehensive card for all merchant info -->
+  <section class="card">
+    <div class="card-header">
+      <h3>Merchant Details</h3>
+    </div>
 
-        <!-- Activation & Dates -->
-        <section class="card">
-          <div class="card-header">
-            <h3>Activation & Dates</h3>
+    <div class="card-body grid-3">
+
+      <!-- display all merchant data here
+       
+      {
+  "_id": {
+    "$oid": "68da23f1ebc2a078aa28d477"
+  },
+  "merchant_name": "HomeGear",
+  "acceptor_category_code": "4900",
+  "acceptor_name": "HomeGear Acceptor",
+  "activation_end_time": null,
+  "activation_flag": false,
+  "activation_start_time": "2024-06-02T06:15:13.213876Z",
+  "activation_time": "2025-03-14T06:15:13.213876Z",
+  "additional_contact_information": "Contact support via portal.",
+  "business_service_phone_number": "+68-399-456-3729",
+  "city": "Paris",
+  "city_category_code": null,
+  "country_code": "IT",
+  "country_sub_division_code": null,
+  "created_at": "2025-09-29T06:15:13.213931Z",
+  "currency_code": "EUR",
+  "customer_service_phone_number": "+40-414-437-3858",
+  "cut_off_time": "01:18:30",
+  "description": "Acquirer/acceptor profile for merchant risk simulation.",
+  "domiciliary_bank_number": "BANK-766653",
+  "end_date": "2026-09-29",
+  "home_country_code": "IT",
+  "iban": null,
+  "language_code": "en",
+  "legal_name": "HomeGear Ltd.",
+  "merchant_code": "42597900",
+  "merchant_id": "acc_9dddd65872",
+  "postal_code": "25141",
+  "region_id": "EU",
+  "start_date": "2022-09-29",
+  "street": "193 Broadway",
+  "tax_id": "TAX-CF1F1CE7",
+  "time_zone_id": "Europe/Rome",
+  "trade_register_number": "REG-EE2A0FB7",
+  "updated_at": "2025-09-29T06:15:13.213943Z",
+  "url": "https://homegear.example.com"
+}
+      
+      -->
+      <div
+        class="card-footer meta-footer meta-grid"
+        style="
+          grid-column: 1 / -1;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 20px 24px;
+          padding-top: 14px;
+        "
+      >
+
+        <!-- Read-only -->
+        <div class="meta-item read-only" style="display:flex;flex-direction:column;gap:4px;">
+          <div class="meta-label">Merchant ID</div>
+          <div class="meta-value">{{ merchant.id || 'N/A' }}</div>
+        </div>
+
+        <!-- Merchant Code -->
+        <div class="meta-item" @click="!editFields.merchant_code && (editFields.merchant_code=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Merchant Code</div>
+          <div v-if="!editFields.merchant_code" class="meta-value">{{ merchant.merchant_code || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.merchant_code"
+             @keydown.enter.prevent="editFields.merchant_code=false"
+             @blur="editFields.merchant_code=false" />
+        </div>
+
+        <!-- URL -->
+        <div class="meta-item" @click="!editFields.url && (editFields.url=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">URL</div>
+          <div v-if="!editFields.url" class="meta-value">
+        <template v-if="merchant.url">
+          <a :href="merchant.url" target="_blank" rel="noopener">{{ merchant.url }}</a>
+        </template>
+        <template v-else>N/A</template>
           </div>
-          <div class="card-body grid-2">
-            <FieldRow label="Activation Status" field="activation_flag" v-model="merchant.activation_flag" :edit.sync="editFields.activation_flag" type="select-bool" />
-            <FieldRow label="Activation Time" field="activation_time" v-model="merchant.activation_time" :edit.sync="editFields.activation_time" type="datetime-local" />
-            <FieldRow label="Activation Start Time" field="activation_start_time" v-model="merchant.activation_start_time" :edit.sync="editFields.activation_start_time" type="datetime-local" />
-            <FieldRow label="Activation End Time" field="activation_end_time" v-model="merchant.activation_end_time" :edit.sync="editFields.activation_end_time" type="datetime-local" />
-            <FieldRow label="Start Date (range)" field="start_date" v-model="merchant.start_date" :edit.sync="editFields.start_date" type="date" />
-            <FieldRow label="End Date (range)" field="end_date" v-model="merchant.end_date" :edit.sync="editFields.end_date" type="date" />
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.url"
+             @keydown.enter.prevent="editFields.url=false"
+             @blur="editFields.url=false" />
+        </div>
+
+        <!-- Legal Name -->
+        <div class="meta-item" @click="!editFields.legal_name && (editFields.legal_name=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Legal Name</div>
+        <div v-if="!editFields.legal_name" class="meta-value">{{ merchant.legal_name || 'N/A' }}</div>
+        <input v-else autofocus class="form-input" type="text" v-model="merchant.legal_name"
+           @keydown.enter.prevent="editFields.legal_name=false"
+           @blur="editFields.legal_name=false" />
+        </div>
+
+        <!-- Acceptor Name -->
+        <div class="meta-item" @click="!editFields.acceptor_name && (editFields.acceptor_name=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Acceptor Name</div>
+          <div v-if="!editFields.acceptor_name" class="meta-value">{{ merchant.acceptor_name || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.acceptor_name"
+             @keydown.enter.prevent="editFields.acceptor_name=false"
+             @blur="editFields.acceptor_name=false" />
+        </div>
+
+        <!-- Category Code -->
+        <div class="meta-item" @click="!editFields.acceptor_category_code && (editFields.acceptor_category_code=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Category Code</div>
+          <div v-if="!editFields.acceptor_category_code" class="meta-value">
+        {{ merchant.acceptor_category_code || 'N/A' }} <span v-if="mccLabel">{{ mccLabel }}</span>
           </div>
-          <div class="card-footer meta-footer">
-            <div><strong>Created:</strong> {{ formatDate(merchant.created_at) }}</div>
-            <div><strong>Updated:</strong> {{ formatDate(merchant.updated_at) }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.acceptor_category_code"
+             @keydown.enter.prevent="editFields.acceptor_category_code=false"
+             @blur="editFields.acceptor_category_code=false" />
+        </div>
+
+        <!-- Country -->
+        <div class="meta-item" @click="!editFields.country_code && (editFields.country_code=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Country</div>
+          <div v-if="!editFields.country_code" class="meta-value">{{ merchant.country_code || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.country_code"
+             @keydown.enter.prevent="editFields.country_code=false"
+             @blur="editFields.country_code=false" />
+        </div>
+
+        <!-- Region -->
+        <div class="meta-item" @click="!editFields.region_id && (editFields.region_id=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Region</div>
+          <div v-if="!editFields.region_id" class="meta-value">{{ merchant.region_id || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.region_id"
+             @keydown.enter.prevent="editFields.region_id=false"
+             @blur="editFields.region_id=false" />
+        </div>
+
+        <!-- Street -->
+        <div class="meta-item" @click="!editFields.street && (editFields.street=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Street</div>
+          <div v-if="!editFields.street" class="meta-value">{{ merchant.street || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.street"
+             @keydown.enter.prevent="editFields.street=false"
+             @blur="editFields.street=false" />
+        </div>
+
+        <!-- City -->
+        <div class="meta-item" @click="!editFields.city && (editFields.city=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">City</div>
+          <div v-if="!editFields.city" class="meta-value">{{ merchant.city || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.city"
+             @keydown.enter.prevent="editFields.city=false"
+             @blur="editFields.city=false" />
+        </div>
+
+        <!-- Postal Code -->
+        <div class="meta-item" @click="!editFields.postal_code && (editFields.postal_code=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Postal Code</div>
+          <div v-if="!editFields.postal_code" class="meta-value">{{ merchant.postal_code || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.postal_code"
+             @keydown.enter.prevent="editFields.postal_code=false"
+             @blur="editFields.postal_code=false" />
+        </div>
+
+        <!-- Language -->
+        <div class="meta-item" @click="!editFields.language_code && (editFields.language_code=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Language</div>
+          <div v-if="!editFields.language_code" class="meta-value">{{ merchant.language_code || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.language_code"
+             @keydown.enter.prevent="editFields.language_code=false"
+             @blur="editFields.language_code=false" />
+        </div>
+
+        <!-- Timezone -->
+        <div class="meta-item" @click="!editFields.time_zone_id && (editFields.time_zone_id=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Timezone</div>
+          <div v-if="!editFields.time_zone_id" class="meta-value">{{ merchant.time_zone_id || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.time_zone_id"
+             @keydown.enter.prevent="editFields.time_zone_id=false"
+             @blur="editFields.time_zone_id=false" />
+        </div>
+
+        <!-- Business Phone -->
+        <div class="meta-item" @click="!editFields.business_service_phone_number && (editFields.business_service_phone_number=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Business Phone</div>
+          <div v-if="!editFields.business_service_phone_number" class="meta-value">{{ merchant.business_service_phone_number || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.business_service_phone_number"
+             @keydown.enter.prevent="editFields.business_service_phone_number=false"
+             @blur="editFields.business_service_phone_number=false" />
+        </div>
+
+        <!-- Customer Phone -->
+        <div class="meta-item" @click="!editFields.customer_service_phone_number && (editFields.customer_service_phone_number=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Customer Phone</div>
+          <div v-if="!editFields.customer_service_phone_number" class="meta-value">{{ merchant.customer_service_phone_number || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.customer_service_phone_number"
+             @keydown.enter.prevent="editFields.customer_service_phone_number=false"
+             @blur="editFields.customer_service_phone_number=false" />
+        </div>
+
+        <!-- Additional Contact -->
+        <div class="meta-item" @click="!editFields.additional_contact_information && (editFields.additional_contact_information=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Additional Contact Info</div>
+          <div v-if="!editFields.additional_contact_information" class="meta-value" style="white-space:pre-line;">
+        {{ merchant.additional_contact_information || 'N/A' }}
           </div>
-        </section>
-      </main>
+          <textarea v-else autofocus class="form-textarea" rows="3" v-model="merchant.additional_contact_information"
+            @blur="editFields.additional_contact_information=false"></textarea>
+        </div>
+
+        <!-- Currency -->
+        <div class="meta-item" @click="!editFields.currency_code && (editFields.currency_code=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Currency</div>
+          <div v-if="!editFields.currency_code" class="meta-value">{{ merchant.currency_code || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.currency_code"
+             @keydown.enter.prevent="editFields.currency_code=false"
+             @blur="editFields.currency_code=false" />
+        </div>
+
+        <!-- Tax ID -->
+        <div class="meta-item" @click="!editFields.tax_id && (editFields.tax_id=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Tax ID</div>
+          <div v-if="!editFields.tax_id" class="meta-value">{{ merchant.tax_id || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.tax_id"
+             @keydown.enter.prevent="editFields.tax_id=false"
+             @blur="editFields.tax_id=false" />
+        </div>
+
+        <!-- Trade Register -->
+        <div class="meta-item" @click="!editFields.trade_register_number && (editFields.trade_register_number=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Trade Register No</div>
+          <div v-if="!editFields.trade_register_number" class="meta-value">{{ merchant.trade_register_number || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.trade_register_number"
+             @keydown.enter.prevent="editFields.trade_register_number=false"
+             @blur="editFields.trade_register_number=false" />
+        </div>
+
+        <!-- IBAN -->
+        <div class="meta-item" @click="!editFields.iban && (editFields.iban=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">IBAN</div>
+          <div v-if="!editFields.iban" class="meta-value">{{ merchant.iban || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.iban"
+             @keydown.enter.prevent="editFields.iban=false"
+             @blur="editFields.iban=false" />
+        </div>
+
+        <!-- Domiciliary Bank -->
+        <div class="meta-item" @click="!editFields.domiciliary_bank_number && (editFields.domiciliary_bank_number=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Domiciliary Bank No</div>
+          <div v-if="!editFields.domiciliary_bank_number" class="meta-value">{{ merchant.domiciliary_bank_number || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="text" v-model="merchant.domiciliary_bank_number"
+             @keydown.enter.prevent="editFields.domiciliary_bank_number=false"
+             @blur="editFields.domiciliary_bank_number=false" />
+        </div>
+
+        <!-- Cut-off Time -->
+        <div class="meta-item" @click="!editFields.cut_off_time && (editFields.cut_off_time=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Cut-off Time</div>
+          <div v-if="!editFields.cut_off_time" class="meta-value">{{ merchant.cut_off_time || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="time" v-model="merchant.cut_off_time"
+             @keydown.enter.prevent="editFields.cut_off_time=false"
+             @blur="editFields.cut_off_time=false" />
+        </div>
+
+        <!-- Activation Flag -->
+        <div class="meta-item" @click="!editFields.activation_flag && (editFields.activation_flag=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Activation Flag</div>
+          <div v-if="!editFields.activation_flag" class="meta-value">
+        {{ merchant.activation_flag ? 'True' : 'False' }}
+          </div>
+          <select v-else autofocus class="form-input" v-model="merchant.activation_flag"
+          @blur="editFields.activation_flag=false">
+        <option :value="true">Enabled</option>
+        <option :value="false">Disabled</option>
+          </select>
+        </div>
+
+        <!-- Activation Time -->
+        <div class="meta-item" @click="!editFields.activation_time && (editFields.activation_time=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Activation Time</div>
+          <div v-if="!editFields.activation_time" class="meta-value">{{ formatDate(merchant.activation_time) }}</div>
+          <input v-else autofocus class="form-input" type="datetime-local" v-model="merchant.activation_time"
+             @keydown.enter.prevent="editFields.activation_time=false"
+             @blur="editFields.activation_time=false" />
+        </div>
+
+        <!-- Activation Start -->
+        <div class="meta-item" @click="!editFields.activation_start_time && (editFields.activation_start_time=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Activation Start</div>
+          <div v-if="!editFields.activation_start_time" class="meta-value">{{ formatDate(merchant.activation_start_time) }}</div>
+          <input v-else autofocus class="form-input" type="datetime-local" v-model="merchant.activation_start_time"
+             @keydown.enter.prevent="editFields.activation_start_time=false"
+             @blur="editFields.activation_start_time=false" />
+        </div>
+
+        <!-- Activation End -->
+        <div class="meta-item" @click="!editFields.activation_end_time && (editFields.activation_end_time=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Activation End</div>
+          <div v-if="!editFields.activation_end_time" class="meta-value">{{ formatDate(merchant.activation_end_time) }}</div>
+          <input v-else autofocus class="form-input" type="datetime-local" v-model="merchant.activation_end_time"
+             @keydown.enter.prevent="editFields.activation_end_time=false"
+             @blur="editFields.activation_end_time=false" />
+        </div>
+
+        <!-- Start Date -->
+        <div class="meta-item" @click="!editFields.start_date && (editFields.start_date=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">Start Date</div>
+          <div v-if="!editFields.start_date" class="meta-value">{{ merchant.start_date || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="date" v-model="merchant.start_date"
+             @keydown.enter.prevent="editFields.start_date=false"
+             @blur="editFields.start_date=false" />
+        </div>
+
+        <!-- End Date -->
+        <div class="meta-item" @click="!editFields.end_date && (editFields.end_date=true)" style="display:flex;flex-direction:column;gap:4px;cursor:pointer;">
+          <div class="meta-label">End Date</div>
+          <div v-if="!editFields.end_date" class="meta-value">{{ merchant.end_date || 'N/A' }}</div>
+          <input v-else autofocus class="form-input" type="date" v-model="merchant.end_date"
+             @keydown.enter.prevent="editFields.end_date=false"
+             @blur="editFields.end_date=false" />
+        </div>
+
+        <!-- Description -->
+        <div class="meta-item" @click="!editFields.description && (editFields.description=true)" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;">
+          <div class="meta-label">Description</div>
+          <div v-if="!editFields.description" class="meta-value" style="white-space:pre-line;">
+        {{ merchant.description || 'N/A' }}
+          </div>
+          <textarea v-else autofocus class="form-textarea" rows="4" v-model="merchant.description"
+            @blur="editFields.description=false"></textarea>
+        </div>
+
+        <!-- Created (read-only) -->
+        <div class="meta-item read-only" style="display:flex;flex-direction:column;gap:4px;">
+          <div class="meta-label">Created</div>
+          <div class="meta-value">{{ formatDate(merchant.created_at) }}</div>
+        </div>
+
+        <!-- Updated (read-only) -->
+        <div class="meta-item read-only" style="display:flex;flex-direction:column;gap:4px;">
+          <div class="meta-label">Updated</div>
+          <div class="meta-value">{{ formatDate(merchant.updated_at) }}</div>
+        </div>
+
+      </div>
+      </div>
+  </section>
+</main>
     </div>
 
     <div v-else-if="!loading" class="error">
@@ -341,6 +707,7 @@
         <div class="modal-footer">
           <button @click="closeRestrictModal" class="btn-cancel">Cancel</button>
           <button @click="confirmRestriction" class="btn-primary">Apply Restrictions</button>
+        
         </div>
       </div>
     </div>
@@ -352,166 +719,266 @@ import { ref, reactive, computed, onMounted, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
-// import twitterAnal from './twitterAnal.vue';
+import MerchantTwitter from "./MerchantTwitter.vue";
 
-export default {
-  name: "MerchantDetail",
-  components: {
-    FieldRow: {
-      name: "FieldRow",
-      props: {
-        label: { type: String, required: true },
-        field: { type: String, required: true },
-        modelValue: { required: false },
-        edit: { type: Boolean, default: false },
-        type: { type: String, default: "text" }, // text | textarea | date | time | datetime-local | select-bool
-      },
-      emits: ["update:modelValue", "update:edit"],
-      setup(props, { emit }) {
-        const localVal = ref(props.modelValue);
-        const inputRef = ref(null);
+// Centralized API config
+const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
-        watch(
-          () => props.modelValue,
-          (v) => { localVal.value = v; }
-        );
+// -------------------------------------
+// Utilities
+// -------------------------------------
+function toHHMMSS(val) {
+  if (!val) return null;
+  const p = String(val).split(":");
+  const hh = (p[0] || "00").padStart(2, "0");
+  const mm = String(p[1] || "00").padStart(2, "0");
+  const ss = String(p[2] || "00").padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+}
+function isoToLocal(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  } catch {
+    return "";
+  }
+}
+function formatDate(iso) {
+  if (!iso) return "N/A";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+async function apiGet(path, params = undefined, signal = undefined) {
+  const qs =
+    params && Object.keys(params).length
+      ? `?${new URLSearchParams(params).toString()}`
+      : "";
+  const resp = await fetch(`${API_BASE}${path}${qs}`, { signal });
+  const json = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const msg = json?.detail || `GET ${path} failed`;
+    throw new Error(msg);
+  }
+  return json;
+}
+async function apiPost(path, body) {
+  const resp = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  const json = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const msg = json?.detail || `POST ${path} failed`;
+    throw new Error(msg);
+  }
+  return json;
+}
 
-        watch(
-          () => props.edit,
-          async (isEdit) => {
-            if (isEdit) {
-              await nextTick();
-              if (inputRef.value) {
-                inputRef.value.focus();
-                const el = inputRef.value;
-                if (el.setSelectionRange) {
-                  const len = String(el.value || "").length;
-                  el.setSelectionRange(len, len);
-                }
-              }
+// -------------------------------------
+// Local, small components
+// -------------------------------------
+const FieldRow = {
+  name: "FieldRow",
+  props: {
+    label: { type: String, required: true },
+    field: { type: String, required: true },
+    modelValue: { required: false },
+    edit: { type: Boolean, default: false },
+    type: { type: String, default: "text" }, // text | textarea | date | time | datetime-local | select-bool
+  },
+  emits: ["update:modelValue", "update:edit"],
+  setup(props, { emit }) {
+    const localVal = ref(props.modelValue);
+    const inputRef = ref(null);
+
+    watch(
+      () => props.modelValue,
+      (v) => {
+        localVal.value = v;
+      }
+    );
+
+    watch(
+      () => props.edit,
+      async (isEdit) => {
+        if (isEdit) {
+          await nextTick();
+          if (inputRef.value) {
+            inputRef.value.focus();
+            const el = inputRef.value;
+            if (el.setSelectionRange) {
+              const len = String(el.value || "").length;
+              el.setSelectionRange(len, len);
             }
           }
-        );
+        }
+      }
+    );
 
-        const toggleEdit = () => emit("update:edit", !props.edit);
-        const updateVal = (e) => {
-          let val = e && e.target ? e.target.value : localVal.value;
-          if (props.type === "select-bool") {
-            val = val === true || val === "true";
-          }
-          emit("update:modelValue", val);
-        };
+    function onInput(e) {
+      emit("update:modelValue", e?.target?.value ?? e);
+    }
+    function setEdit(v) {
+      emit("update:edit", !!v);
+    }
 
-        return { localVal, toggleEdit, updateVal, inputRef };
-      },
-      template: `
-        <div class="field-row">
-          <div class="field-label">{{ label }}</div>
-          <div class="field-value">
-            <template v-if="!edit">
-              <span>{{ modelValue ?? 'N/A' }}</span>
-            </template>
-            <div v-else class="edit-input">
-              <textarea v-if="type==='textarea'" v-model="localVal" class="form-textarea" rows="3" @input="updateVal"></textarea>
-              <input v-else-if="type==='date'" type="date" :value="modelValue || ''" @input="updateVal" ref="inputRef" class="form-input" />
-              <input v-else-if="type==='time'" type="time" :value="modelValue || ''" @input="updateVal" ref="inputRef" class="form-input" />
-              <input v-else-if="type==='datetime-local'" type="datetime-local" :value="modelValue || ''" @input="updateVal" ref="inputRef" class="form-input" />
-              <select v-else-if="type==='select-bool'" :value="modelValue" @change="updateVal" ref="inputRef" class="form-input">
-                <option :value="true">Enabled</option>
-                <option :value="false">Disabled</option>
-              </select>
-              <input v-else :value="modelValue || ''" @input="updateVal" ref="inputRef" class="form-input" />
-            </div>
-          </div>
-          <button class="edit-btn" @click="toggleEdit" title="Edit">{{ edit ? '✓' : '✎' }}</button>
-        </div>
-      `,
-    },
+    return { localVal, inputRef, onInput, setEdit };
   },
+  template: `
+    <div class="field-row">
+      <div class="field-label">{{ label }}</div>
+      <div class="field-value" v-if="!edit">{{ modelValue ?? "-" }}</div>
+      <div class="edit-input" v-else>
+        <textarea v-if="type==='textarea'" ref="inputRef" class="form-input" :value="localVal" @input="onInput" rows="3"></textarea>
+        <template v-else>
+          <input v-if="type!=='select-bool'" ref="inputRef" class="form-input" :type="type" :value="localVal" @input="onInput" />
+          <select v-else ref="inputRef" class="form-input" :value="localVal" @change="onInput">
+            <option :value="true">True</option>
+            <option :value="false">False</option>
+          </select>
+        </template>
+      </div>
+      <button class="edit-btn" @click="setEdit(!edit)">{{ edit ? 'Done' : 'Edit' }}</button>
+    </div>
+  `,
+};
+
+// -------------------------------------
+// Main component
+// -------------------------------------
+export default {
+  name: "MerchantDetail",
+  components: { FieldRow, MerchantTwitter },
+
   setup() {
-    const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
+    // Routing
     const route = useRoute();
     const router = useRouter();
 
+    // Route helpers
     const routeName = computed(() => {
-      return (route.params.name && String(route.params.name)) ||
-             (route.query.merchant && String(route.query.merchant)) || "";
+      return (
+        (route.params.name && String(route.params.name)) ||
+        (route.query.merchant && String(route.query.merchant)) ||
+        ""
+      );
     });
     const routeId = computed(() => {
-      return (route.params.id && String(route.params.id)) ||
-             (route.query.id && String(route.query.id)) || "";
+      return (
+        (route.params.id && String(route.params.id)) ||
+        (route.query.id && String(route.query.id)) ||
+        ""
+      );
     });
-    const routeIdentifier = computed(() => routeName.value || routeId.value || "");
+    const routeIdentifier = computed(
+      () => routeName.value || routeId.value || ""
+    );
 
+    // Base state
+    const loading = ref(true);
+    const saving = ref(false);
+    const originalDoc = ref(null);
+
+    // Merchant model (view-model)
     const merchant = reactive({
-      id: "", name: "",
-      url: "", language_code: "", time_zone_id: "",
-      legal_name: "", acceptor_name: "", acceptor_category_code: "",
-      country_code: "", country_sub_division_code: "", home_country_code: "", region_id: "",
-      city: "", postal_code: "", street: "", city_category_code: "",
-      business_service_phone_number: "", customer_service_phone_number: "", additional_contact_information: "",
-      currency_code: "", tax_id: "", trade_register_number: "", iban: "", domiciliary_bank_number: "", cut_off_time: "",
-      activation_flag: false, activation_time: "", activation_start_time: "", activation_end_time: "",
-      start_date: "", end_date: "", created_at: "", updated_at: "",
-      merchant_code: "", description: "",
+      id: "",
+      name: "",
+      url: "",
+      language_code: "",
+      time_zone_id: "",
+      legal_name: "",
+      acceptor_name: "",
+      acceptor_category_code: "",
+      country_code: "",
+      country_sub_division_code: "",
+      home_country_code: "",
+      region_id: "",
+      city: "",
+      postal_code: "",
+      street: "",
+      city_category_code: "",
+      business_service_phone_number: "",
+      customer_service_phone_number: "",
+      additional_contact_information: "",
+      currency_code: "",
+      tax_id: "",
+      trade_register_number: "",
+      iban: "",
+      domiciliary_bank_number: "",
+      cut_off_time: "",
+      activation_flag: false,
+      activation_time: "",
+      activation_start_time: "",
+      activation_end_time: "",
+      start_date: "",
+      end_date: "",
+      created_at: "",
+      updated_at: "",
+      merchant_code: "",
+      description: "",
       status: "Unknown",
     });
 
-    const originalDoc = ref(null);
+    // Edit flags for fields
     const editFields = reactive({});
     [
-      "merchant_code","url","language_code","time_zone_id","legal_name","acceptor_name","acceptor_category_code",
-      "country_code","country_sub_division_code","home_country_code","region_id","city","postal_code","street","city_category_code",
-      "business_service_phone_number","customer_service_phone_number","additional_contact_information",
-      "currency_code","tax_id","trade_register_number","iban","domiciliary_bank_number","cut_off_time",
-      "activation_flag","activation_time","activation_start_time","activation_end_time",
-      "start_date","end_date","description"
-    ].forEach(k => editFields[k] = false);
+      "merchant_code",
+      "url",
+      "language_code",
+      "time_zone_id",
+      "legal_name",
+      "acceptor_name",
+      "acceptor_category_code",
+      "country_code",
+      "country_sub_division_code",
+      "home_country_code",
+      "region_id",
+      "city",
+      "postal_code",
+      "street",
+      "city_category_code",
+      "business_service_phone_number",
+      "customer_service_phone_number",
+      "additional_contact_information",
+      "currency_code",
+      "tax_id",
+      "trade_register_number",
+      "iban",
+      "domiciliary_bank_number",
+      "cut_off_time",
+      "activation_flag",
+      "activation_time",
+      "activation_start_time",
+      "activation_end_time",
+      "start_date",
+      "end_date",
+      "description",
+    ].forEach((k) => (editFields[k] = false));
 
-    const loading = ref(true);
-    const saving = ref(false);
-    const actionsTaken = ref([]);
-    const showPermanentBanModal = ref(false);
-    const showShadowBanModal = ref(false);
-    const showRestrictModal = ref(false);
-
-    const restrictionData = reactive({
-      dailyTransactionLimit: null,
-      monthlyTransactionLimit: null,
-      maxTransactionAmount: null,
-      restrictedCategoryCodes: [],
-      allowedCountries: "",
-      requireAdditionalVerification: false,
-      blockInternationalTransactions: false,
-      reason: "",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: "",
-    });
-    const selectedCategoryCode = ref("");
-
-    const autoRefresh = ref(false);
-    const refreshSec = ref(10);
-    let refreshTimer = null;
-
-    watch(autoRefresh, (on) => {
-      if (refreshTimer) {
-        clearInterval(refreshTimer);
-        refreshTimer = null;
-      }
-      if (on) {
-        refreshTimer = setInterval(() => {
-          loadFromRoute();
-        }, Math.max(2000, (refreshSec.value || 10) * 1000));
-      }
-    });
-    watch(refreshSec, () => {
-      if (autoRefresh.value) {
-        autoRefresh.value = false;
-        autoRefresh.value = true;
-      }
-    });
-
+    // Status and labels
     const isActive = computed(() => !!merchant.activation_flag);
+    const fullAddress = computed(() =>
+      [merchant.street, merchant.city, merchant.postal_code, merchant.country_code]
+        .filter(Boolean)
+        .join(", ")
+    );
 
     const mccMap = {
       "5411": "Grocery Stores",
@@ -534,97 +1001,115 @@ export default {
       return code && mccMap[code] ? `(${mccMap[code]})` : "";
     });
 
-    const formatDate = (iso) => {
-      if (!iso) return "N/A";
-      try {
-        const d = new Date(iso);
-        return d.toLocaleDateString("en-US", {
-          year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
+    // Actions and modals (kept compact)
+    const actionsTaken = ref([]);
+    const showPermanentBanModal = ref(false);
+    const showShadowBanModal = ref(false);
+    const showRestrictModal = ref(false);
+    function openPermanentBanModal() {
+      showPermanentBanModal.value = true;
+    }
+    function closePermanentBanModal() {
+      showPermanentBanModal.value = false;
+    }
+    function openShadowBanModal() {
+      showShadowBanModal.value = true;
+    }
+    function closeShadowBanModal() {
+      showShadowBanModal.value = false;
+    }
+    function openRestrictModal() {
+      showRestrictModal.value = true;
+    }
+    function closeRestrictModal() {
+      showRestrictModal.value = false;
+    }
+    function confirmPermanentBan() {
+      actionsTaken.value.push("Permanent Ban");
+      showPermanentBanModal.value = false;
+      toast.error(`${merchant.name} has been permanently banned!`, {
+        autoClose: 5000,
+        position: "top-right",
+      });
+    }
+    function confirmShadowBan() {
+      actionsTaken.value.push("Shadow Ban");
+      showShadowBanModal.value = false;
+      toast.warning(`${merchant.name} has been shadow banned!`, {
+        autoClose: 5000,
+        position: "top-right",
+      });
+    }
+    // Simple restrictions model
+    const restrictionData = reactive({
+      dailyTransactionLimit: null,
+      monthlyTransactionLimit: null,
+      maxTransactionAmount: null,
+      restrictedCategoryCodes: [],
+      allowedCountries: "",
+      requireAdditionalVerification: false,
+      blockInternationalTransactions: false,
+      reason: "",
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: "",
+    });
+    const selectedCategoryCode = ref("");
+    function addCategoryCode() {
+      const code = (selectedCategoryCode.value || "").trim();
+      if (!code) return;
+      if (!restrictionData.restrictedCategoryCodes.includes(code)) {
+        restrictionData.restrictedCategoryCodes.push(code);
+      }
+      selectedCategoryCode.value = "";
+    }
+    function removeCategoryCode(code) {
+      const ix = restrictionData.restrictedCategoryCodes.indexOf(code);
+      if (ix >= 0) restrictionData.restrictedCategoryCodes.splice(ix, 1);
+    }
+    function confirmRestriction() {
+      if (!restrictionData.reason.trim()) {
+        toast.error("Please provide a reason for the restriction.", {
+          autoClose: 3000,
+          position: "top-right",
         });
-      } catch {
-        return iso;
+        return;
       }
-    };
+      actionsTaken.value.push("Restricted");
+      showRestrictModal.value = false;
+      toast.success(`Restrictions applied on ${merchant.name}!`, {
+        autoClose: 4000,
+        position: "top-right",
+      });
+    }
 
-    const fullAddress = computed(() => {
-      return [merchant.street, merchant.city, merchant.postal_code, merchant.country_code].filter(Boolean).join(", ");
+    // Auto-refresh controls
+    const autoRefresh = ref(false);
+    const refreshSec = ref(10);
+    let refreshTimer = null;
+
+    watch(autoRefresh, (on) => {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+      if (on) {
+        refreshTimer = setInterval(() => {
+          // Only refresh streams by default; full doc reload is heavier.
+          fetchStreams();
+        }, Math.max(2000, (refreshSec.value || 10) * 1000));
+      }
+    });
+    watch(refreshSec, () => {
+      if (autoRefresh.value) {
+        autoRefresh.value = false;
+        autoRefresh.value = true; // retrigger timer with new interval
+      }
     });
 
-    const toHHMMSS = (val) => {
-      if (!val) return null;
-      const p = String(val).split(":");
-      const hh = (p[0] || "00").padStart(2, "0");
-      const mm = String(p[1] || "00").padStart(2, "0");
-      const ss = String(p[2] || "00").padStart(2, "0");
-      return `${hh}:${mm}:${ss}`;
-    };
-
-    const isoToLocal = (iso) => {
-      if (!iso) return "";
-      try {
-        const d = new Date(iso);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, "0");
-        const dd = String(d.getDate()).padStart(2, "0");
-        const hh = String(d.getHours()).padStart(2, "0");
-        const mi = String(d.getMinutes()).padStart(2, "0");
-        return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-      } catch {
-        return "";
-      }
-    };
-
-    const hasChanges = computed(() => {
-      const doc = originalDoc.value;
-      if (!doc) return false;
-      const cmp = (a, b) => ((a ?? null) !== (b ?? null));
-
-      if (cmp(merchant.merchant_code, doc.merchant_code)) return true;
-      if (cmp(merchant.url, doc.url)) return true;
-      if (cmp(merchant.language_code, doc.language_code)) return true;
-      if (cmp(merchant.time_zone_id, doc.time_zone_id)) return true;
-
-      if (cmp(merchant.legal_name, doc.legal_name)) return true;
-      if (cmp(merchant.acceptor_name, doc.acceptor_name)) return true;
-      if (cmp(merchant.acceptor_category_code, doc.acceptor_category_code)) return true;
-
-      if (cmp(merchant.country_code, doc.country_code)) return true;
-      if (cmp(merchant.country_sub_division_code, doc.country_sub_division_code)) return true;
-      if (cmp(merchant.home_country_code, doc.home_country_code)) return true;
-      if (cmp(merchant.region_id, doc.region_id)) return true;
-      if (cmp(merchant.city, doc.city)) return true;
-      if (cmp(merchant.postal_code, doc.postal_code)) return true;
-      if (cmp(merchant.street, doc.street)) return true;
-      if (cmp(merchant.city_category_code, doc.city_category_code)) return true;
-
-      if (cmp(merchant.business_service_phone_number, doc.business_service_phone_number)) return true;
-      if (cmp(merchant.customer_service_phone_number, doc.customer_service_phone_number)) return true;
-      if (cmp(merchant.additional_contact_information, doc.additional_contact_information)) return true;
-
-      if (cmp(merchant.currency_code, doc.currency_code)) return true;
-      if (cmp(merchant.tax_id, doc.tax_id)) return true;
-      if (cmp(merchant.trade_register_number, doc.trade_register_number)) return true;
-      const ibanNorm = merchant.iban === "" ? null : merchant.iban;
-      if (cmp(ibanNorm, doc.iban ?? null)) return true;
-      if (cmp(merchant.domiciliary_bank_number, doc.domiciliary_bank_number)) return true;
-      if (cmp(toHHMMSS(merchant.cut_off_time || ""), doc.cut_off_time)) return true;
-
-      if (cmp(!!merchant.activation_flag, !!doc.activation_flag)) return true;
-      const actTimeISO = merchant.activation_time ? new Date(merchant.activation_time).toISOString() : null;
-      const actStartISO = merchant.activation_start_time ? new Date(merchant.activation_start_time).toISOString() : null;
-      const actEndISO = merchant.activation_end_time ? new Date(merchant.activation_end_time).toISOString() : null;
-      if (cmp(actTimeISO, doc.activation_time || null)) return true;
-      if (cmp(actStartISO, doc.activation_start_time || null)) return true;
-      if (cmp(actEndISO, doc.activation_end_time || null)) return true;
-
-      if (cmp(merchant.start_date, doc.start_date)) return true;
-      if (cmp(merchant.end_date, doc.end_date)) return true;
-      if (cmp(merchant.description, doc.description)) return true;
-
-      return false;
-    });
-
-    const mapDocToView = (doc) => {
+    // -------------------------------------
+    // Merchant fetch + mapping
+    // -------------------------------------
+    function mapDocToView(doc) {
       originalDoc.value = doc;
 
       merchant.id = doc.merchant_id || "";
@@ -648,9 +1133,12 @@ export default {
       merchant.street = doc.street || "";
       merchant.city_category_code = doc.city_category_code || "";
 
-      merchant.business_service_phone_number = doc.business_service_phone_number || "";
-      merchant.customer_service_phone_number = doc.customer_service_phone_number || "";
-      merchant.additional_contact_information = doc.additional_contact_information || "";
+      merchant.business_service_phone_number =
+        doc.business_service_phone_number || "";
+      merchant.customer_service_phone_number =
+        doc.customer_service_phone_number || "";
+      merchant.additional_contact_information =
+        doc.additional_contact_information || "";
 
       merchant.currency_code = doc.currency_code || "";
       merchant.tax_id = doc.tax_id || "";
@@ -661,7 +1149,9 @@ export default {
 
       merchant.activation_flag = !!doc.activation_flag;
       merchant.activation_time = isoToLocal(doc.activation_time || "");
-      merchant.activation_start_time = isoToLocal(doc.activation_start_time || "");
+      merchant.activation_start_time = isoToLocal(
+        doc.activation_start_time || ""
+      );
       merchant.activation_end_time = isoToLocal(doc.activation_end_time || "");
 
       merchant.start_date = doc.start_date || "";
@@ -673,50 +1163,80 @@ export default {
 
       merchant.status = merchant.activation_flag ? "Active" : "Inactive";
 
-      Object.keys(editFields).forEach(k => editFields[k] = false);
-    };
-
-    const fetchByName = async (name) => {
-      loading.value = true;
-      try {
-        const resp = await fetch(`${API_BASE}/v1/merchants/${encodeURIComponent(name)}`);
-        if (!resp.ok) throw new Error("Merchant not found");
-        const data = await resp.json();
-        const doc = data?.merchant || null;
-        if (!doc) throw new Error("Merchant not found");
-        mapDocToView(doc);
-      } finally {
-        loading.value = false;
-      }
-    };
-
-const fetchById = async (id) => {
-  loading.value = true;
-  try {
-    // List all merchant names
-    const listResp = await fetch(`${API_BASE}/v1/merchants`);
-    if (!listResp.ok) throw new Error("Failed to list merchants");
-    const names = (await listResp.json()).merchants || [];
-
-    // Fetch each merchant by name and match on merchant_id
-    for (const nm of names) {
-      const r = await fetch(`${API_BASE}/v1/merchants/${encodeURIComponent(nm)}`);
-      if (!r.ok) continue;
-      const d = await r.json();
-      if (d?.merchant?.merchant_id === id) {
-        mapDocToView(d.merchant);
-        loading.value = false;
-        return;
-      }
+      Object.keys(editFields).forEach((k) => (editFields[k] = false));
+      loading.value = false;
     }
-    throw new Error("Merchant not found");
-  } catch (e) {
-    loading.value = false;
-    throw e;
-  }
-};
+
+    function mapViewToDetails() {
+      // Prepare a narrow "details" object compatible with backend "onboard" details
+      return {
+        merchant_code: merchant.merchant_code || undefined,
+        url: merchant.url || undefined,
+        language_code: merchant.language_code || undefined,
+        time_zone_id: merchant.time_zone_id || undefined,
+
+        legal_name: merchant.legal_name || undefined,
+        acceptor_name: merchant.acceptor_name || undefined,
+        acceptor_category_code: merchant.acceptor_category_code || undefined,
+
+        country_code: merchant.country_code || undefined,
+        country_sub_division_code: merchant.country_sub_division_code || undefined,
+        home_country_code: merchant.home_country_code || undefined,
+        region_id: merchant.region_id || undefined,
+        city: merchant.city || undefined,
+        postal_code: merchant.postal_code || undefined,
+        street: merchant.street || undefined,
+        city_category_code: merchant.city_category_code || undefined,
+
+        business_service_phone_number:
+          merchant.business_service_phone_number || undefined,
+        customer_service_phone_number:
+          merchant.customer_service_phone_number || undefined,
+        additional_contact_information:
+          merchant.additional_contact_information || undefined,
+
+        currency_code: merchant.currency_code || undefined,
+        tax_id: merchant.tax_id || undefined,
+        trade_register_number: merchant.trade_register_number || undefined,
+        iban: merchant.iban === "" ? null : merchant.iban,
+        domiciliary_bank_number: merchant.domiciliary_bank_number || undefined,
+        cut_off_time: toHHMMSS(merchant.cut_off_time || "") || undefined,
+
+        activation_flag: !!merchant.activation_flag,
+        activation_time: merchant.activation_time
+          ? new Date(merchant.activation_time).toISOString()
+          : null,
+        activation_start_time: merchant.activation_start_time
+          ? new Date(merchant.activation_start_time).toISOString()
+          : null,
+        activation_end_time: merchant.activation_end_time
+          ? new Date(merchant.activation_end_time).toISOString()
+          : null,
+
+        start_date: merchant.start_date || undefined,
+        end_date: merchant.end_date || undefined,
+        description: merchant.description || undefined,
+      };
+    }
+
+    async function fetchByName(name) {
+      const data = await apiGet(`/v1/merchants/${encodeURIComponent(name)}`);
+      const doc = data?.merchant || null;
+      if (!doc) throw new Error("Merchant not found");
+      mapDocToView(doc);
+    }
+
+    async function fetchById(id) {
+      // If your backend supports by-id lookup via the same endpoint (service resolves it),
+      // this will work. Otherwise, you can adapt to your by-id route.
+      const data = await apiGet(`/v1/merchants/${encodeURIComponent(id)}`);
+      const doc = data?.merchant || null;
+      if (!doc) throw new Error("Merchant not found");
+      mapDocToView(doc);
+    }
 
     const loadFromRoute = async () => {
+      loading.value = true;
       try {
         const ident = routeIdentifier.value;
         if (!ident) throw new Error("No merchant specified.");
@@ -725,179 +1245,297 @@ const fetchById = async (id) => {
         } else {
           await fetchByName(ident);
         }
+        // Fetch streams after merchant is loaded
+        await fetchStreams();
       } catch (e) {
         loading.value = false;
         originalDoc.value = null;
+        toast.error(String(e?.message || e), { autoClose: 3000 });
       }
     };
 
-    const saveUpdates = async () => {
-      if (!originalDoc.value) return;
+    // Change detection
+    const hasChanges = computed(() => {
+      const doc = originalDoc.value;
+      if (!doc) return false;
+      const cmp = (a, b) => (a ?? null) !== (b ?? null);
+
+      if (cmp(merchant.merchant_code, doc.merchant_code)) return true;
+      if (cmp(merchant.url, doc.url)) return true;
+      if (cmp(merchant.language_code, doc.language_code)) return true;
+      if (cmp(merchant.time_zone_id, doc.time_zone_id)) return true;
+
+      if (cmp(merchant.legal_name, doc.legal_name)) return true;
+      if (cmp(merchant.acceptor_name, doc.acceptor_name)) return true;
+      if (cmp(merchant.acceptor_category_code, doc.acceptor_category_code))
+        return true;
+
+      if (cmp(merchant.country_code, doc.country_code)) return true;
+      if (
+        cmp(merchant.country_sub_division_code, doc.country_sub_division_code)
+      )
+        return true;
+      if (cmp(merchant.home_country_code, doc.home_country_code)) return true;
+      if (cmp(merchant.region_id, doc.region_id)) return true;
+      if (cmp(merchant.city, doc.city)) return true;
+      if (cmp(merchant.postal_code, doc.postal_code)) return true;
+      if (cmp(merchant.street, doc.street)) return true;
+      if (cmp(merchant.city_category_code, doc.city_category_code)) return true;
+
+      if (
+        cmp(
+          merchant.business_service_phone_number,
+          doc.business_service_phone_number
+        )
+      )
+        return true;
+      if (
+        cmp(
+          merchant.customer_service_phone_number,
+          doc.customer_service_phone_number
+        )
+      )
+        return true;
+      if (
+        cmp(
+          merchant.additional_contact_information,
+          doc.additional_contact_information
+        )
+      )
+        return true;
+
+      if (cmp(merchant.currency_code, doc.currency_code)) return true;
+      if (cmp(merchant.tax_id, doc.tax_id)) return true;
+      if (cmp(merchant.trade_register_number, doc.trade_register_number))
+        return true;
+      const ibanNorm = merchant.iban === "" ? null : merchant.iban;
+      if (cmp(ibanNorm, doc.iban ?? null)) return true;
+      if (cmp(merchant.domiciliary_bank_number, doc.domiciliary_bank_number))
+        return true;
+      if (cmp(toHHMMSS(merchant.cut_off_time || ""), doc.cut_off_time))
+        return true;
+
+      if (cmp(!!merchant.activation_flag, !!doc.activation_flag)) return true;
+      const actTimeISO = merchant.activation_time
+        ? new Date(merchant.activation_time).toISOString()
+        : null;
+      const actStartISO = merchant.activation_start_time
+        ? new Date(merchant.activation_start_time).toISOString()
+        : null;
+      const actEndISO = merchant.activation_end_time
+        ? new Date(merchant.activation_end_time).toISOString()
+        : null;
+      if (cmp(actTimeISO, doc.activation_time || null)) return true;
+      if (cmp(actStartISO, doc.activation_start_time || null)) return true;
+      if (cmp(actEndISO, doc.activation_end_time || null)) return true;
+
+      if (cmp(merchant.start_date, doc.start_date)) return true;
+      if (cmp(merchant.end_date, doc.end_date)) return true;
+      if (cmp(merchant.description, doc.description)) return true;
+
+      return false;
+    });
+
+    // Save updates via /v1/onboard (background task)
+    async function saveUpdates() {
+      if (!originalDoc.value || !merchant.name) return;
       saving.value = true;
       try {
-        const details = {
-          merchant_code: merchant.merchant_code || undefined,
-          url: merchant.url || undefined,
-          language_code: merchant.language_code || undefined,
-          time_zone_id: merchant.time_zone_id || undefined,
-
-          legal_name: merchant.legal_name || undefined,
-          acceptor_name: merchant.acceptor_name || undefined,
-          acceptor_category_code: merchant.acceptor_category_code || undefined,
-
-          country_code: merchant.country_code || undefined,
-          country_sub_division_code: merchant.country_sub_division_code || undefined,
-          home_country_code: merchant.home_country_code || undefined,
-          region_id: merchant.region_id || undefined,
-          city: merchant.city || undefined,
-          postal_code: merchant.postal_code || undefined,
-          street: merchant.street || undefined,
-          city_category_code: merchant.city_category_code || undefined,
-
-          business_service_phone_number: merchant.business_service_phone_number || undefined,
-          customer_service_phone_number: merchant.customer_service_phone_number || undefined,
-          additional_contact_information: merchant.additional_contact_information || undefined,
-
-          currency_code: merchant.currency_code || undefined,
-          tax_id: merchant.tax_id || undefined,
-          trade_register_number: merchant.trade_register_number || undefined,
-          iban: merchant.iban === "" ? null : (merchant.iban || undefined),
-          domiciliary_bank_number: merchant.domiciliary_bank_number || undefined,
-          cut_off_time: toHHMMSS(merchant.cut_off_time) || undefined,
-
-          activation_flag: !!merchant.activation_flag,
-          activation_time: merchant.activation_time ? new Date(merchant.activation_time).toISOString() : undefined,
-          activation_start_time: merchant.activation_start_time ? new Date(merchant.activation_start_time).toISOString() : undefined,
-          activation_end_time: merchant.activation_end_time ? new Date(merchant.activation_end_time).toISOString() : null,
-
-          description: merchant.description || undefined,
-        };
-
-        const payload = {
-          merchant_name: originalDoc.value.merchant_name,
+        const details = mapViewToDetails();
+        const body = {
+          merchant_name: merchant.name,
           deep_scan: false,
           details,
+          preset_overrides: {},
           start_date: merchant.start_date || undefined,
           end_date: merchant.end_date || undefined,
+          seed: undefined,
         };
-        const resp = await fetch(`${API_BASE}/v1/onboard`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data?.detail || "Failed to update merchant");
-        if (data?.task_id) {
-          await waitForTask(data.task_id);
-        } else {
+        const res = await apiPost("/v1/onboard", body);
+        const tid = res?.task_id;
+        if (!tid) {
+          toast.success("Saved.");
           await loadFromRoute();
+          return;
         }
-        Object.keys(editFields).forEach(k => editFields[k] = false);
-        toast.success("Merchant updated successfully", { autoClose: 3000, position: "top-right" });
+        // Poll task until done
+        const started = Date.now();
+        let status = "pending";
+        while (status === "pending" || status === "running") {
+          await new Promise((r) => setTimeout(r, 600));
+          const t = await apiGet(`/v1/tasks/${encodeURIComponent(tid)}`);
+          status = t?.status || "unknown";
+          if (status === "done") break;
+          if (status === "error") throw new Error(t?.error || "Task failed");
+          if (Date.now() - started > 30_000) break; // 30s sanity timeout
+        }
+        toast.success("Saved and refreshed.");
+        await loadFromRoute();
       } catch (e) {
-        toast.error(String(e?.message || e || "Update failed"), { autoClose: 4000, position: "top-right" });
+        toast.error(String(e?.message || e), { autoClose: 4000 });
       } finally {
         saving.value = false;
       }
-    };
+    }
 
-    const waitForTask = async (taskId) => {
-      for (let i = 0; i < 40; i++) {
-        try {
-          const r = await fetch(`${API_BASE}/v1/tasks/${taskId}`);
-          const t = await r.json();
-          if (t.status === "done") {
-            if (t.result?.merchant) mapDocToView(t.result.merchant);
-            return;
-          }
-          if (t.status === "error") throw new Error(t.error || "Update task failed");
-        } catch {}
-        await new Promise(res => setTimeout(res, 1200));
+    // Navigation helpers
+    function goBack() {
+      router.back();
+    }
+    function openEmailBox() {
+      toast.info("Open notifications center", { autoClose: 2000 });
+    }
+    function openSocialUpdates() {
+      toast.info("Open social updates", { autoClose: 2000 });
+    }
+    function openExplore() {
+      toast.info("Open explore", { autoClose: 2000 });
+    }
+
+    // -------------------------------------
+    // Streams: Tweets only (efficient)
+    // -------------------------------------
+    const tweets = ref([]);
+    const tweetsLoading = ref(false);
+    const tweetsError = ref("");
+
+    // Query params (aligned with backend)
+    const streamWindow = ref("7d"); // e.g., 1h, 6h, 1d, 7d
+    const streamOrder = ref("desc");
+    const streamLimit = ref(5000);
+    const allowFuture = ref(false);
+    const sinceStr = ref(""); // optional ISO/epoch
+    const untilStr = ref(""); // optional ISO/epoch
+    const nowIso = ref(""); // optional; let server use real now if blank
+
+    // Client-side aggregation granularity for child charts
+    const unit = ref("hour");
+
+    const merchantKey = computed(() => {
+      // Prefer the merchant_name from the loaded doc
+      return (
+        (originalDoc.value && originalDoc.value.merchant_name) ||
+        (routeName.value || "").trim() ||
+        (routeIdentifier.value || "").trim()
+      );
+    });
+
+    let streamsAbort = null;
+
+    async function fetchStreams() {
+      if (!merchantKey.value) return;
+      if (streamsAbort) streamsAbort.abort();
+      streamsAbort = new AbortController();
+
+      tweetsLoading.value = true;
+      tweetsError.value = "";
+
+      try {
+        const params = new URLSearchParams();
+        params.set("streams", "tweets"); // only tweets for efficiency
+        params.set("order", streamOrder.value || "desc");
+        if (streamWindow.value && streamWindow.value.trim())
+          params.set("window", streamWindow.value.trim());
+        if ((sinceStr.value || "").trim()) params.set("since", sinceStr.value.trim());
+        if ((untilStr.value || "").trim()) params.set("until", untilStr.value.trim());
+        if (Number(streamLimit.value) > 0)
+          params.set("limit", String(Number(streamLimit.value)));
+        if (allowFuture.value) params.set("allow_future", "true");
+        if ((nowIso.value || "").trim()) params.set("now", nowIso.value.trim());
+
+        const url = `/v1/${encodeURIComponent(merchantKey.value)}/data`;
+        const json = await apiGet(url, Object.fromEntries(params), streamsAbort.signal);
+
+        tweets.value = Array.isArray(json?.data?.tweets) ? json.data.tweets : [];
+      } catch (e) {
+        if (String(e?.name) !== "AbortError") {
+          tweetsError.value = String(e?.message || e);
+          tweets.value = [];
+          toast.error(tweetsError.value, { autoClose: 3000 });
+        }
+      } finally {
+        tweetsLoading.value = false;
       }
-    };
+    }
 
-    // Navigation / actions / modals
-    const openSocialUpdates = () => {
-      router.push({
-        path: `/merchants/${merchant.id || originalDoc.value?.merchant_id}/social-updates`,
-        query: { merchantName: merchant.name, merchantId: merchant.id },
-      });
-    };
-    const openEmailBox = () => router.push("/mailbox");
-    const openExplore = () => router.push({ path: "/explore", query: { merchant: merchant.name } });
-
-    const confirmPermanentBan = () => {
-      actionsTaken.value.push("Permanent Ban");
-      showPermanentBanModal.value = false;
-      toast.error(`${merchant.name} has been permanently banned!`, { autoClose: 5000, position: "top-right" });
-    };
-    const confirmShadowBan = () => {
-      actionsTaken.value.push("Shadow Ban");
-      showShadowBanModal.value = false;
-      toast.warning(`${merchant.name} has been shadow banned!`, { autoClose: 5000, position: "top-right" });
-    };
-    const confirmRestriction = () => {
-      if (!restrictionData.reason.trim()) {
-        toast.error("Please provide a reason for the restriction.", { autoClose: 3000, position: "top-right" });
-        return;
+    // Refetch when any stream control changes
+    watch(
+      [streamWindow, streamOrder, streamLimit, allowFuture, sinceStr, untilStr, nowIso],
+      () => {
+        fetchStreams();
       }
-      actionsTaken.value.push("Restricted");
-      showRestrictModal.value = false;
-      toast.success(`Restrictions applied on ${merchant.name}!`, { autoClose: 4000, position: "top-right" });
-    };
+    );
 
-    const addCategoryCode = () => {
-      const code = selectedCategoryCode.value;
-      if (!code) return;
-      if (!restrictionData.restrictedCategoryCodes.includes(code)) {
-        restrictionData.restrictedCategoryCodes.push(code);
-      }
-      selectedCategoryCode.value = "";
-    };
-    const removeCategoryCode = (code) => {
-      const ix = restrictionData.restrictedCategoryCodes.indexOf(code);
-      if (ix >= 0) restrictionData.restrictedCategoryCodes.splice(ix, 1);
-    };
+    // On merchant change (route) refetch
+    watch(merchantKey, () => {
+      fetchStreams();
+    });
 
-    const openPermanentBanModal = () => (showPermanentBanModal.value = true);
-    const closePermanentBanModal = () => (showPermanentBanModal.value = false);
-    const openShadowBanModal = () => (showShadowBanModal.value = true);
-    const closeShadowBanModal = () => (showShadowBanModal.value = false);
-    const openRestrictModal = () => {
-      showRestrictModal.value = true;
-      restrictionData.dailyTransactionLimit = null;
-      restrictionData.monthlyTransactionLimit = null;
-      restrictionData.maxTransactionAmount = null;
-      restrictionData.restrictedCategoryCodes = [];
-      restrictionData.allowedCountries = "";
-      restrictionData.requireAdditionalVerification = false;
-      restrictionData.blockInternationalTransactions = false;
-      restrictionData.reason = "";
-      restrictionData.startDate = new Date().toISOString().split("T")[0];
-      restrictionData.endDate = "";
-      selectedCategoryCode.value = "";
-    };
-    const closeRestrictModal = () => (showRestrictModal.value = false);
-
-    const goBack = () => router.push("/dashboard");
-
+    // Lifecycle
     onMounted(loadFromRoute);
-    watch(() => route.fullPath, loadFromRoute);
+    watch(
+      () => route.fullPath,
+      () => {
+        loadFromRoute();
+      }
+    );
 
+    // Expose to template
     return {
+      // route
       routeIdentifier,
-      merchant, originalDoc, editFields,
-      loading, saving, hasChanges, isActive, fullAddress,
-      actionsTaken,
-      showPermanentBanModal, showShadowBanModal, showRestrictModal,
-      openPermanentBanModal, closePermanentBanModal,
-      openShadowBanModal, closeShadowBanModal,
-      openRestrictModal, closeRestrictModal,
-      confirmPermanentBan, confirmShadowBan, confirmRestriction,
-      selectedCategoryCode, restrictionData,
-      addCategoryCode, removeCategoryCode,
-      formatDate,
-      saveUpdates, goBack, openEmailBox, openSocialUpdates, openExplore,
-      autoRefresh, refreshSec,
+      // base
+      merchant,
+      originalDoc,
+      editFields,
+      loading,
+      saving,
+      hasChanges,
+      isActive,
+      fullAddress,
       mccLabel,
+      // actions
+      actionsTaken,
+      showPermanentBanModal,
+      showShadowBanModal,
+      showRestrictModal,
+      openPermanentBanModal,
+      closePermanentBanModal,
+      openShadowBanModal,
+      closeShadowBanModal,
+      openRestrictModal,
+      closeRestrictModal,
+      confirmPermanentBan,
+      confirmShadowBan,
+      confirmRestriction,
+      selectedCategoryCode,
+      restrictionData,
+      addCategoryCode,
+      removeCategoryCode,
+      // utils
+      formatDate,
+      // ops
+      saveUpdates,
+      goBack,
+      openEmailBox,
+      openSocialUpdates,
+      openExplore,
+      // auto refresh
+      autoRefresh,
+      refreshSec,
+      // streams
+      tweets,
+      tweetsLoading,
+      tweetsError,
+      streamWindow,
+      streamOrder,
+      streamLimit,
+      allowFuture,
+      sinceStr,
+      untilStr,
+      nowIso,
+      unit,
+      fetchStreams,
     };
   },
 };
@@ -940,14 +1578,24 @@ const fetchById = async (id) => {
 
 /* Side panel */
 .side-panel {
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
-  padding: 18px;
-  height: fit-content;
-  position: sticky;
-  top: 20px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    padding: 18px;
+    height: -moz-fit-content;
+    height: fit-content;
+    height: -webkit-fill-available;
+    height: 81vh;
+    position: sticky;
+    top: 20px;
+    display: flex
+;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-content: center;
+    justify-content: space-around;
+    align-items: stretch;
 }
 
 .merchant-header {
@@ -964,7 +1612,7 @@ const fetchById = async (id) => {
   margin-top: 6px;
   background: rgba(255, 255, 255, 0.2);
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: 5px;
   font-size: 0.85em; font-weight: 500; display: inline-block;
 }
 .status-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.7); }
@@ -1010,7 +1658,7 @@ const fetchById = async (id) => {
 .btn { padding: 10px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; }
 .btn-primary { background: #008080; color: white; }
 .btn-primary:hover { background: #006666; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary:disabled { opacity: 0.2; cursor: not-allowed; background-color: #4e4e4e91 !important; border: transparent; }
 .btn-secondary { background: white; color: #008080; border-color: #14b8a6; }
 .btn-secondary:hover { background: #f0fdfa; }
 
@@ -1107,5 +1755,25 @@ const fetchById = async (id) => {
   .merchant-detail-container { padding: 10px; }
   .card-body { padding: 12px; }
   .card-header { padding: 12px; }
+}
+
+.meta-label{
+  color: #6b7280;
+  font-weight: 900;
+}
+.read-only{
+  background: #f9fafb;
+  cursor: not-allowed;
+}
+
+.meta-item{
+  background: #f9fafb;
+  border: 1px solid #e5e7eb67;
+  border-radius: 6px;
+  /* padding: 4px; */
+}
+.meta-item:hover{
+  /* border-color: #9ca3af; */
+  background: #f3f4f6;
 }
 </style>
