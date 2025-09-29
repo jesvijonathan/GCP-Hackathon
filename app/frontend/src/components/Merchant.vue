@@ -1389,7 +1389,8 @@ export default {
       toast.info("Open social updates", { autoClose: 2000 });
     }
     function openExplore() {
-      toast.info("Open explore", { autoClose: 2000 });
+      toast.info("Opening explore", { autoClose: 2000 });
+      router.push(`/explore/${this.merchant.name}`)
     }
 
     // -------------------------------------
