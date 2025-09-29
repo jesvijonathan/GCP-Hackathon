@@ -1,29 +1,27 @@
-
-# File: main.py
-# ----------------------------------------
 #!/usr/bin/env python3
 # main.py
-# Entrypoint FastAPI server for merchant onboarding and preset generation directly in MongoDB.
+# Entrypoint FastAPI server for merchant onboarding, preset generation, and stream data retrieval (tweets/reddit/news/reviews/wl/stock) in MongoDB.
 # Run: uvicorn main:app --host 0.0.0.0 --port 8000
 #
 # Conventions:
 # - Merchant unique identifier: merchant_name (string; mandatory)
 # - Collections: "merchants" (merchant details), "preset" (per-merchant preset block)
+# - Stream collections (by generators): "tweets", "reddit", "news", "reviews", "wl_transactions", "stocks_prices", "stocks_earnings", "stocks_actions", "stocks_meta"
 # - Off-main-thread execution using ThreadPoolExecutor tasks (returns task_id to poll)
 #
-# Date parsing and ISO formatting patterns follow data_api.py and mongo_api.py \ue202turn0file9\ue202turn0file0.
+# Date parsing and ISO formatting compatible with "data_api" patterns.
 
 import os
 import uuid
 import time
 import datetime as dt
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional, List, Tuple
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from pymongo import MongoClient, ASCENDING
+from pymongo import MongoClient, ASCENDING, DESCENDING
 from concurrent.futures import ThreadPoolExecutor, Future
 import threading
 
@@ -48,9 +46,9 @@ def log(msg: str):
 def dt_to_iso(dt_obj: dt.datetime) -> str:
     if dt_obj.tzinfo is None:
         dt_obj = dt_obj.replace(tzinfo=dt.UTC)
-    return dt_obj.astimezone(dt.UTC).isoformat().replace("+00:00","Z")  # data_api.py style \ue202turn0file9
+    return dt_obj.astimezone(dt.UTC).isoformat().replace("+00:00","Z")
 
-# Date parsing compatible with multiple formats (data_api.py, mongo_api.py) \ue202turn0file9\ue202turn0file0
+# Date parsing compatible with multiple formats
 def parse_any_dt(x: Optional[str]) -> Optional[dt.datetime]:
     import re
     if x is None:
@@ -96,6 +94,21 @@ def parse_any_dt(x: Optional[str]) -> Optional[dt.datetime]:
     except Exception:
         pass
     return None
+
+def parse_window_to_timedelta(window: str) -> dt.timedelta:
+    import re
+    s = (window or "").strip().lower()
+    m = re.match(r"^(\d+)\s*([smhdw])$", s)
+    if not m:
+        raise ValueError("Window must look like 15m, 1h, 24h, 7d, 1w")
+    n = int(m.group(1)); unit = m.group(2)
+    return {
+        "s": dt.timedelta(seconds=n),
+        "m": dt.timedelta(minutes=n),
+        "h": dt.timedelta(hours=n),
+        "d": dt.timedelta(days=n),
+        "w": dt.timedelta(weeks=n),
+    }[unit]
 
 # ---------- Task Manager ----------
 
@@ -153,7 +166,7 @@ SERVICE = MerchantService(db)
 
 # ---------- FastAPI setup ----------
 
-app = FastAPI(title="Merchant Onboarding API", version="0.1.0")
+app = FastAPI(title="Merchant Onboarding & Data API", version="0.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.on_event("startup")
@@ -164,7 +177,7 @@ def startup_event():
     except Exception as e:
         log(f"Startup error ensuring indexes: {e}")
 
-# Middleware logging, similar to data_api.py \ue202turn0file9
+# Middleware logging
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     started = time.time()
@@ -191,17 +204,89 @@ class OnboardRequest(BaseModel):
     end_date: Optional[str] = Field(None, description="ISO/date for preset end; default now+1y")
     seed: Optional[int] = Field(None, description="Optional seed for reproducible generation")
 
+# ---------- Core helpers for data endpoints ----------
+
+DEFAULT_STREAMS = ["tweets","reddit","news","reviews","stock","wl"]
+STREAM_COLLECTION_MAP = {
+    "tweets": "tweets",
+    "reddit": "reddit",
+    "news": "news",
+    "reviews": "reviews",
+    "wl": "wl_transactions",
+}
+
+def compute_range_params(window: Optional[str], since: Optional[str], until: Optional[str], allow_future: bool, now_iso: Optional[str]) -> Tuple[float, float, str, str]:
+    now_dt = parse_any_dt(now_iso) or dt.datetime.now(dt.UTC)
+    if window and window.strip():
+        delta = parse_window_to_timedelta(window.strip())
+        s = now_dt - delta
+        u = now_dt
+    else:
+        s = parse_any_dt(since) or (now_dt - dt.timedelta(days=7))
+        u = parse_any_dt(until) or now_dt
+    if not allow_future:
+        # Cap until at now
+        if u > now_dt:
+            u = now_dt
+    s_ts = s.timestamp()
+    u_ts = u.timestamp()
+    return s_ts, u_ts, s.astimezone(dt.UTC).isoformat().replace("+00:00","Z"), u.astimezone(dt.UTC).isoformat().replace("+00:00","Z")
+
+def query_stream(coll_name: str, merchant_name: str, s_ts: float, u_ts: float, order: str, limit: int) -> List[Dict[str, Any]]:
+    coll = db[coll_name]
+    q: Dict[str, Any] = {"merchant": merchant_name}
+    q["ts"] = {"$gte": s_ts, "$lte": u_ts}
+    sort_key = DESCENDING if (order or "desc").lower() == "desc" else ASCENDING
+    try:
+        cursor = coll.find(q, projection={"_id":0}).sort([("ts", sort_key)])
+        if limit and limit > 0:
+            cursor = cursor.limit(int(limit))
+        return list(cursor)
+    except Exception as e:
+        log(f"query_stream error [{coll_name}/{merchant_name}]: {e}")
+        return []
+
+def fetch_stock(merchant_name: str, s_ts: float, u_ts: float, order: str, limit: int, include_meta: bool) -> Dict[str, Any]:
+    prices = query_stream("stocks_prices", merchant_name, s_ts, u_ts, order, limit)
+    earnings = query_stream("stocks_earnings", merchant_name, s_ts, u_ts, order, limit)
+    actions = query_stream("stocks_actions", merchant_name, s_ts, u_ts, order, limit)
+    out = {
+        "prices": prices,
+        "earnings": earnings,
+        "corporate_actions": actions
+    }
+    if include_meta:
+        try:
+            mdoc = db["stocks_meta"].find_one({"merchant": merchant_name}, projection={"_id":0})
+            out["meta"] = (mdoc or {}).get("meta", {})
+        except Exception:
+            out["meta"] = {}
+    return out
+
+def normalize_streams_arg(streams: str) -> List[str]:
+    s = (streams or "").strip().lower()
+    if not s or s == "all":
+        return DEFAULT_STREAMS
+    items = [x.strip() for x in s.split(",") if x.strip()]
+    # keep only supported
+    final = []
+    for it in items:
+        if it in DEFAULT_STREAMS:
+            final.append(it)
+    return final or DEFAULT_STREAMS
+
 # ---------- Routes ----------
 
 @app.get("/")
 def root():
     return {
-        "name": "Merchant Onboarding API",
-        "version": "0.1.0",
+        "name": "Merchant Onboarding & Data API",
+        "version": "0.2.0",
         "notes": [
             "POST /v1/onboard runs off main thread and returns a task_id.",
             "Merchant unique key: merchant_name.",
-            "Collections: merchants, preset."
+            "Collections: merchants, preset.",
+            "Data endpoints: GET /v1/{merchant}/data and /v1/{merchant}/stock"
         ]
     }
 
@@ -279,10 +364,109 @@ def rebuild_preset(merchant_name: str, seed: Optional[int] = None):
     tid = TASKS.submit(job)
     return {"status": "accepted", "task_id": tid}
 
+# ---------- Data endpoints (tweets/reddit/news/reviews/wl/stock) ----------
+
+@app.get("/v1/{merchant_name}/data")
+def get_streams_data(
+    merchant_name: str,
+    streams: str = "all",
+    order: str = "desc",
+    limit: int = 5000,
+    window: Optional[str] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    include_stock_meta: bool = False,
+    allow_future: bool = False,
+    now: Optional[str] = None
+):
+    # Validate merchant
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+
+    # Compute range
+    try:
+        s_ts, u_ts, s_iso, u_iso = compute_range_params(window, since, until, allow_future, now)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid range: {e}")
+
+    # Normalize streams
+    stream_list = normalize_streams_arg(streams)
+
+    # Fetch data per stream
+    data: Dict[str, Any] = {}
+    range_info: Dict[str, Dict[str, str]] = {}
+    limits: Dict[str, Any] = {}
+
+    # Tweets
+    if "tweets" in stream_list:
+        data["tweets"] = query_stream(STREAM_COLLECTION_MAP["tweets"], merchant_name, s_ts, u_ts, order, limit)
+        range_info["tweets"] = {"since": s_iso, "until": u_iso}
+
+    # Reddit
+    if "reddit" in stream_list:
+        data["reddit"] = query_stream(STREAM_COLLECTION_MAP["reddit"], merchant_name, s_ts, u_ts, order, limit)
+        range_info["reddit"] = {"since": s_iso, "until": u_iso}
+
+    # News
+    if "news" in stream_list:
+        data["news"] = query_stream(STREAM_COLLECTION_MAP["news"], merchant_name, s_ts, u_ts, order, limit)
+        range_info["news"] = {"since": s_iso, "until": u_iso}
+
+    # Reviews
+    if "reviews" in stream_list:
+        data["reviews"] = query_stream(STREAM_COLLECTION_MAP["reviews"], merchant_name, s_ts, u_ts, order, limit)
+        range_info["reviews"] = {"since": s_iso, "until": u_iso}
+
+    # WL
+    if "wl" in stream_list:
+        data["wl"] = query_stream(STREAM_COLLECTION_MAP["wl"], merchant_name, s_ts, u_ts, order, limit)
+        range_info["wl"] = {"since": s_iso, "until": u_iso}
+
+    # Stock (composite)
+    if "stock" in stream_list:
+        data["stock"] = fetch_stock(merchant_name, s_ts, u_ts, order, limit, include_meta=include_stock_meta)
+        range_info["stock"] = {"since": s_iso, "until": u_iso}
+
+    return {
+        "merchant": merchant_name,
+        "order": order,
+        "range": range_info,
+        "limits": limits,  # placeholder for future min/max/total
+        "data": data,
+    }
+
+@app.get("/v1/{merchant_name}/stock")
+def get_stock_data(
+    merchant_name: str,
+    order: str = "desc",
+    limit: int = 5000,
+    window: Optional[str] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    include_stock_meta: bool = False,
+    allow_future: bool = False,
+    now: Optional[str] = None
+):
+    # Validate merchant
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+
+    # Compute range
+    try:
+        s_ts, u_ts, s_iso, u_iso = compute_range_params(window, since, until, allow_future, now)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid range: {e}")
+
+    stock = fetch_stock(merchant_name, s_ts, u_ts, order, limit, include_meta=include_stock_meta)
+    return {
+        "merchant": merchant_name,
+        "order": order,
+        "range": {"stock": {"since": s_iso, "until": u_iso}},
+        "data": stock
+    }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "8000"))
     log(f"Starting server on 0.0.0.0:{port}")
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
-
-
