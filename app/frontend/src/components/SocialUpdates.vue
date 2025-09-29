@@ -685,7 +685,7 @@ export default {
     },
     goBack() {
       // Navigate back to explore page
-      this.$router.push('/explore');
+      this.$router.go(-1);
     },
     truncateText(text, maxLength) {
       if (!text) return "";
