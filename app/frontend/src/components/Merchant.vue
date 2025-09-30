@@ -255,7 +255,69 @@
 
       <!-- Main cards -->
 
+      
       <main class="merchant-detail">
+
+                <!-- Risk Eval (New) -->
+        <div class="card" style="position:relative;">
+          <div class="card-header pipeline-header clickable" role="button" tabindex="0"
+               @click="toggleCollapse('riskEval')"
+               @keydown.enter.prevent="toggleCollapse('riskEval')"
+               @keydown.space.prevent="toggleCollapse('riskEval')"
+               :aria-expanded="!collapsed.riskEval"
+               style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
+              <span class="collapse-icon" :class="{ rotated: collapsed.riskEval }">▾</span>
+              Risk Eval
+            </h3>
+            <div style="display:flex;gap:6px;" v-show="!collapsed.riskEval">
+              <a href="#re-slide-1" style="text-decoration:none;">
+                <button type="button" style="width:34px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">‹</button>
+              </a>
+              <a href="#re-slide-2" style="text-decoration:none;">
+                <button type="button" style="width:34px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">›</button>
+              </a>
+            </div>
+          </div>
+          <div v-show="!collapsed.riskEval" style="position:relative;overflow-x:auto;scroll-behavior:smooth;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;display:flex;width:100%;">
+            <div style="display:flex;width:100%;flex-wrap:nowrap;">
+              <!-- Risk Assessment Placeholder Slide -->
+              <div id="re-slide-1" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px;">
+                <div class="slide-title-bar">
+                  <h4 class="slide-title">Risk Assessment</h4>
+                  <a href="#re-slide-2" class="nav-link next" style="text-decoration:none;">
+                    <button type="button" class="nav-btn nav-next">Next ›</button>
+                  </a>
+                </div>
+                <!-- Risk Assessment Slide replacement start -->
+                <MerchantRisk
+                  ref="riskRef"
+                  :merchant="merchantKey"
+                  :now="nowIso"
+                />
+                <!-- Risk Assessment Slide replacement end -->
+              </div>
+              <!-- News Slide -->
+              <div id="re-slide-2" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <a href="#re-slide-1" style="text-decoration:none;">
+                    <button type="button" style="border:1px solid #14b8a6;background:#ffffff;color:#008080;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;">‹ Prev</button>
+                  </a>
+                  <h4 style="margin:0;color:#008080;">News Intelligence</h4>
+                  <span style="width:74px;"></span>
+                </div>
+                <div>
+                  <div v-if="newsError" style="color:#b91c1c;font-size:12px;font-weight:600;">{{ newsError }}</div>
+                  <MerchantNews :news="newsItems" :loading="newsLoading" :unit="unit" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-show="!collapsed.riskEval" style="display:flex;justify-content:center;gap:10px;padding:12px 0 16px;">
+            <a href="#re-slide-1" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
+            <a href="#re-slide-2" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
+          </div>
+        </div>
         <!-- Combined Carousel Card -->
         <div class="card" style="position:relative;">
                   <div class="card-header pipeline-header clickable" role="button" tabindex="0"
@@ -407,67 +469,6 @@
           <div style="display:flex;justify-content:center;gap:10px;padding:12px 0 16px;">
             <a href="#rs-slide-1" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
             <a href="#rs-slide-2" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
-          </div>
-        </div>
-
-        <!-- Risk Eval (New) -->
-        <div class="card" style="position:relative;">
-          <div class="card-header pipeline-header clickable" role="button" tabindex="0"
-               @click="toggleCollapse('riskEval')"
-               @keydown.enter.prevent="toggleCollapse('riskEval')"
-               @keydown.space.prevent="toggleCollapse('riskEval')"
-               :aria-expanded="!collapsed.riskEval"
-               style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
-              <span class="collapse-icon" :class="{ rotated: collapsed.riskEval }">▾</span>
-              Risk Eval
-            </h3>
-            <div style="display:flex;gap:6px;" v-show="!collapsed.riskEval">
-              <a href="#re-slide-1" style="text-decoration:none;">
-                <button type="button" style="width:34px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">‹</button>
-              </a>
-              <a href="#re-slide-2" style="text-decoration:none;">
-                <button type="button" style="width:34px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">›</button>
-              </a>
-            </div>
-          </div>
-          <div v-show="!collapsed.riskEval" style="position:relative;overflow-x:auto;scroll-behavior:smooth;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;display:flex;width:100%;">
-            <div style="display:flex;width:100%;flex-wrap:nowrap;">
-              <!-- Risk Assessment Placeholder Slide -->
-              <div id="re-slide-1" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px;">
-                <div class="slide-title-bar">
-                  <h4 class="slide-title">Risk Assessment</h4>
-                  <a href="#re-slide-2" class="nav-link next" style="text-decoration:none;">
-                    <button type="button" class="nav-btn nav-next">Next ›</button>
-                  </a>
-                </div>
-                <!-- Risk Assessment Slide replacement start -->
-                <MerchantRisk
-                  ref="riskRef"
-                  :merchant="merchantKey"
-                  :now="nowIso"
-                />
-                <!-- Risk Assessment Slide replacement end -->
-              </div>
-              <!-- News Slide -->
-              <div id="re-slide-2" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                  <a href="#re-slide-1" style="text-decoration:none;">
-                    <button type="button" style="border:1px solid #14b8a6;background:#ffffff;color:#008080;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;">‹ Prev</button>
-                  </a>
-                  <h4 style="margin:0;color:#008080;">News Intelligence</h4>
-                  <span style="width:74px;"></span>
-                </div>
-                <div>
-                  <div v-if="newsError" style="color:#b91c1c;font-size:12px;font-weight:600;">{{ newsError }}</div>
-                  <MerchantNews :news="newsItems" :loading="newsLoading" :unit="unit" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-show="!collapsed.riskEval" style="display:flex;justify-content:center;gap:10px;padding:12px 0 16px;">
-            <a href="#re-slide-1" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
-            <a href="#re-slide-2" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
           </div>
         </div>
 
@@ -1947,7 +1948,7 @@ export default {
     const collapsed = reactive({
       pipelines: false,
       risk: false,
-      riskEval: true,
+      riskEval: false,
       actions: false,
       details: false,
     });

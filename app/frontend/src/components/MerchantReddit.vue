@@ -36,7 +36,7 @@
         <!-- NEW: Throughput & Sentiment Trend -->
         <div class="chart-card">
           <div class="chart-title">Throughput & Sentiment Trend</div>
-          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 240px;">
+          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 300px;">
             <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
             <canvas ref="throughputCanvas" height="140"></canvas>
           </div>
@@ -47,7 +47,7 @@
 
         <div class="chart-card">
           <div class="chart-title">Activity timeline (stacked by sentiment)</div>
-          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 240px;">
+          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 300px;">
             <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
             <canvas ref="timelineCanvas" height="140"></canvas>
           </div>
@@ -58,7 +58,7 @@
 
         <div class="chart-card">
           <div class="chart-title">Sentiment mix</div>
-          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 240px;">
+          <div v-if="chartJsLoaded" class="chart-wrap square-chart" style="height: 240px;">
             <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
             <canvas ref="sentimentCanvas" height="140"></canvas>
           </div>
@@ -406,6 +406,34 @@ export default {
       const tl = timelineStack.value;
 
       // Timeline (stacked by sentiment)
+      function createTickFormatter(allLabels) {
+        // Pre-parse label timestamps to detect day boundaries
+        const parsed = allLabels.map(l => {
+          const d = new Date(l);
+            return { raw: l, date: d, valid: !isNaN(d.getTime()), dayKey: d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate() };
+        });
+        const distinctDays = new Set(parsed.filter(p=>p.valid).map(p=>p.dayKey));
+        const multiDay = distinctDays.size > 1;
+        return function(value, idx) {
+          let raw;
+          try { if (this && this.getLabelForValue) raw = this.getLabelForValue(value); } catch(_){}
+          if (!raw) raw = allLabels[idx] || value;
+          const p = parsed[idx];
+          if (!p || !p.valid) return raw;
+          const h = String(p.date.getHours()).padStart(2,'0');
+          const m = String(p.date.getMinutes()).padStart(2,'0');
+          if (!multiDay) return `${h}:${m}`; // single day → only times
+          // Multi-day: show date + time on boundaries / first / last / day change
+          const prev = parsed[idx-1];
+          if (idx === 0 || idx === parsed.length-1 || (prev && prev.dayKey !== p.dayKey)) {
+            return `${p.date.getMonth()+1}/${p.date.getDate()}\n${h}:${m}`;
+          }
+          return `${h}:${m}`;
+        };
+      }
+
+      const tickFormatterTimeline = createTickFormatter(tl.labels);
+
       if (!timelineChart && timelineCanvas.value) {
         timelineChart = new Chart(timelineCanvas.value.getContext("2d"), {
           type: "bar",
@@ -420,8 +448,14 @@ export default {
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: "bottom" } },
-            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+            layout: { padding: 0 },
+            plugins: {
+              legend: { position: "bottom", labels: { boxWidth: 10, padding: 6, font: { size: 10 } } },
+            },
+            scales: {
+              x: { stacked: true, ticks: { autoSkip: true, maxTicksLimit: Math.min(tl.labels.length, 12), font: { size: 10 }, callback: tickFormatterTimeline } },
+              y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 } } },
+            },
           },
         });
       } else if (timelineChart) {
@@ -440,14 +474,22 @@ export default {
           type: "doughnut",
           data: {
             labels: ["Positive", "Neutral", "Negative"],
-            datasets: [{ data: [sc.positive, sc.neutral, sc.negative], backgroundColor: ["#10b981", "#9ca3af", "#ef4444"] }],
+            datasets: [{ data: [sc.positive, sc.neutral, sc.negative], backgroundColor: ["#10b981", "#9ca3af", "#ef4444"], borderColor: '#ffffff', borderWidth: 2 }],
           },
-          options: { plugins: { legend: { position: "bottom" } } },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '55%',
+            layout: { padding: 0 },
+            plugins: { legend: { position: "bottom" } },
+          },
         });
+        queueMicrotask(() => { enforceSquare(sentimentCanvas.value, sentimentChart); });
       } else if (sentimentChart) {
         sentimentChart.options.animation = false;
         sentimentChart.data.datasets[0].data = [sentimentCounts.value.positive, sentimentCounts.value.neutral, sentimentCounts.value.negative];
         sentimentChart.update();
+        enforceSquare(sentimentCanvas.value, sentimentChart);
       }
 
       // Engagement totals
@@ -474,7 +516,8 @@ export default {
       }
 
       // Throughput line: tweets count + avg sentiment
-      if (!throughputChart && throughputCanvas.value) {
+  const tickFormatterThroughput = createTickFormatter(th.labels);
+  if (!throughputChart && throughputCanvas.value) {
         throughputChart = new Chart(throughputCanvas.value.getContext("2d"), {
           data: {
             labels: th.labels,
@@ -501,8 +544,9 @@ export default {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
+            layout: { padding: 0 },
             plugins: {
-              legend: { position: "bottom" },
+              legend: { position: "bottom", labels: { boxWidth: 10, padding: 6, font: { size: 10 } } },
               tooltip: {
                 callbacks: {
                   label(ctx) {
@@ -513,13 +557,15 @@ export default {
               },
             },
             scales: {
-              yCount: { position: "left", beginAtZero: true, title: { display: true, text: "Count" } },
+              x: { ticks: { autoSkip: true, maxTicksLimit: Math.min(th.labels.length, 12), font: { size: 10 }, callback: tickFormatterThroughput } },
+              yCount: { position: "left", beginAtZero: true, ticks: { font: { size: 10 } }, title: { display: false, text: "Count" } },
               ySent: {
                 position: "right",
                 min: -1,
                 max: 1,
                 grid: { drawOnChartArea: false },
-                title: { display: true, text: "Avg Sentiment" },
+                ticks: { font: { size: 10 } },
+                title: { display: false, text: "Avg Sentiment" },
               },
             },
           },
@@ -544,9 +590,12 @@ export default {
       try {
         resizeObs = new ResizeObserver(() => {
           [timelineChart, sentimentChart, engagementChart, throughputChart].forEach(ch => { if (ch) ch.resize(); });
+          enforceSquare(sentimentCanvas.value, sentimentChart);
         });
         const host = timelineCanvas.value?.parentElement?.parentElement; // chart-wrap
         if (host) resizeObs.observe(host);
+        const doughnutHost = sentimentCanvas.value?.parentElement?.parentElement;
+        if (doughnutHost && doughnutHost !== host) resizeObs.observe(doughnutHost);
       } catch(_){}
     });
 
@@ -642,6 +691,22 @@ export default {
     const copyJsonRef = () => copyJson();
     const downloadCsvRef = () => downloadCsv();
 
+    // Ensure doughnut stays centered / circular even with responsive width changes
+    function enforceSquare(canvasEl, chartInstance) {
+      if (!canvasEl || !chartInstance) return;
+      const wrap = canvasEl.parentElement;
+      if (!wrap) return;
+      const w = wrap.clientWidth;
+      if (w > 0) {
+        // lock height to width (within reasonable bounds)
+        canvasEl.style.width = w + 'px';
+        canvasEl.style.height = w + 'px';
+        if (chartInstance) {
+          try { chartInstance.resize(); } catch(_){}
+        }
+      }
+    }
+
     return {
       unitLabel,
       chartJsLoaded,
@@ -694,6 +759,7 @@ export default {
 .chart-card { background:white; border:1px solid #e5e7eb; border-radius:10px; padding:12px; display:grid; gap:10px; }
 .chart-title { color:#0f766e; font-size:14px; font-weight:700; }
 .chart-wrap { position:relative; height:260px; }
+.square-chart { aspect-ratio:1/1; height:auto !important; min-height:220px; }
 .chart-fallback { color:#6b7280; font-size:13px; }
 .chart-loader {
     position:absolute; inset:0;
