@@ -441,24 +441,15 @@
                     <button type="button" class="nav-btn nav-next">Next ›</button>
                   </a>
                 </div>
-                <div style="display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
-                  <div style="background:#f9fafb;border:1px solid #e2e8f0;padding:14px 16px;border-radius:10px;display:flex;flex-direction:column;gap:6px;">
-                    <div style="font-size:11px;font-weight:700;color:#0f766e;letter-spacing:.5px;">FRAUD RATE</div>
-                    <div style="font-size:20px;font-weight:700;color:#111827;">--</div>
-                    <div style="font-size:11px;color:#6b7280;">Coming soon</div>
-                  </div>
-                  <div style="background:#f9fafb;border:1px solid #e2e8f0;padding:14px 16px;border-radius:10px;display:flex;flex-direction:column;gap:6px;">
-                    <div style="font-size:11px;font-weight:700;color:#0f766e;letter-spacing:.5px;">RISK SCORE</div>
-                    <div style="font-size:20px;font-weight:700;color:#111827;">--</div>
-                    <div style="font-size:11px;color:#6b7280;">Model integration pending</div>
-                  </div>
-                  <div style="background:#f9fafb;border:1px solid #e2e8f0;padding:14px 16px;border-radius:10px;display:flex;flex-direction:column;gap:6px;">
-                    <div style="font-size:11px;font-weight:700;color:#0f766e;letter-spacing:.5px;">VOLATILITY</div>
-                    <div style="font-size:20px;font-weight:700;color:#111827;">--</div>
-                    <div style="font-size:11px;color:#6b7280;">Awaiting linkage</div>
-                  </div>
-                </div>
-                <div style="font-size:12px;color:#6b7280;font-style:italic;margin-top:4px;">Future: merge transaction anomalies, social sentiment shifts & stock volatility.</div>
+                <!-- Risk Assessment Slide replacement start -->
+<!-- Original placeholder removed; now using live MerchantRisk component -->
+                <!-- <MerchantRisk
+                  ref="riskRef"
+                  :merchant="merchantKey"
+                  :api-base="API_BASE"
+                  :key="merchantKey + '-' + unit + '-' + streamWindow + '-' + nowIso"
+                /> -->
+<!-- Risk Assessment Slide replacement end -->
               </div>
               <!-- News Slide -->
               <div id="re-slide-2" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px;">
@@ -1120,6 +1111,7 @@ import MerchantReddit from "./MerchantReddit.vue";
 import MerchantStock from "./MerchantStock.vue";
 import MerchantReviews from "./MerchantReviews.vue";
 import MerchantNews from "./MerchantNews.vue";
+import MerchantRisk from "./MerchantRisk.vue";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
@@ -1255,7 +1247,7 @@ const FieldRow = {
 
 export default {
   name: "MerchantDetail",
-  components: { FieldRow, MerchantTwitter, MerchantReddit, MerchantWl_Data, MerchantStock, MerchantReviews, MerchantNews },
+  components: { FieldRow, MerchantTwitter, MerchantReddit, MerchantWl_Data, MerchantStock, MerchantReviews, MerchantNews, MerchantRisk },
 
   setup() {
     const route = useRoute();
@@ -2098,6 +2090,21 @@ async function fetchStreams() {
       }
     );
 
+    const riskRef = ref(null);
+    // Bridge simulated time + window to MerchantRisk component after mount
+    watch([simNow, streamWindow], () => {
+      const comp = riskRef.value;
+      if (comp) {
+        if (comp.activeWindow !== undefined) comp.activeWindow = streamWindow.value || null;
+        if (comp.simNowTs !== undefined) {
+          try {
+            comp.simNowTs = simNow.value ? Math.floor(Date.parse(simNow.value)/1000) : null;
+          } catch { comp.simNowTs = null; }
+        }
+        if (comp.refresh) comp.refresh();
+      }
+    });
+
     return {
       routeIdentifier,
       merchant,
@@ -2183,6 +2190,9 @@ async function fetchStreams() {
       fetchStreams,
       collapsed,
       toggleCollapse,
+      merchantKey,
+      API_BASE,
+      riskRef,
     };
   },
 };

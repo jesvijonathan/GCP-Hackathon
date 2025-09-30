@@ -15,6 +15,7 @@ import os
 import uuid
 import time
 import datetime as dt
+import random
 from typing import Any, Dict, Optional, List, Tuple
 
 from fastapi import FastAPI, HTTPException, Request
@@ -161,8 +162,10 @@ TASKS = TaskManager()
 
 # MerchantService implements onboarding and preset generation
 from merchant import MerchantService  # same directory
+from risk_eval import RiskEvaluator
 
 SERVICE = MerchantService(db)
+RISK = RiskEvaluator(db)
 
 # ---------- FastAPI setup ----------
 
@@ -173,7 +176,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 def startup_event():
     try:
         SERVICE.ensure_indexes()
-        log(f"Indexes ensured on Mongo {MONGO_URI}/{DB_NAME}")
+        RISK.ensure_indexes()
+        log(f"Indexes ensured on Mongo {MONGO_URI}/{DB_NAME} (service + risk)")
     except Exception as e:
         log(f"Startup error ensuring indexes: {e}")
 
@@ -285,8 +289,9 @@ def root():
         "notes": [
             "POST /v1/onboard runs off main thread and returns a task_id.",
             "Merchant unique key: merchant_name.",
-            "Collections: merchants, preset.",
-            "Data endpoints: GET /v1/{merchant}/data and /v1/{merchant}/stock"
+            "Collections: merchants, preset, risk_scores.",
+            "Data endpoints: GET /v1/{merchant}/data and /v1/{merchant}/stock",
+            "Risk scoring: POST /v1/{merchant}/risk-eval/trigger?interval=30m |1h|1d then GET /v1/{merchant}/risk-eval/scores"
         ]
     }
 
@@ -465,7 +470,534 @@ def get_stock_data(
         "data": stock
     }
 
+# ---------------- Risk Evaluation Endpoints (moved above __main__) ----------------
+
+def _parse_backfill_param(raw: str | None) -> int | None:
+    """Convert raw query string for max_backfill_hours into int or None.
+    Rules:
+      - missing (None): return default cap (168)
+      - empty string / whitespace: unlimited (None)
+      - keywords: none, full, all, unlimited, unlimited, no, off -> unlimited (None)
+      - numeric > 0: that number
+      - numeric <= 0: unlimited (None)
+    """
+    if raw is None:
+        return 168  # default 7d cap
+    s = raw.strip().lower()
+    if s == "":
+        return None
+    if s in {"none","full","all","unlimited","no","off"}:
+        return None
+    try:
+        v = int(s)
+        if v <= 0:
+            return None
+        return v
+    except Exception:
+        # Fallback: ignore bad value -> default cap
+        return 168
+
+@app.post("/v1/{merchant_name}/risk-eval/trigger")
+def trigger_risk_eval(
+    merchant_name: str,
+    interval: str = "30m",
+    autoseed: bool = False,
+    max_backfill_hours: str | None = None,
+    bootstrap: bool = False,
+    bootstrap_hours: int = 24,
+    bootstrap_step: int = 60,
+    since: float | None = None,
+    until: float | None = None
+):
+    # Validate merchant
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    actions: list[dict] = []
+    autoseed_result = None
+    # Optional lightweight auto-seed if no underlying data exists yet
+    if autoseed:
+        try:
+            needed = ["tweets","reddit","news","reviews","wl_transactions","stocks_prices"]
+            empty = True
+            for coll in needed:
+                if db[coll].count_documents({"merchant": merchant_name}, limit=1) > 0:
+                    empty = False
+                    break
+            if empty:
+                try:
+                    autoseed_result = seed_risk_data(merchant_name=merchant_name, hours=36, step=60, volatility=0.01, confirm="yes")
+                    actions.append({"action":"autoseed","detail":"seeded 36h synthetic"})
+                    log(f"Auto-seeded synthetic data for {merchant_name} (autoseed) before triggering risk eval")
+                except Exception as se:
+                    actions.append({"action":"autoseed","error": str(se)})
+                    log(f"Autoseed failed (non-fatal) for {merchant_name}: {se}")
+        except Exception as ie:
+            actions.append({"action":"autoseed_inspect","error": str(ie)})
+            log(f"Autoseed inspection failed for {merchant_name}: {ie}")
+    try:
+        cap = _parse_backfill_param(max_backfill_hours)
+        status = RISK.trigger_or_status(merchant_name, interval, submit_fn=TASKS.pool.submit, max_backfill_hours=cap)
+        # Optional explicit range backfill (only missing windows in [since, until])
+        if since is not None and until is not None and until > since:
+            from risk_eval import INTERVAL_MAP
+            ilabel = interval.lower()
+            if ilabel in INTERVAL_MAP:
+                iv = INTERVAL_MAP[ilabel]
+                missing = RISK.plan_missing_windows_for_range(merchant_name, iv, float(since), float(until))
+                if missing:
+                    actions.append({"action":"range_backfill_plan","missing_windows": len(missing)})
+                    # Launch a separate job for those windows only
+                    def runner():
+                        for idx, w in enumerate(missing, start=1):
+                            RISK.compute_window(merchant_name, iv, w)
+                    TASKS.pool.submit(runner)
+                else:
+                    actions.append({"action":"range_backfill_plan","missing_windows": 0})
+        # If no windows planned AND bootstrap requested, attempt a quick seed + retry
+        if bootstrap and status.get("total_windows",0) == 0:
+            try:
+                bh = max(1, min(int(bootstrap_hours or 24), 72))
+                bstp = max(5, min(int(bootstrap_step or 60), 180))
+                # Seed a smaller recent range so earliest_timestamp exists
+                seed_res = seed_risk_data(merchant_name=merchant_name, hours=bh, step=bstp, volatility=0.01, confirm="yes")
+                actions.append({"action":"bootstrap_seed","hours": bh, "step": bstp, "seeded": seed_res.get("seeded")})
+                # Retry trigger (cap backfill to bootstrap hours + small cushion)
+                retry_cap = bh + 2
+                status = RISK.trigger_or_status(merchant_name, interval, submit_fn=TASKS.pool.submit, max_backfill_hours=retry_cap)
+                actions.append({"action":"bootstrap_retry","windows": status.get("total_windows")})
+            except Exception as be:
+                actions.append({"action":"bootstrap_seed","error": str(be)})
+        return {"job": status, "actions": actions, "autoseed_result": autoseed_result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Convenience GET alias so users can paste the URL in a browser and still trigger the job.
+@app.get("/v1/{merchant_name}/risk-eval/trigger")
+def trigger_risk_eval_get(merchant_name: str, interval: str = "30m", autoseed: bool = False, max_backfill_hours: str | None = None):
+    return trigger_risk_eval(merchant_name=merchant_name, interval=interval, autoseed=autoseed, max_backfill_hours=max_backfill_hours)
+
+@app.get("/v1/{merchant_name}/risk-eval/job/{job_id}")
+def risk_eval_job_status(merchant_name: str, job_id: str):
+    job = RISK.job_status(job_id)
+    if not job or job.get("merchant") != merchant_name:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"job": job}
+
+@app.get("/v1/{merchant_name}/risk-eval/scores")
+def get_risk_scores(
+    merchant_name: str,
+    interval: str = "30m",
+    limit: int = 500,
+    since: float | None = None,
+    until: float | None = None
+):
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    try:
+        scores = RISK.fetch_scores(merchant_name, interval, limit=limit, since=since, until=until)
+        return {"merchant": merchant_name, "interval": interval, "count": len(scores), "scores": scores}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/v1/{merchant_name}/risk-eval/summary")
+def get_risk_summary(
+    merchant_name: str,
+    interval: str = "auto",
+    lookback: int = 50,
+    since: float | None = None,
+    until: float | None = None,
+    now: float | None = None,
+    window: str | None = None,
+    fake: bool = False
+):
+    """Lightweight summary of recent risk scores for dashboard consumption.
+    Parameters:
+      - interval: 30m | 1h | 1d | auto (auto picks the finest interval with >= 3 windows in range)
+      - lookback: max windows to fetch (upper bound before range filtering)
+      - since/until: optional epoch seconds to bound windows (after fetch), paired with 'now' & 'window' convenience.
+      - window + now: if provided (e.g. window=6h) compute since=now-window.
+    """
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    try:
+        # Derive time range from window & now if given
+        rng_since = since
+        rng_until = until
+        if window:
+            try:
+                delta = parse_window_to_timedelta(window)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid window: {e}")
+            base_now = dt.datetime.now(dt.UTC).timestamp() if now is None else float(now)
+            rng_until = base_now if rng_until is None else rng_until
+            rng_since = (base_now - delta.total_seconds()) if rng_since is None else rng_since
+
+        chosen_interval = interval
+        intervals_order = ["30m","1h","1d"]
+        if interval == "auto":
+            # Try each interval from finest; choose first with >=3 windows in (since, until)
+            for cand in intervals_order:
+                try:
+                    rows = RISK.fetch_scores(merchant_name, cand, limit=lookback, since=rng_since, until=rng_until)
+                except ValueError:
+                    continue
+                if len(rows) >= 3:
+                    chosen_interval = cand
+                    break
+            if chosen_interval == "auto":
+                # fallback to coarsest if nothing found
+                chosen_interval = "1d"
+        summary = RISK.summarize_scores(merchant_name, chosen_interval, lookback=lookback, since_ts=rng_since, until_ts=rng_until)
+
+        # ---------- Fake data injection (debug / demo) ----------
+        want_fake = fake or (os.getenv("RISK_FAKE_MODE","0").lower() in ("1","true","yes"))
+        if want_fake and (summary.get("count",0) == 0):
+            # fabricate a synthetic timeline
+            import math, random as _rnd
+            seed_val = hash((merchant_name, chosen_interval, int((rng_until or 0)//3600))) & 0xffffffff
+            _rnd.seed(seed_val)
+            # choose step seconds from interval label
+            step_map = {"30m":1800, "1h":3600, "1d":86400}
+            step = step_map.get(chosen_interval, 3600)
+            end_ts = (rng_until or (dt.datetime.now(dt.UTC).timestamp()))
+            start_ts = end_ts - step * 20
+            points = []
+            ts_iter = start_ts
+            base = _rnd.uniform(25, 65)
+            for i in range(20):
+                noise = _rnd.uniform(-8, 8)
+                seasonal = 10 * math.sin(i/4.0)
+                val = max(0, min(100, base + seasonal + noise))
+                points.append({"t": ts_iter + step, "s": round(val,2)})
+                ts_iter += step
+            confid = []
+            for p in points:
+                confid.append({"t": p["t"], "c": round(_rnd.uniform(0.4,0.95),3)})
+            latest_point = points[-1]
+            comp_keys = ["tweet_sentiment","reddit_sentiment","news_sentiment","reviews_rating","wl_flag_ratio","stock_volatility"]
+            latest_components = {k: round(_rnd.uniform(0,1),3) for k in comp_keys}
+            avg_components = {k: round(sum(_rnd.uniform(0,1) for _ in range(8))/8,3) for k in comp_keys}
+            summary = {
+                "interval": chosen_interval,
+                "count": len(points),
+                "latest": {"score": latest_point["s"], "confidence": confid[-1]["c"], "components": latest_components},
+                "previous": {"score": points[-2]["s"], "confidence": confid[-2]["c"]} if len(points) > 1 else None,
+                "delta": round(points[-1]["s"] - points[-2]["s"],2) if len(points) > 1 else None,
+                "trend": points,
+                "trend_confidence": confid,
+                "component_latest": latest_components,
+                "component_avg": avg_components,
+                "avg_score": round(sum(p["s"] for p in points)/len(points),2),
+                "avg_confidence": round(sum(c["c"] for c in confid)/len(confid),3)
+            }
+            summary["_fake"] = True
+
+        return {"merchant": merchant_name, "interval_selected": chosen_interval, **summary, "range_used": {"since": rng_since, "until": rng_until}}
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/v1/{merchant_name}/risk-eval/seed")
+def seed_risk_data(
+    merchant_name: str,
+    hours: int = 48,
+    step: int = 60,
+    volatility: float = 0.01,
+    confirm: str = "yes"
+):
+    """Quick synthetic seeding helper so risk scoring has baseline data.
+    NOT for production; gated by confirm parameter.
+    Creates evenly spaced docs over the past <hours> with <step> minute spacing.
+    Collections touched: tweets, reddit, news, reviews, wl_transactions, stocks_prices.
+    """
+    if confirm.lower() not in ("yes","y","true","1"):
+        raise HTTPException(status_code=400, detail="Set confirm=yes to proceed (safety guard)")
+    # Validate merchant exists
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    hours = max(1, min(hours, 24*14))  # cap at 14 days
+    step = max(5, min(step, 180))      # 5 min .. 3h
+    now_dt = dt.datetime.now(dt.UTC)
+    start_dt = now_dt - dt.timedelta(hours=hours)
+    base_price = 100.0
+    # Try existing meta for base price
+    meta = db["stocks_meta"].find_one({"merchant": merchant_name}) or {}
+    if isinstance(meta.get("base_price"), (int,float)):
+        base_price = float(meta["base_price"])
+    prices = []
+    tweets_docs = []
+    reddit_docs = []
+    news_docs = []
+    reviews_docs = []
+    wl_docs = []
+    price = base_price
+    ts_iter = start_dt
+    idx = 0
+    while ts_iter <= now_dt:
+        ts_sec = ts_iter.timestamp()
+        # Random walk for price
+        drift = random.uniform(-volatility, volatility)
+        price = max(1.0, price * (1 + drift))
+        prices.append({"merchant": merchant_name, "ts": ts_sec, "price": round(price, 2)})
+        # Sentiment signals
+        sent_t = random.uniform(-1, 1)
+        sent_r = sent_t + random.uniform(-0.2,0.2)
+        sent_n = (sent_t + sent_r)/2 + random.uniform(-0.2,0.2)
+        tweets_docs.append({"merchant": merchant_name, "ts": ts_sec, "sentiment": round(sent_t,3), "text": f"synthetic tweet {idx}"})
+        reddit_docs.append({"merchant": merchant_name, "ts": ts_sec, "sentiment": round(sent_r,3), "title": f"synthetic reddit {idx}"})
+        news_docs.append({"merchant": merchant_name, "ts": ts_sec, "sentiment": round(sent_n,3), "headline": f"synthetic news {idx}"})
+        # Reviews every 3rd point
+        if idx % 3 == 0:
+            reviews_docs.append({"merchant": merchant_name, "ts": ts_sec, "rating": random.randint(2,5), "review": f"auto review {idx}"})
+        # WL txn with flagged ratio ~10%
+        status = "flagged" if (idx % 10 == 0) else "ok"
+        wl_docs.append({"merchant": merchant_name, "ts": ts_sec, "status": status, "amount": round(random.uniform(10,500),2)})
+        idx += 1
+        ts_iter += dt.timedelta(minutes=step)
+    # Bulk inserts (ignore duplicate errors if rerun)
+    def safe_bulk(coll, docs):
+        if not docs: return 0
+        try:
+            db[coll].insert_many(docs, ordered=False)
+            return len(docs)
+        except Exception:
+            return 0
+    inserted = {
+        "tweets": safe_bulk("tweets", tweets_docs),
+        "reddit": safe_bulk("reddit", reddit_docs),
+        "news": safe_bulk("news", news_docs),
+        "reviews": safe_bulk("reviews", reviews_docs),
+        "wl_transactions": safe_bulk("wl_transactions", wl_docs),
+        "stocks_prices": safe_bulk("stocks_prices", prices),
+    }
+    return {"seeded": inserted, "windows_potential": idx, "range": {"start": start_dt.isoformat().replace('+00:00','Z'), "end": now_dt.isoformat().replace('+00:00','Z')}}
+
+@app.post("/v1/{merchant_name}/risk-eval/boost-seed")
+def boost_seed_and_recompute(
+    merchant_name: str,
+    hours: int = 6,
+    step: int = 10,
+    volatility: float = 0.01,
+    interval: str = "30m",
+    force_recompute: bool = True,
+    confirm: str = "yes"
+):
+    """Dense seeding helper to quickly populate recent windows with more granular data.
+    Optionally wipes existing recent risk_scores for the given interval so recompute produces fresh scores.
+    """
+    if confirm.lower() not in ("yes","y","true","1"):
+        raise HTTPException(status_code=400, detail="Set confirm=yes to proceed (safety guard)")
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    # Clamp inputs
+    hours = max(1, min(hours, 24*3))  # up to 3 days for dense seed
+    step = max(5, min(step, 60))      # 5..60 minutes
+    now_dt = dt.datetime.now(dt.UTC)
+    start_dt = now_dt - dt.timedelta(hours=hours)
+    # Reuse seeding logic but with finer step
+    try:
+        _ = seed_risk_data(merchant_name=merchant_name, hours=hours, step=step, volatility=volatility, confirm="yes")
+    except HTTPException as he:
+        if he.status_code != 400:
+            raise
+    # Optional recompute: delete existing risk_scores overlapping this recent span
+    if force_recompute:
+        try:
+            from risk_eval import INTERVAL_MAP  # local import to avoid top-cycle
+            ilabel = interval.lower()
+            if ilabel not in INTERVAL_MAP:
+                raise HTTPException(status_code=400, detail="Unsupported interval for recompute")
+            interval_minutes = INTERVAL_MAP[ilabel]
+            deleted = db["risk_scores"].delete_many({
+                "merchant": merchant_name,
+                "interval_minutes": interval_minutes,
+                "window_start_ts": {"$gte": start_dt.timestamp() - interval_minutes*60}
+            }).deleted_count
+        except Exception as e:
+            log(f"boost-seed recompute delete error: {e}")
+            deleted = 0
+    else:
+        deleted = 0
+    # Trigger a capped recompute immediately (limit backfill to hours provided)
+    cap_hours = hours + 2  # small cushion
+    status = RISK.trigger_or_status(merchant_name, interval, submit_fn=TASKS.pool.submit, max_backfill_hours=cap_hours)
+    return {
+        "status": "ok",
+        "dense_seed_hours": hours,
+        "step_minutes": step,
+        "deleted_recent_scores": deleted,
+        "triggered_job": status
+    }
+
+@app.get("/v1/{merchant_name}/risk-eval/stream-counts")
+def risk_stream_counts(merchant_name: str):
+    """Lightweight counts + earliest ts diagnostics to help debug empty risk scores.
+    Returns document counts (capped) in each source collection and earliest timestamp.
+    """
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    coll_map = {
+        "tweets": "tweets",
+        "reddit": "reddit",
+        "news": "news",
+        "reviews": "reviews",
+        "wl": "wl_transactions",
+        "prices": "stocks_prices"
+    }
+    out = {}
+    earliest = None
+    for label, cname in coll_map.items():
+        try:
+            cnt = db[cname].count_documents({"merchant": merchant_name})
+            out[label] = cnt
+            doc = db[cname].find_one({"merchant": merchant_name}, sort=[("ts", ASCENDING)], projection={"ts":1, "_id":0})
+            if doc and isinstance(doc.get("ts"), (int,float)):
+                t = float(doc["ts"])
+                if earliest is None or t < earliest:
+                    earliest = t
+        except Exception as e:
+            out[label] = f"error: {e}"  # surface issue
+    if earliest is not None:
+        earliest_iso = dt.datetime.fromtimestamp(earliest, tz=dt.UTC).isoformat().replace("+00:00","Z")
+    else:
+        earliest_iso = None
+    return {"merchant": merchant_name, "counts": out, "earliest_ts": earliest, "earliest_iso": earliest_iso}
+
+@app.get("/v1/{merchant_name}/risk-eval/diagnostics")
+def risk_eval_diagnostics(merchant_name: str):
+    """Deeper diagnostics for empty risk scores.
+    For each underlying stream collection return:
+      - total count
+      - earliest/latest ts (+ iso)
+      - sample field keys
+      - inferred timestamp scale (seconds vs milliseconds)
+      - notes about expected fields
+    """
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    coll_specs = {
+        "tweets": {"coll": "tweets", "expected": ["sentiment"], "purpose": "sentiment -1..1"},
+        "reddit": {"coll": "reddit", "expected": ["sentiment"], "purpose": "sentiment -1..1"},
+        "news": {"coll": "news", "expected": ["sentiment"], "purpose": "sentiment -1..1"},
+        "reviews": {"coll": "reviews", "expected": ["rating"], "purpose": "rating 1..5"},
+        "wl_transactions": {"coll": "wl_transactions", "expected": ["status"], "purpose": "fraud / flagged status"},
+        "stocks_prices": {"coll": "stocks_prices", "expected": ["price","close"], "purpose": "price series for volatility"},
+    }
+    now_ts = dt.datetime.now(dt.UTC).timestamp()
+    diag = {}
+    for label, spec in coll_specs.items():
+        cname = spec["coll"]
+        c = db[cname]
+        try:
+            total = c.count_documents({"merchant": merchant_name})
+            earliest_doc = c.find({"merchant": merchant_name}, sort=[("ts", ASCENDING)], projection={"_id":0}).limit(1)
+            latest_doc = c.find({"merchant": merchant_name}, sort=[("ts", -1)], projection={"_id":0}).limit(1)
+            earliest_data = next(iter(earliest_doc), None)
+            latest_data = next(iter(latest_doc), None)
+            if earliest_data and isinstance(earliest_data.get("ts"), (int,float)):
+                e_ts = float(earliest_data["ts"])
+            else:
+                e_ts = None
+            if latest_data and isinstance(latest_data.get("ts"), (int,float)):
+                l_ts = float(latest_data["ts"])
+            else:
+                l_ts = None
+            def iso(ts):
+                if ts is None: return None
+                try:
+                    # Detect ms epoch ( > 1e12 ~ Nov 2001 threshold )
+                    if ts > 1e12: # treat as milliseconds
+                        ts_s = ts / 1000.0
+                    else:
+                        ts_s = ts
+                    return dt.datetime.fromtimestamp(ts_s, tz=dt.UTC).isoformat().replace("+00:00","Z")
+                except Exception:
+                    return None
+            # Infer scale
+            scale = None
+            if l_ts is not None:
+                scale = "milliseconds" if l_ts > 1e12 else "seconds"
+            notes = []
+            # Expected field presence
+            sample = latest_data or earliest_data or {}
+            for field in spec["expected"]:
+                if field not in sample:
+                    notes.append(f"missing expected field '{field}'")
+            if scale == "milliseconds":
+                notes.append("timestamp appears to be in milliseconds; risk evaluator expects seconds -> windows will be empty")
+            # Future / stale detection
+            if l_ts is not None and scale == "seconds" and l_ts < now_ts - 3600*168:
+                notes.append("latest data older than 7d; with backfill cap risk windows may not include it")
+            if l_ts is not None and ((scale == "seconds" and l_ts > now_ts + 3600) or (scale == "milliseconds" and l_ts/1000.0 > now_ts + 3600)):
+                notes.append("latest data appears in the future (>1h ahead)")
+            diag[label] = {
+                "count": total,
+                "earliest_ts": e_ts,
+                "earliest_iso": iso(e_ts) if e_ts is not None else None,
+                "latest_ts": l_ts,
+                "latest_iso": iso(l_ts) if l_ts is not None else None,
+                "timestamp_scale": scale,
+                "sample_keys": list(sample.keys())[:20],
+                "expected_fields": spec["expected"],
+                "purpose": spec["purpose"],
+                "notes": notes
+            }
+        except Exception as e:
+            diag[label] = {"error": str(e)}
+    return {"merchant": merchant_name, "streams": diag, "now_iso": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z')}
+
+@app.get("/v1/{merchant_name}/risk-eval/probe")
+def risk_eval_probe(
+    merchant_name: str,
+    interval: str = "30m",
+    window: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    now: float | None = None,
+    max_windows: int = 3
+):
+    """Deep probe of underlying raw stream presence for recent windows (no score mutation).
+    Usage patterns:
+      - /v1/acme/risk-eval/probe?interval=30m&window=6h  (probe last 6h aligned 30m windows)
+      - /v1/acme/risk-eval/probe?interval=1h&since=...&until=...
+    Returns per-window per-stream counts, query strategies used, and sample timestamps for debugging why risk components are None.
+    """
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    from risk_eval import INTERVAL_MAP
+    ilabel = interval.lower()
+    if ilabel not in INTERVAL_MAP:
+        raise HTTPException(status_code=400, detail="Unsupported interval")
+    interval_minutes = INTERVAL_MAP[ilabel]
+    try:
+        rng_since = since
+        rng_until = until
+        if window:
+            delta = parse_window_to_timedelta(window)
+            base_now = dt.datetime.now(dt.UTC).timestamp() if now is None else float(now)
+            rng_until = base_now if rng_until is None else rng_until
+            rng_since = base_now - delta.total_seconds() if rng_since is None else rng_since
+        if rng_since is None or rng_until is None:
+            # default last 6h
+            end_ts = dt.datetime.now(dt.UTC).timestamp()
+            rng_until = rng_until or end_ts
+            rng_since = rng_since or (end_ts - 6*3600)
+        probe = RISK.probe_range(merchant_name, interval_minutes, rng_since, rng_until, max_windows=max_windows)
+        return {"merchant": merchant_name, "interval": ilabel, "range": {"since": rng_since, "until": rng_until}, **probe}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
+    # When running as a script, all routes (including risk eval) are now already registered above.
     import uvicorn
     port = int(os.getenv("PORT", "8000"))
     log(f"Starting server on 0.0.0.0:{port}")
