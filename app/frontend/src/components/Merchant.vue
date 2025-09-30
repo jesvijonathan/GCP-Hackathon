@@ -268,20 +268,6 @@
                       <span class="collapse-icon" :class="{ rotated: collapsed.pipelines }">▾</span>
                       Merchant Data Pipelines
                     </h3>
-            <div style="display:flex;gap:6px;">
-              <a href="#dp-slide-1" style="text-decoration:none;">
-                <button type="button"
-                  style="width:38px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">
-                  ‹
-                </button>
-              </a>
-              <a href="#dp-slide-2" style="text-decoration:none;">
-                <button type="button"
-                  style="width:38px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">
-                  ›
-                </button>
-              </a>
-            </div>
           </div>
                   <!-- Carousel Wrapper -->
                   <div v-show="!collapsed.pipelines"
@@ -380,14 +366,7 @@
               <span class="collapse-icon" :class="{ rotated: collapsed.risk }">▾</span>
               Risk & Stock Pipelines
             </h3>
-            <div style="display:flex;gap:6px;">
-              <a href="#rs-slide-1" style="text-decoration:none;">
-                <button type="button" style="width:34px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">‹</button>
-              </a>
-              <a href="#rs-slide-2" style="text-decoration:none;">
-                <button type="button" style="width:34px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">›</button>
-              </a>
-            </div>
+
           </div>
           <div v-show="!collapsed.risk" style="position:relative;overflow-x:auto;scroll-behavior:smooth;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;display:flex;width:100%;">
             <div style="display:flex;width:100%;flex-wrap:nowrap;">
