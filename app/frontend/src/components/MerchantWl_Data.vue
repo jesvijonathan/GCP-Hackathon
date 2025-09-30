@@ -36,7 +36,7 @@
         <!-- Throughput + Fraud Trend -->
         <div class="chart-card">
           <div class="chart-title">Throughput & Fraud Trend</div>
-          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 260px;">
+          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 300px;">
             <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
             <canvas ref="throughputCanvas" height="140"></canvas>
           </div>
@@ -48,7 +48,7 @@
         <!-- Activity timeline (stacked by risk) -->
         <div class="chart-card">
           <div class="chart-title">Activity timeline (stacked by risk)</div>
-          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 260px;">
+          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 300px;">
             <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
             <canvas ref="timelineCanvas" height="140"></canvas>
           </div>
@@ -60,7 +60,7 @@
         <!-- Fraud mix -->
         <div class="chart-card">
           <div class="chart-title">Fraud mix</div>
-          <div v-if="chartJsLoaded" class="chart-wrap" style="height: 260px;">
+          <div v-if="chartJsLoaded" class="chart-wrap square-chart" style="height: 260px;">
             <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
             <canvas ref="fraudCanvas" height="140"></canvas>
           </div>
@@ -375,6 +375,32 @@ export default {
 
       // Timeline (stacked by risk)
       const tl = timelineStack.value;
+      function createTickFormatter(allLabels) {
+        const parsed = allLabels.map(l => {
+          const d = new Date(l);
+          return { raw: l, date: d, valid: !isNaN(d.getTime()), dayKey: d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate() };
+        });
+        const distinctDays = new Set(parsed.filter(p=>p.valid).map(p=>p.dayKey));
+        const multiDay = distinctDays.size > 1;
+        return function(value, idx) {
+          let raw;
+          try { if (this && this.getLabelForValue) raw = this.getLabelForValue(value); } catch(_){}
+          if (!raw) raw = allLabels[idx] || value;
+          const p = parsed[idx];
+          if (!p || !p.valid) return raw;
+          const h = String(p.date.getHours()).padStart(2,'0');
+          const m = String(p.date.getMinutes()).padStart(2,'0');
+          if (!multiDay) return `${h}:${m}`;
+          const prev = parsed[idx-1];
+          if (idx === 0 || idx === parsed.length-1 || (prev && prev.dayKey !== p.dayKey)) {
+            return `${p.date.getMonth()+1}/${p.date.getDate()}\n${h}:${m}`;
+          }
+          return `${h}:${m}`;
+        };
+      }
+
+      const tickFormatterTimeline = createTickFormatter(tl.labels);
+
       if (!timelineChart && timelineCanvas.value) {
         const ctx = timelineCanvas.value.getContext("2d");
         timelineChart = new Chart(ctx, {
@@ -390,8 +416,12 @@ export default {
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: "bottom" } },
-            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+            layout: { padding: 0 },
+            plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 6, font: { size: 10 } } } },
+            scales: {
+              x: { stacked: true, ticks: { autoSkip: true, maxTicksLimit: Math.min(tl.labels.length, 12), font: { size: 10 }, callback: tickFormatterTimeline } },
+              y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 } } },
+            },
           },
         });
       } else if (timelineChart) {
@@ -405,7 +435,8 @@ export default {
 
       // Throughput: total vs fraud per bucket
       const tf = timelineFraud.value;
-      if (!throughputChart && throughputCanvas.value) {
+  const tickFormatterThroughput = createTickFormatter(tf.labels);
+  if (!throughputChart && throughputCanvas.value) {
         const ctx = throughputCanvas.value.getContext("2d");
         throughputChart = new Chart(ctx, {
           type: "bar",
@@ -427,8 +458,12 @@ export default {
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: "bottom" } },
-            scales: { x: { beginAtZero: true }, y: { beginAtZero: true } },
+            layout: { padding: 0 },
+            plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 6, font: { size: 10 } } } },
+            scales: {
+              x: { beginAtZero: true, ticks: { autoSkip: true, maxTicksLimit: Math.min(tf.labels.length, 12), font: { size: 10 }, callback: tickFormatterThroughput } },
+              y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+            },
           },
         });
       } else if (throughputChart) {
@@ -454,12 +489,20 @@ export default {
               borderWidth: 2,
             }],
           },
-          options: { plugins: { legend: { position: "bottom" } } }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '55%',
+            layout: { padding: 0 },
+            plugins: { legend: { position: "bottom" } }
+          }
         });
+        queueMicrotask(() => { enforceSquare(fraudCanvas.value, fraudChart); });
       } else if (fraudChart) {
         fraudChart.options.animation = false;
         fraudChart.data.datasets[0].data = [fm.low, fm.medium, fm.high];
         fraudChart.update();
+        enforceSquare(fraudCanvas.value, fraudChart);
       }
 
       // MCC distribution (horizontal bar)
@@ -505,9 +548,12 @@ export default {
       try {
         resizeObs = new ResizeObserver(() => {
           [timelineChart, throughputChart, fraudChart, mccChart].forEach(ch => { if (ch) ch.resize(); });
+          enforceSquare(fraudCanvas.value, fraudChart);
         });
         const host = timelineCanvas.value?.parentElement?.parentElement; // chart-wrap
         if (host) resizeObs.observe(host);
+        const doughnutHost = fraudCanvas.value?.parentElement?.parentElement;
+        if (doughnutHost && doughnutHost !== host) resizeObs.observe(doughnutHost);
       } catch(_){}
     });
 
@@ -580,6 +626,18 @@ export default {
     }
 
     // Expose
+    function enforceSquare(canvasEl, chartInstance) {
+      if (!canvasEl || !chartInstance) return;
+      const wrap = canvasEl.parentElement;
+      if (!wrap) return;
+      const w = wrap.clientWidth;
+      if (w > 0) {
+        canvasEl.style.width = w + 'px';
+        canvasEl.style.height = w + 'px';
+        try { chartInstance.resize(); } catch(_){}
+      }
+    }
+
     return {
       unitLabel,
       chartJsLoaded,
@@ -637,6 +695,7 @@ export default {
 .chart-card { background:white; border:1px solid #e5e7eb; border-radius:10px; padding:12px; display:grid; gap:10px; }
 .chart-title { color:#0f766e; font-size:14px; font-weight:700; }
 .chart-wrap { position:relative; height:260px; }
+.square-chart { aspect-ratio:1/1; height:auto !important; min-height:220px; }
 .chart-fallback { color:#6b7280; font-size:13px; }
 .chart-loader {
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;

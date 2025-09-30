@@ -68,8 +68,9 @@
 
     <div v-if="loading" class="loading">Loading news...</div>
     <div v-else-if="!news.length" class="empty">No news items.</div>
-    <div v-else :class="['feed-container', layout]">
-      <div v-for="(n,i) in newsLimited" :key="i" :class="['news-card', sentimentClass(n.sentiment||0)]" @click="openModal(n)">
+    <div v-else class="feed-wrapper">
+      <div :class="['feed-container', layout, 'scrollable']">
+        <div v-for="(n,i) in visibleNews" :key="i" :class="['news-card', sentimentClass(n.sentiment||0)]" @click="openModal(n)">
         <div class="card-top">
           <div class="headline" :title="n.title">{{ n.title || 'Untitled' }}</div>
           <div class="meta-row">
@@ -84,6 +85,7 @@
         <div class="footer-row">
           <span v-if="typeof n.sentiment==='number'" class="sentiment-pill" :class="sentimentClass(n.sentiment)">{{ sentimentLabel(n.sentiment) }}</span>
           <a v-if="n.url" :href="n.url" target="_blank" class="open-link" @click.stop>Open ↗</a>
+        </div>
         </div>
       </div>
     </div>
@@ -145,7 +147,8 @@ export default {
       if (s < -0.2) return 'negative';
       return 'neutral';
     }
-    const newsLimited = computed(()=> props.news.slice(0,60));
+  const newsLimited = computed(()=> props.news.slice(0,120));
+  const visibleNews = computed(()=> newsLimited.value);
 
     // Layout state
     const layout = ref('grid');
@@ -243,7 +246,7 @@ export default {
       try { const d = new Date(ts).getTime(); const diff = Date.now()-d; if(diff<60000) return 'just now'; if(diff<3600000) return Math.floor(diff/60000)+'m ago'; if(diff<86400000) return Math.floor(diff/3600000)+'h ago'; return Math.floor(diff/86400000)+'d ago'; } catch { return ts; }
     }
 
-    return { formatTime, sentimentLabel, sentimentClass, newsLimited, layout, toggleLayout, modalItem, openModal, closeModal, avgSentiment, avgSentimentLabel, distinctSources, spanRange, sentimentDist, topKeywords, summarizing, summaryText, summaryPoints, summaryExpanded, summaryMeta, generateSummary, copySummary, includeInSummary, truncated, computedTags, relativeTime };
+  return { formatTime, sentimentLabel, sentimentClass, newsLimited, visibleNews, layout, toggleLayout, modalItem, openModal, closeModal, avgSentiment, avgSentimentLabel, distinctSources, spanRange, sentimentDist, topKeywords, summarizing, summaryText, summaryPoints, summaryExpanded, summaryMeta, generateSummary, copySummary, includeInSummary, truncated, computedTags, relativeTime };
   }
 };
 </script>
@@ -286,6 +289,14 @@ export default {
 /* Feed */
 .feed-container.grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
 .feed-container.list { display:flex; flex-direction:column; gap:14px; }
+.feed-wrapper { display:flex; flex-direction:column; gap:8px; }
+.feed-header-mini { display:flex; justify-content:flex-end; }
+.mini-toggle { background:#ffffff; border:1px solid #0d9488; color:#0d9488; font-size:11px; font-weight:600; padding:4px 10px; border-radius:14px; cursor:pointer; }
+.mini-toggle:hover { background:#0d9488; color:#ffffff; }
+.feed-container.scrollable { max-height:420px; overflow-y:auto; padding-right:4px; }
+.feed-container.scrollable::-webkit-scrollbar { width:6px; }
+.feed-container.scrollable::-webkit-scrollbar-track { background:transparent; }
+.feed-container.scrollable::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
 .news-card { cursor:pointer; background:#f9fafb; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:10px; position:relative; transition:.25s; }
 .news-card:hover { background:#ffffff; box-shadow:0 6px 18px -4px rgba(0,0,0,0.12); transform:translateY(-2px); }
 .news-card.positive { border-color:#34d39955; }
