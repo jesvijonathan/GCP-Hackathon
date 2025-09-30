@@ -2238,7 +2238,8 @@ async function fetchStreams() {
   position: sticky;
   top: var(--header-offset);
   height: calc(100vh - var(--header-offset) - 20px);
-  height: 80vh;
+  height: auto;
+  min-height: 77vh !important;
   max-height: calc(100vh - var(--header-offset) - 20px);
   overflow-y: auto;
     display: flex
