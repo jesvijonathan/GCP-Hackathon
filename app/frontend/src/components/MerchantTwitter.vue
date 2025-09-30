@@ -30,18 +30,15 @@
             </div>
         </header>
 
-        <div v-if="loading" class="tw-loading">Loading tweets...</div>
-        <div v-else-if="!tweets || !tweets.length" class="tw-empty">
-            No tweets in this range.
-        </div>
-        <template v-else>
+        <div v-if="loading" class="tw-refresh">Refreshing… (previous data shown)</div>
+        <div v-else-if="!tweets || !tweets.length" class="tw-empty">No tweets in this range.</div>
             <section class="tw-charts">
                 <!-- NEW: Throughput & Sentiment Trend -->
                 <div class="chart-card">
                     <div class="chart-title">Throughput & Sentiment Trend</div>
                     <div v-if="chartJsLoaded" class="chart-wrap">
                         <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
-                        <canvas ref="throughputCanvas" height="140"></canvas>
+                        <canvas ref="throughputCanvas"></canvas>
                     </div>
                     <div v-else class="chart-fallback">
                         Avg Sentiment / Count not available (Chart.js missing).
@@ -52,7 +49,7 @@
                     <div class="chart-title">Activity timeline (stacked by sentiment)</div>
                     <div v-if="chartJsLoaded" class="chart-wrap">
                         <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
-                        <canvas ref="timelineCanvas" height="140"></canvas>
+                        <canvas ref="timelineCanvas"></canvas>
                     </div>
                     <div v-else class="chart-fallback">
                         Chart.js not available — showing summary only.
@@ -63,7 +60,7 @@
                     <div class="chart-title">Sentiment mix</div>
                     <div v-if="chartJsLoaded" class="chart-wrap">
                         <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
-                        <canvas ref="sentimentCanvas" height="140"></canvas>
+                        <canvas ref="sentimentCanvas"></canvas>
                     </div>
                     <div v-else class="chart-fallback">
                         Positive: {{ sentimentCounts.positive }} —
@@ -76,7 +73,7 @@
                     <div class="chart-title">Engagement totals</div>
                     <div v-if="chartJsLoaded" class="chart-wrap">
                         <div v-if="chartsBuilding" class="chart-loader">Processing...</div>
-                        <canvas ref="engagementCanvas" height="140"></canvas>
+                        <canvas ref="engagementCanvas"></canvas>
                     </div>
                     <div v-else class="chart-fallback">
                         Likes: {{ formatNumber(sumLikes) }},
@@ -98,13 +95,20 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="meta-card">
-                    <div class="meta-title">Export</div>
-                    <div class="meta-actions">
-                        <button class="btn" @click="copyJson">Copy JSON</button>
-                        <button class="btn" @click="downloadCsv">Download CSV</button>
-                    </div>
+                <div class="meta-card" style="display:grid;gap:10px;">
+                  <div class="meta-title">Insights</div>
+                  <div style="font-size:12px;line-height:1.4;display:grid;gap:6px;">
+                    <div><strong>Peak interval:</strong> {{ peakInterval?.label || '-' }} <span v-if="peakInterval">({{ peakInterval.count }} tweets)</span></div>
+                    <div><strong>Avg sentiment:</strong> <span :class="avgSentLabel">{{ avgSentLabel }}</span> <small v-if="avgSentIndex!=null" style="color:#6b7280;">({{ avgSentIndex.toFixed(2) }})</small></div>
+                    <div><strong>Engagement / tweet:</strong> {{ avgEngagement }}</div>
+                    <div><strong>Top language:</strong> {{ firstTopLanguage }}</div>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    <button type="button" @click="setSentimentFilter('all')" :class="['flt-chip', sentimentFilter==='all' && 'on']">All</button>
+                    <button type="button" @click="setSentimentFilter('positive')" :class="['flt-chip','positive', sentimentFilter==='positive' && 'on']">Positive</button>
+                    <button type="button" @click="setSentimentFilter('neutral')" :class="['flt-chip','neutral', sentimentFilter==='neutral' && 'on']">Neutral</button>
+                    <button type="button" @click="setSentimentFilter('negative')" :class="['flt-chip','negative', sentimentFilter==='negative' && 'on']">Negative</button>
+                  </div>
                 </div>
             </section>
 
@@ -146,7 +150,7 @@
                     </tbody>
                 </table>
             </section>
-        </template>
+        
     </section>
 </template>
 
@@ -170,10 +174,12 @@ export default {
         const engagementCanvas = ref(null);
         const throughputCanvas = ref(null); // NEW
 
-        let timelineChart = null;
-        let sentimentChart = null;
-        let engagementChart = null;
-        let throughputChart = null; // NEW
+    let timelineChart = null;
+    let sentimentChart = null;
+    let engagementChart = null;
+    let throughputChart = null; // NEW
+    const initialBuildDone = ref(false);
+    let resizeObs = null;
 
         async function ensureChartJs() {
             if (Chart) return;
@@ -336,11 +342,17 @@ export default {
         });
 
         const search = ref("");
+                const sentimentFilter = ref('all');
         const filteredTopTweets = computed(() => {
             const q = (search.value||"").trim().toLowerCase();
-            if (!q) return topTweets.value;
-            return topTweets.value.filter(t => t.content?.toLowerCase().includes(q));
+                        let base = topTweets.value;
+                        if (sentimentFilter.value !== 'all') {
+                            base = base.filter(t => (t.sentiment_label||'neutral') === sentimentFilter.value);
+                        }
+                        if (!q) return base;
+                        return base.filter(t => t.content?.toLowerCase().includes(q));
         });
+                function setSentimentFilter(v){ sentimentFilter.value = v; }
 
         function toCsv(rows) {
             if (!rows?.length) return "tweet_id,dt,author_id,lang,sentiment,content,likes,retweets,replies,quotes,impressions\n";
@@ -381,15 +393,40 @@ export default {
         }
 
         function destroyCharts() {
-            [timelineChart,sentimentChart,engagementChart,throughputChart].forEach(ch => { if (ch) ch.destroy(); });
+            [timelineChart,sentimentChart,engagementChart,throughputChart].forEach(ch => { if (ch) { try { ch.destroy(); } catch(_){} } });
             timelineChart = sentimentChart = engagementChart = throughputChart = null;
+            initialBuildDone.value = false;
         }
+
+                // Insights computations
+                const peakInterval = computed(() => {
+                    const tl = timelineStack.value; if (!tl.total?.length) return null;
+                    let max = -1, idx = -1; tl.total.forEach((v,i)=>{ if(v>max){max=v;idx=i;} });
+                    return idx>=0 ? { label: tl.labels[idx], count: tl.total[idx] } : null;
+                });
+                const avgSentIndex = computed(() => {
+                    const total = sentimentCounts.value.positive + sentimentCounts.value.neutral + sentimentCounts.value.negative;
+                    if (!total) return 0;
+                        return (sentimentCounts.value.positive - sentimentCounts.value.negative)/total;
+                });
+                const avgSentLabel = computed(() => {
+                    const v = avgSentIndex.value;
+                    if (v>0.15) return 'Positive'; if (v<-0.15) return 'Negative'; return 'Neutral';
+                });
+                const avgEngagement = computed(() => {
+                    const total = totalTweets.value || 1;
+                    const engagement = (sumLikes.value + sumRetweets.value + sumReplies.value + sumQuotes.value + sumImpressions.value*0.001)/total;
+                    return Math.round(engagement);
+                });
+                const firstTopLanguage = computed(()=> Object.keys(topLanguages.value)[0] || '-');
 
         function buildOrUpdateCharts() {
             if (!chartJsLoaded.value) return;
             chartsBuilding.value = true;
 
             const tl = timelineStack.value;
+            const gridColor = "#e5e7eb";
+            const tickColor = "#6b7280";
 
             // Timeline stacked
             if (!timelineChart && timelineCanvas.value) {
@@ -398,22 +435,23 @@ export default {
                     data: {
                         labels: tl.labels,
                         datasets: [
-                            { label: "Negative", data: tl.neg, backgroundColor: "#ef4444", stack:"s" },
-                            { label: "Neutral", data: tl.neu, backgroundColor: "#9ca3af", stack:"s" },
-                            { label: "Positive", data: tl.pos, backgroundColor: "#10b981", stack:"s" },
+                            { label: "Negative", data: tl.neg, backgroundColor: "#f87171", stack:"s" },
+                            { label: "Neutral", data: tl.neu, backgroundColor: "#a8a29e", stack:"s" },
+                            { label: "Positive", data: tl.pos, backgroundColor: "#4ade80", stack:"s" },
                         ],
                     },
                     options: {
                         responsive:true,
                         maintainAspectRatio:false,
-                        plugins:{ legend:{ position:"bottom" } },
+                        plugins:{ legend:{ position:"bottom", labels: { color: tickColor } } },
                         scales:{
-                            x:{ stacked:true },
-                            y:{ stacked:true, beginAtZero:true }
+                            x:{ stacked:true, grid: { color: gridColor }, ticks: { color: tickColor } },
+                            y:{ stacked:true, beginAtZero:true, grid: { color: gridColor }, ticks: { color: tickColor } }
                         }
                     }
                 });
             } else if (timelineChart) {
+                timelineChart.options.animation = false;
                 timelineChart.data.labels = tl.labels;
                 timelineChart.data.datasets[0].data = tl.neg;
                 timelineChart.data.datasets[1].data = tl.neu;
@@ -428,11 +466,12 @@ export default {
                     type: "doughnut",
                     data: {
                         labels:["Positive","Neutral","Negative"],
-                        datasets:[{ data:[sc.positive, sc.neutral, sc.negative], backgroundColor:["#10b981","#9ca3af","#ef4444"] }]
+                        datasets:[{ data:[sc.positive, sc.neutral, sc.negative], backgroundColor:["#4ade80","#a8a29e","#f87171"], borderWidth: 2, borderColor: '#fff' }]
                     },
-                    options:{ plugins:{ legend:{ position:"bottom" } } }
+                    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:"bottom", labels: { color: tickColor } } } }
                 });
             } else if (sentimentChart) {
+                sentimentChart.options.animation = false;
                 sentimentChart.data.datasets[0].data = [sc.positive, sc.neutral, sc.negative];
                 sentimentChart.update();
             }
@@ -440,21 +479,27 @@ export default {
             // Engagement totals
             const totals = [sumLikes.value,sumRetweets.value,sumReplies.value,sumQuotes.value,sumImpressions.value];
             if (!engagementChart && engagementCanvas.value) {
-                engagementChart = new Chart(engagementCanvas.value.getContext("2d"), {
+                const ctx = engagementCanvas.value.getContext("2d");
+                const gradient = ctx.createLinearGradient(0, 0, 400, 0);
+                gradient.addColorStop(0, 'rgba(59, 130, 246, 0.6)');
+                gradient.addColorStop(1, 'rgba(99, 102, 241, 0.8)');
+
+                engagementChart = new Chart(ctx, {
                     type:"bar",
                     data:{
                         labels:["Likes","Retweets","Replies","Quotes","Impressions"],
-                        datasets:[{ label:"Total", data:totals, backgroundColor:"#3b82f6" }]
+                        datasets:[{ label:"Total", data:totals, backgroundColor: gradient }]
                     },
                     options:{
                         indexAxis:"y",
                         responsive:true,
                         maintainAspectRatio:false,
                         plugins:{ legend:{ display:false } },
-                        scales:{ x:{ beginAtZero:true } }
+                        scales:{ x:{ beginAtZero:true, grid: { color: gridColor }, ticks: { color: tickColor } }, y: { ticks: { color: tickColor } } }
                     }
                 });
             } else if (engagementChart) {
+                engagementChart.options.animation = false;
                 engagementChart.data.datasets[0].data = totals;
                 engagementChart.update();
             }
@@ -470,16 +515,19 @@ export default {
                                 type:"bar",
                                 label:"Tweet Count",
                                 data: th.counts,
-                                backgroundColor:"#6366f1",
+                                backgroundColor:"#818cf8",
                                 yAxisID:"yCount"
                             },
                             {
                                 type:"line",
                                 label:"Avg Sentiment",
                                 data: th.avgSent,
-                                borderColor:"#10b981",
-                                backgroundColor:"rgba(16,185,129,0.15)",
-                                tension:0.25,
+                                borderColor:"#4ade80",
+                                backgroundColor:"rgba(74, 222, 128, 0.2)",
+                                fill: true,
+                                tension:0.3,
+                                pointRadius: 2,
+                                pointHoverRadius: 5,
                                 yAxisID:"ySent"
                             }
                         ]
@@ -488,24 +536,27 @@ export default {
                         responsive:true,
                         maintainAspectRatio:false,
                         interaction:{ mode:"index", intersect:false },
-                        plugins:{ legend:{ position:"bottom" }, tooltip:{ callbacks:{
+                        plugins:{ legend:{ position:"bottom", labels: { color: tickColor } }, tooltip:{ callbacks:{
                             label(ctx){
                                 if (ctx.dataset.label === "Avg Sentiment") return `Avg Sentiment: ${ctx.parsed.y.toFixed(2)}`;
                                 return `Count: ${ctx.parsed.y}`;
                             }
                         }}},
                         scales:{
-                            yCount:{ position:"left", beginAtZero:true, title:{ display:true, text:"Count" } },
+                            x: { grid: { display: false }, ticks: { color: tickColor } },
+                            yCount:{ position:"left", beginAtZero:true, title:{ display:true, text:"Count", color: tickColor }, grid: { color: gridColor }, ticks: { color: tickColor } },
                             ySent:{
                                 position:"right",
                                 min:-1,max:1,
                                 grid:{ drawOnChartArea:false },
-                                title:{ display:true, text:"Avg Sentiment" }
+                                title:{ display:true, text:"Avg Sentiment", color: tickColor },
+                                ticks: { color: tickColor }
                             }
                         }
                     }
                 });
             } else if (throughputChart) {
+                throughputChart.options.animation = false;
                 throughputChart.data.labels = th.labels;
                 throughputChart.data.datasets[0].data = th.counts;
                 throughputChart.data.datasets[1].data = th.avgSent;
@@ -513,51 +564,47 @@ export default {
             }
 
             // Allow DOM paint before hiding loader
-            requestAnimationFrame(() => { chartsBuilding.value = false; });
+            requestAnimationFrame(() => { chartsBuilding.value = false; initialBuildDone.value = true; });
         }
 
         // Watch for data changes to rebuild charts
-        watch(
-            [normalizedTweets, () => props.unit],
-            async () => {
-                if (!isMounted.value) return;
-
-                if (!normalizedTweets.value.length) {
-                    destroyCharts();
-                    chartsBuilding.value = false;
-                    return;
-                }
-
-                chartsBuilding.value = true;
-                await ensureChartJs();
-
-                // Wait for refs to be available
-                await nextTick();
-
-                if (chartJsLoaded.value && timelineCanvas.value) {
-                    buildOrUpdateCharts();
-                } else {
-                    chartsBuilding.value = false;
-                    if (normalizedTweets.value.length > 0) {
-                        console.warn("Charts could not be built (missing canvases or Chart.js).");
+        watch([normalizedTweets, () => props.unit], async () => {
+            if (!isMounted.value) return;
+            await ensureChartJs();
+            await nextTick();
+            if (!normalizedTweets.value.length) {
+                // Keep charts but clear them for faster re-population
+                [timelineChart, sentimentChart, engagementChart, throughputChart].forEach(ch => {
+                    if (ch) {
+                        ch.options.animation = false;
+                        ch.data.labels = [];
+                        ch.data.datasets.forEach(ds => ds.data = []);
+                        ch.update();
                     }
-                }
-            },
-            { deep: true }
-        );
+                });
+                chartsBuilding.value = false;
+                return;
+            }
+            buildOrUpdateCharts();
+        }, { deep: true });
 
         const isMounted = ref(false);
         onMounted(async () => {
             isMounted.value = true;
             await ensureChartJs();
-            if (normalizedTweets.value.length > 0) {
-                buildOrUpdateCharts();
-            } else {
-                chartsBuilding.value = false;
-            }
+            await nextTick();
+            buildOrUpdateCharts();
+            // Resize observer to keep charts responsive when layout changes
+            try {
+                resizeObs = new ResizeObserver(() => {
+                    [timelineChart, sentimentChart, engagementChart, throughputChart].forEach(ch => { if (ch) ch.resize(); });
+                });
+                const host = timelineCanvas.value?.parentElement?.parentElement; // chart-wrap
+                if (host) resizeObs.observe(host);
+            } catch(_) {}
         });
 
-        onBeforeUnmount(() => destroyCharts());
+        onBeforeUnmount(() => { if (resizeObs) try { resizeObs.disconnect(); } catch(_){} destroyCharts(); });
 
         return {
             unitLabel,
@@ -579,10 +626,17 @@ export default {
             topTweets,
             filteredTopTweets,
             search,
+            sentimentFilter,
+            setSentimentFilter,
             formatNumber,
             formatDate,
             copyJson,
             downloadCsv,
+            peakInterval,
+            avgSentIndex,
+            avgSentLabel,
+            avgEngagement,
+            firstTopLanguage,
         };
     },
 };
@@ -600,10 +654,11 @@ export default {
 .kpi-label { color:#6b7280; font-size:12px; }
 .kpi-value { color:#111827; font-weight:700; font-size:18px; }
 .tw-loading,.tw-empty { padding:14px; background:#f8fafc; border:1px dashed #d1d5db; border-radius:8px; color:#374151; }
+.tw-refresh { padding:6px 10px; font-size:12px; color:#0f766e; font-weight:600; }
 .tw-charts { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
 .chart-card { background:white; border:1px solid #e5e7eb; border-radius:10px; padding:12px; display:grid; gap:10px; }
 .chart-title { color:#0f766e; font-size:14px; font-weight:700; }
-.chart-wrap { position:relative; height:220px; }
+.chart-wrap { position:relative; height:280px; }
 .chart-fallback { color:#6b7280; font-size:13px; }
 .chart-loader {
     position:absolute;
@@ -627,6 +682,12 @@ export default {
 .meta-actions { display:flex; gap:8px; }
 .btn { background:#f0fdfa; color:#0f766e; border:1px solid #14b8a6; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:12px; }
 .btn:hover { background:#0f766e; color:#f0fdfa; }
+/* Filter chip styles */
+.flt-chip { background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:4px 10px; border-radius:24px; font-size:11px; font-weight:600; cursor:pointer; }
+.flt-chip.on { background:#0f766e; color:#f0fdfa; border-color:#0f766e; }
+.flt-chip.positive { border-color:#10b981; }
+.flt-chip.negative { border-color:#ef4444; }
+.flt-chip.neutral { border-color:#9ca3af; }
 .tw-table { background:white; border:1px solid #e5e7eb; border-radius:10px; padding:12px; display:grid; gap:10px; }
 .table-header { display:flex; align-items:center; justify-content:space-between; }
 .table-title { color:#0f766e; font-size:14px; font-weight:700; }
