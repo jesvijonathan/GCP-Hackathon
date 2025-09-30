@@ -167,6 +167,12 @@ from risk_eval import RiskEvaluator
 SERVICE = MerchantService(db)
 RISK = RiskEvaluator(db)
 
+# Ensure indexes for new evaluation collection
+try:
+    RISK.ensure_indexes()
+except Exception as _e:
+    log(f"RiskEvaluator.ensure_indexes error: {_e}")
+
 # ---------- FastAPI setup ----------
 
 app = FastAPI(title="Merchant Onboarding & Data API", version="0.2.0")
@@ -1002,3 +1008,119 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     log(f"Starting server on 0.0.0.0:{port}")
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+
+# ---- Merchant Evaluation Endpoints (moved ABOVE __main__ run for registration) ----
+# NOTE: If this block appears twice in file, the earlier occurrence (before uvicorn.run)
+# will be the active one; the later duplicate (if any) can be removed once verified.
+
+@app.get("/v1/{merchant_name}/evaluations")
+def get_merchant_evaluations(
+    merchant_name: str,
+    interval: str = "30m",
+    limit: int = 500,
+    since: float | None = None,
+    until: float | None = None,
+    ensure: bool = True,
+    now: str | None = None,
+):
+    try:
+        base_now_dt = parse_any_dt(now) if now else None
+        now_ts = (base_now_dt or dt.datetime.now(dt.UTC)).timestamp()
+        if since is None and until is None:
+            since_calc = now_ts - 24*3600
+            until_calc = now_ts
+        else:
+            since_calc = since if since is not None else (now_ts - 24*3600)
+            until_calc = until if until is not None else now_ts
+        if ensure:
+            try:
+                RISK.ensure_evaluations(merchant_name, interval, since_calc, until_calc)
+            except Exception as e:
+                log(f"ensure_evaluations error: {e}")
+        rows = RISK.fetch_evaluations(merchant_name, interval_label=interval, limit=limit, since=since, until=until)
+        return {"merchant": merchant_name, "interval": interval, "count": len(rows), "rows": rows}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/v1/evaluations/summary")
+def evaluations_summary(interval: str = "30m", limit_per: int = 5):
+    try:
+        coll = db["merchant_evaluations"]
+        merchants = list(coll.distinct("merchant"))[:100]
+        out = []
+        for m in merchants:
+            rows = list(coll.find({"merchant": m}, projection={"_id":0}).sort([("window_end_ts", -1)]).limit(limit_per))
+            if rows:
+                latest = rows[0]
+                out.append({
+                    "merchant": m,
+                    "latest_total": (latest.get("scores") or {}).get("total"),
+                    "latest_confidence": latest.get("confidence"),
+                    "rows": rows,
+                })
+        return {"interval": interval, "merchants": out}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ---------------- New Merchant Evaluation Endpoints (for MerchantRisk.vue) --------------
+
+@app.get("/v1/{merchant_name}/evaluations")
+def get_merchant_evaluations(
+    merchant_name: str,
+    interval: str = "30m",
+    limit: int = 500,
+    since: float | None = None,
+    until: float | None = None,
+    ensure: bool = True,
+    now: str | None = None,
+):
+    """Return merchant evaluation timeline (merchant_evaluations collection).
+    If ensure=true, compute any missing windows first (cheap idempotent upserts).
+    """
+    try:
+        base_now_dt = parse_any_dt(now) if now else None
+        now_ts = (base_now_dt or dt.datetime.now(dt.UTC)).timestamp()
+        if since is None and until is None:
+            # default lookback 24h for ensure
+            since_calc = now_ts - 24*3600
+            until_calc = now_ts
+        else:
+            since_calc = since if since is not None else (now_ts - 24*3600)
+            until_calc = until if until is not None else now_ts
+        if ensure:
+            try:
+                RISK.ensure_evaluations(merchant_name, interval, since_calc, until_calc)
+            except Exception as e:
+                log(f"ensure_evaluations error: {e}")
+        rows = RISK.fetch_evaluations(merchant_name, interval_label=interval, limit=limit, since=since, until=until)
+        return {"merchant": merchant_name, "interval": interval, "count": len(rows), "rows": rows}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/v1/evaluations/summary")
+def evaluations_summary(interval: str = "30m", limit_per: int = 5):
+    """Lightweight multi-merchant snapshot for dashboards.
+    Returns latest N evaluation windows per merchant (descending by end_ts).
+    """
+    try:
+        coll = db["merchant_evaluations"]
+        # Distinct merchants (could be large; cap to 100 for safety)
+        merchants = list(coll.distinct("merchant"))[:100]
+        out = []
+        for m in merchants:
+            rows = list(
+                coll.find({"merchant": m}, projection={"_id":0})
+                .sort([("window_end_ts", -1)])
+                .limit(limit_per)
+            )
+            if rows:
+                latest = rows[0]
+                out.append({
+                    "merchant": m,
+                    "latest_total": ((latest.get("scores") or {}).get("total")),
+                    "latest_confidence": latest.get("confidence"),
+                    "rows": rows,
+                })
+        return {"interval": interval, "merchants": out}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

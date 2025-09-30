@@ -442,14 +442,12 @@
                   </a>
                 </div>
                 <!-- Risk Assessment Slide replacement start -->
-<!-- Original placeholder removed; now using live MerchantRisk component -->
-                <!-- <MerchantRisk
+                <MerchantRisk
                   ref="riskRef"
                   :merchant="merchantKey"
-                  :api-base="API_BASE"
-                  :key="merchantKey + '-' + unit + '-' + streamWindow + '-' + nowIso"
-                /> -->
-<!-- Risk Assessment Slide replacement end -->
+                  :now="nowIso"
+                />
+                <!-- Risk Assessment Slide replacement end -->
               </div>
               <!-- News Slide -->
               <div id="re-slide-2" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px;">
