@@ -33,14 +33,14 @@
             <div class="spinner-icon">📊</div>
           </div>
         </div>
-        
+
         <!-- Animated Dots -->
         <div class="loader-dots">
           <div class="dot"></div>
           <div class="dot"></div>
           <div class="dot"></div>
         </div>
-        
+
         <!-- Progress Bar -->
         <div class="progress-container">
           <div class="progress-bar">
@@ -48,10 +48,14 @@
           </div>
         </div>
       </div>
-      
+
       <div class="loading-text">
         <h3>Loading Social Data</h3>
-        <p>Fetching latest updates for <span class="merchant-highlight">{{ merchantName }}</span>...</p>
+        <p>
+          Fetching latest updates for
+          <span class="merchant-highlight">{{ merchantName }}</span
+          >...
+        </p>
         <div class="loading-steps">
           <div class="step">📰 News articles</div>
           <div class="step">🔗 Reddit discussions</div>
@@ -586,44 +590,52 @@ export default {
     // Extract merchantName from the URL path directly
     // For URL like: http://localhost:3000/explore/BuildPro
     const currentPath = this.$route.path; // Gets: /explore/BuildPro
-    const pathSegments = currentPath.split('/').filter(segment => segment !== '');
-    
+    const pathSegments = currentPath
+      .split("/")
+      .filter((segment) => segment !== "");
+
     // Find the segment after 'explore'
-    const exploreIndex = pathSegments.findIndex(segment => segment === 'explore');
+    const exploreIndex = pathSegments.findIndex(
+      (segment) => segment === "explore"
+    );
     if (exploreIndex !== -1 && exploreIndex + 1 < pathSegments.length) {
       this.merchantName = pathSegments[exploreIndex + 1];
     } else {
       // Fallback: try route params
-      this.merchantName = this.$route.params.merchantName || 
-                         this.$route.params.merchantname || 
-                         this.$route.params.id || 
-                         "Unknown Merchant";
+      this.merchantName =
+        this.$route.params.merchantName ||
+        this.$route.params.merchantname ||
+        this.$route.params.id ||
+        "Unknown Merchant";
     }
-    
+
     // Also set merchantId for backward compatibility
     this.merchantId = this.merchantName;
-    
+
+    const simNow = this.$route.query.simNow || new Date().toISOString();
+
     // Construct the backend endpoint using the merchant name
-    this.backendEndpoint = `http://localhost:8000/v1/${this.merchantName}/data?streams=all&order=desc&limit=5000&window=90d&allow_future=false&now=2025-09-29T18:58:44.125432Z&include_stock_meta=true`;
-    
+    this.backendEndpoint = `http://localhost:8000/v1/${this.merchantName}/data?streams=all&order=desc&limit=5000&window=90d&allow_future=false&now=${simNow}&include_stock_meta=true`;
+
     console.log("Current path:", currentPath);
     console.log("Path segments:", pathSegments);
     console.log("Extracted merchant name:", this.merchantName);
+    console.log("SimNow from query:", simNow);
     console.log("Constructed endpoint:", this.backendEndpoint);
-    
+
     // Fetch data from the backend endpoint
     await this.fetchSocialData();
   },
   methods: {
     async fetchSocialData() {
       this.isLoading = true; // Start loading
-      
+
       try {
         console.log("Fetching data from:", this.backendEndpoint);
         console.log("Merchant name extracted from URL:", this.merchantName);
-        
+
         const response = await axios.get(this.backendEndpoint);
-        
+
         // Determine the payload shape robustly
         const dataRoot =
           response && response.data && response.data.data
@@ -649,10 +661,22 @@ export default {
             .sort((a, b) => new Date(b[dateKey]) - new Date(a[dateKey]));
 
         // Filter to latest 20 items
-        const filteredNews = sortDescByDate(rawNews, "published_at").slice(0, 20);
-        const filteredReddit = sortDescByDate(rawReddit, "created_at").slice(0, 20);
-        const filteredReviews = sortDescByDate(rawReviews, "created_at").slice(0, 20);
-        const filteredTweets = sortDescByDate(rawTweets, "created_at").slice(0, 20);
+        const filteredNews = sortDescByDate(rawNews, "published_at").slice(
+          0,
+          20
+        );
+        const filteredReddit = sortDescByDate(rawReddit, "created_at").slice(
+          0,
+          20
+        );
+        const filteredReviews = sortDescByDate(rawReviews, "created_at").slice(
+          0,
+          20
+        );
+        const filteredTweets = sortDescByDate(rawTweets, "created_at").slice(
+          0,
+          20
+        );
 
         // Store filtered data into their respective arrays
         this.socialData = {
@@ -667,7 +691,6 @@ export default {
         console.log("Fetched Reddit (latest 20):", filteredReddit);
         console.log("Fetched Reviews (latest 20):", filteredReviews);
         console.log("Fetched Tweets (latest 20):", filteredTweets);
-        
       } catch (error) {
         console.error("Error fetching social data:", error);
         console.error("Failed endpoint:", this.backendEndpoint);
@@ -758,7 +781,9 @@ export default {
           (item) => item.sentiment_label === "neutral"
         ).length;
 
-        this.aiSummary = `📊 **${this.merchantName} Social Media Analysis Summary**
+        this.aiSummary = `📊 **${
+          this.merchantName
+        } Social Media Analysis Summary**
         
 **Overall Activity:** 
 - ${totalNews} news articles
@@ -767,12 +792,18 @@ export default {
 - ${totalTweets} social media mentions
 
 **Sentiment Analysis:**
-- Positive: ${positive} items (${((positive / allItems.length) * 100).toFixed(1)}%)
-- Negative: ${negative} items (${((negative / allItems.length) * 100).toFixed(1)}%)
+- Positive: ${positive} items (${((positive / allItems.length) * 100).toFixed(
+          1
+        )}%)
+- Negative: ${negative} items (${((negative / allItems.length) * 100).toFixed(
+          1
+        )}%)
 - Neutral: ${neutral} items (${((neutral / allItems.length) * 100).toFixed(1)}%)
 
 **Key Insights:**
-- Recent news coverage shows mixed reactions to ${this.merchantName}'s latest moves
+- Recent news coverage shows mixed reactions to ${
+          this.merchantName
+        }'s latest moves
 - Reddit discussions indicate community interest with varied opinions
 - Customer reviews are predominantly positive with high ratings
 - Social media engagement appears moderate with growing attention
@@ -809,9 +840,7 @@ export default {
   background: #ffffff;
   padding: 3rem 2.5rem;
   border-radius: 20px;
-  box-shadow: 
-    0 20px 40px rgba(20, 184, 166, 0.1),
-    0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(20, 184, 166, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
   max-width: 450px;
   width: 100%;
@@ -820,7 +849,7 @@ export default {
 }
 
 .loader-wrapper::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -960,29 +989,51 @@ export default {
   animation: stepGlow 2s ease-in-out infinite;
 }
 
-.step:nth-child(1) { animation-delay: 0s; }
-.step:nth-child(2) { animation-delay: 0.5s; }
-.step:nth-child(3) { animation-delay: 1s; }
-.step:nth-child(4) { animation-delay: 1.5s; }
+.step:nth-child(1) {
+  animation-delay: 0s;
+}
+.step:nth-child(2) {
+  animation-delay: 0.5s;
+}
+.step:nth-child(3) {
+  animation-delay: 1s;
+}
+.step:nth-child(4) {
+  animation-delay: 1.5s;
+}
 
 /* Animations */
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes counterSpin {
-  0% { transform: translate(-50%, -50%) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(-360deg); }
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
 }
 
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 @keyframes dotPulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(0.8);
     opacity: 0.6;
   }
@@ -993,21 +1044,30 @@ export default {
 }
 
 @keyframes progressFill {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes stepGlow {
-  0%, 100% { 
+  0%,
+  100% {
     box-shadow: 0 0 0 rgba(20, 184, 166, 0.3);
     border-color: #a7f3d0;
   }
-  50% { 
+  50% {
     box-shadow: 0 0 20px rgba(20, 184, 166, 0.4);
     border-color: #14b8a6;
   }
