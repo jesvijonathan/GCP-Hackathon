@@ -1737,7 +1737,12 @@ export default {
     }
     function openExplore() {
       toast.info("Opening explore", { autoClose: 2000 });
-      router.push(`/explore/${this.merchant.name}`)
+      router.push({
+        path: `/explore/${merchant.name}`,
+        query: {
+          simNow: simNow.value || undefined, // Pass simNow as query parameter
+        },
+      });
     }
 
     // Streams state
