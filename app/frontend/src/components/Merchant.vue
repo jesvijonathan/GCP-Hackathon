@@ -1729,7 +1729,8 @@ export default {
       router.back();
     }
     function openEmailBox() {
-      toast.info("Open notifications center", { autoClose: 2000 });
+      router.push('/mailbox');
+      // toast.info("Open notifications center", { autoClose: 2000 });
     }
     function openSocialUpdates() {
       toast.info("Open social updates", { autoClose: 2000 });
