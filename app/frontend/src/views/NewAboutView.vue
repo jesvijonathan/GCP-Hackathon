@@ -117,18 +117,18 @@ const techStack = [
           <div class="feature-grid">
             <div class="feature-card">
               <div class="feature-icon">🤖</div>
-              <h3>AI-Powered Triaging</h3>
-              <p>Generative AI automates ticket management and improves service efficiency through intelligent routing.</p>
+              <h3>AI-Powered Brand Risk Engine</h3>
+              <p>Advanced machine learning algorithms detect and prevent brand risks in real-time, protecting your business reputation 24/7.</p>
             </div>
             <div class="feature-card">
               <div class="feature-icon">🔗</div>
-              <h3>Seamless Integration</h3>
-              <p>Works with JIRA, PagerDuty, and Serviceline for a unified ticketing experience.</p>
+              <h3>One Stop Solution</h3>
+              <p>Complete merchant lifecycle management from onboarding to ongoing monitoring, all in one comprehensive platform.</p>
             </div>
             <div class="feature-card">
               <div class="feature-icon">⚡</div>
-              <h3>Smart Automation</h3>
-              <p>Skill-based routing system matches tickets to employees based on expertise and performance.</p>
+              <h3>Smart AI Automation</h3>
+              <p>Experience the next generation of merchant management with cutting-edge AI technology.</p>
             </div>
           </div>
         </div>
@@ -141,7 +141,7 @@ const techStack = [
         <h2 class="section-title">Tech Stack</h2>
         <p class="tech-description">
           Built with cutting-edge technologies for optimal performance. 
-          <a href="https://github.com/jesvijonathan/Nullbyte-Ticketing-System" target="_blank" class="github-link">
+          <a href="https://github.com/jesvijonathan/GCP-Hackathon" target="_blank" class="github-link">
             View on GitHub →
           </a>
         </p>
