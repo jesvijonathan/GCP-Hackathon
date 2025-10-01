@@ -1,9 +1,7 @@
 <template>
   <div class="page-header">
     <nav class="breadcrumb">
-      <router-link to="/dashboard" class="breadcrumb-item"
-        >Home</router-link
-      >
+      <router-link to="/dashboard" class="breadcrumb-item">Home</router-link>
       <span class="breadcrumb-separator">/</span>
       <span class="breadcrumb-item">Mailbox</span>
     </nav>
@@ -79,6 +77,12 @@
           <div class="email-body">
             <div v-html="selectedEmail.body"></div>
           </div>
+          <div class="action-center-section">
+            <button @click="openActionCenter" class="action-center-btn">
+              <span class="btn-icon">→</span>
+              Go to Action Center
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -113,6 +117,10 @@ export default {
 
       // Option 3: If you want to go to a specific route
       // this.$router.push('/dashboard');
+    },
+
+    openActionCenter() {
+      this.$router.push(`/merchant/${this.selectedEmail.merchant}`);
     },
 
     getInitials(name) {
@@ -528,6 +536,83 @@ export default {
 .breadcrumb-separator {
   color: #d1d5db;
   user-select: none;
+}
+
+/* Action Center Button Section */
+.action-center-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.action-center-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #008080, #14b8a6);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 128, 128, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.action-center-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.action-center-btn:hover::before {
+  left: 100%;
+}
+
+.action-center-btn:hover {
+  background: linear-gradient(135deg, #006666, #0f9f8e);
+  box-shadow: 0 4px 12px rgba(0, 128, 128, 0.3);
+  transform: translateY(-2px);
+}
+
+.action-center-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 128, 128, 0.2);
+}
+
+.btn-icon {
+  font-size: 18px;
+  font-weight: bold;
+  transition: transform 0.3s ease;
+}
+
+.action-center-btn:hover .btn-icon {
+  transform: translateX(4px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .action-center-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 14px 20px;
+  }
+  
+  .action-center-section {
+    margin-top: 20px;
+    padding-top: 15px;
+  }
 }
 
 /* Responsive Design */
