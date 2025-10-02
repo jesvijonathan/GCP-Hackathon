@@ -18,7 +18,7 @@ import datetime as dt
 import random
 from typing import Any, Dict, Optional, List, Tuple
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -34,6 +34,7 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017")
 DB_NAME = os.getenv("DB_NAME", "merchant_analytics")
 LOG_REQUESTS = str(os.getenv("MAIN_LOG_REQUESTS", "true")).lower() in ("1","true","yes","on")
 MAX_WORKERS = int(os.getenv("MAIN_MAX_WORKERS", str(os.cpu_count() or 4)))
+DASHBOARD_EXCLUDE = {x.strip() for x in os.getenv("DASHBOARD_EXCLUDE", "MER001").split(",") if x.strip()}
 
 # Mongo connection
 client = MongoClient(MONGO_URI)
@@ -163,6 +164,7 @@ TASKS = TaskManager()
 # MerchantService implements onboarding and preset generation
 from merchant import MerchantService  # same directory
 from risk_eval import RiskEvaluator
+from risk_eval import INTERVAL_MAP as RISK_INTERVAL_MAP
 
 SERVICE = MerchantService(db)
 RISK = RiskEvaluator(db)
@@ -183,6 +185,7 @@ def startup_event():
     try:
         SERVICE.ensure_indexes()
         RISK.ensure_indexes()
+        # restriction history index already attempted above
         log(f"Indexes ensured on Mongo {MONGO_URI}/{DB_NAME} (service + risk)")
     except Exception as e:
         log(f"Startup error ensuring indexes: {e}")
@@ -206,13 +209,41 @@ async def log_requests(request: Request, call_next):
 # ---------- Models ----------
 
 class OnboardRequest(BaseModel):
-    merchant_name: str = Field(..., description="Mandatory unique identifier (name)")
+    """Request body for /v1/onboard
+    Fields limited to what is required to create (or regenerate) a merchant + preset.
+    Flags & restrictions belong to the patch endpoint and are excluded here.
+    """
+    merchant_name: str = Field(..., description="Unique merchant identifier")
     deep_scan: bool = Field(False, description="Force regenerate preset even if exists")
-    details: Optional[Dict[str, Any]] = Field(None, description="Optional merchant fields to override auto-generated")
+    details: Optional[Dict[str, Any]] = Field(None, description="Optional merchant details metadata")
     preset_overrides: Optional[Dict[str, Any]] = Field(None, description="Optional overrides for generated preset block")
-    start_date: Optional[str] = Field(None, description="ISO/date for preset start; default now-3y")
-    end_date: Optional[str] = Field(None, description="ISO/date for preset end; default now+1y")
-    seed: Optional[int] = Field(None, description="Optional seed for reproducible generation")
+    start_date: Optional[str] = Field(None, description="ISO start date (default now-3y)")
+    end_date: Optional[str] = Field(None, description="ISO end date (default now+1y)")
+    seed: Optional[int] = Field(None, description="Optional RNG seed for reproducible generation")
+
+class MerchantPatch(BaseModel):
+    """PATCH body for /v1/merchants/{merchant_name}.
+    All fields optional; path parameter supplies the merchant identity.
+    (Older clients sending merchant_name or extra onboarding fields will be ignored gracefully.)
+    """
+    activation_flag: Optional[bool] = None
+    auto_action: Optional[bool] = None
+    restrictions: Optional[Dict[str, Any]] = None
+    # Backward compatibility catch-all (ignored): allow arbitrary extra keys without 422
+    class Config:
+        extra = "allow"
+
+# --- Single Restriction Record Model & Index ---
+class MerchantRestrictionRecord(BaseModel):
+    """Single current restriction record per merchant."""
+    merchant_name: str
+    updated_at: str
+    restrictions: Dict[str, Any]
+
+try:
+    db["merchant_res"].create_index([("merchant_name", ASCENDING)], unique=True)
+except Exception as _e:
+    log(f"merchant_res single-record index error: {_e}")
 
 # ---------- Core helpers for data endpoints ----------
 
@@ -311,7 +342,10 @@ def health():
 
 @app.get("/v1/merchants")
 def list_merchants():
-    return {"merchants": SERVICE.list_merchant_names()}
+    names = SERVICE.list_merchant_names()
+    if DASHBOARD_EXCLUDE:
+        names = [n for n in names if n not in DASHBOARD_EXCLUDE]
+    return {"merchants": names}
 
 @app.get("/v1/merchants/{merchant_name}")
 def get_merchant(merchant_name: str):
@@ -319,6 +353,85 @@ def get_merchant(merchant_name: str):
     if not doc:
         raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
     return {"merchant": doc}
+
+@app.patch("/v1/merchants/{merchant_name}")
+def patch_merchant_flags(
+    merchant_name: str,
+    activation_flag: Optional[bool] = None,
+    auto_action: Optional[bool] = None,
+    payload: MerchantPatch | None = Body(None)
+):
+    """Patch merchant operational flags and restrictions.
+    Request patterns supported:
+      1) Query params only: /v1/merchants/foo?activation_flag=false
+      2) JSON body with any subset: {"activation_flag": true, "auto_action": false}
+      3) JSON body with restrictions: {"restrictions": {...}}
+      4) Legacy / accidental wrapper: {"payload": {"restrictions": {...}}}
+    Any unknown extra keys are ignored (Config.extra = allow) to avoid 422s when frontend evolves.
+    """
+    # Support clients accidentally sending a raw dict (FastAPI tried to coerce but gave 422 earlier)
+    if payload is None:
+        # Attempt to read from request body already parsed by dependency (FastAPI passes None if empty)
+        # Nothing further we can do here without direct Request object; continue.
+        pass
+    doc = SERVICE.get_merchant(merchant_name)
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    updates: Dict[str, Any] = {}
+    if activation_flag is not None:
+        updates["activation_flag"] = bool(activation_flag)
+    elif payload and payload.activation_flag is not None:
+        updates["activation_flag"] = bool(payload.activation_flag)
+    if auto_action is not None:
+        updates["auto_action"] = bool(auto_action)
+    elif payload and payload.auto_action is not None:
+        updates["auto_action"] = bool(payload.auto_action)
+    if payload and payload.restrictions is not None:
+        if not isinstance(payload.restrictions, dict):
+            raise HTTPException(status_code=400, detail="restrictions must be an object")
+        updates["restrictions"] = payload.restrictions
+    if not updates:
+        return {"merchant": doc, "updated": False}
+    updates["updated_at"] = dt_to_iso(dt.datetime.now(dt.UTC))
+    try:
+        db["merchants"].update_one({"merchant_name": merchant_name}, {"$set": updates})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Update failed: {e}")
+    new_doc = SERVICE.get_merchant(merchant_name)
+    # Upsert single restriction record if changed
+    restriction_record = None
+    if "restrictions" in updates:
+        try:
+            restr = updates.get("restrictions") or {}
+            if not restr:
+                # Clear both merchant doc field and single record
+                try:
+                    db["merchants"].update_one({"merchant_name": merchant_name}, {"$unset": {"restrictions": ""}})
+                except Exception:
+                    pass
+                db["merchant_res"].delete_one({"merchant_name": merchant_name})
+            else:
+                restriction_record = {
+                    "merchant_name": merchant_name,
+                    "updated_at": dt_to_iso(dt.datetime.now(dt.UTC)),
+                    "restrictions": restr,
+                }
+                db["merchant_res"].update_one(
+                    {"merchant_name": merchant_name},
+                    {"$set": restriction_record},
+                    upsert=True,
+                )
+        except Exception as e:
+            log(f"restriction upsert failed [{merchant_name}]: {e}")
+    return {"merchant": new_doc, "updated": True, "restriction_record": restriction_record}
+
+@app.get("/v1/merchants/{merchant_name}/restrictions")
+def get_current_restrictions(merchant_name: str):
+    mdoc = SERVICE.get_merchant(merchant_name)
+    if not mdoc:
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    rec = db["merchant_res"].find_one({"merchant_name": merchant_name}, projection={"_id":0})
+    return {"merchant": merchant_name, "restrictions": (rec or {}).get("restrictions")}
 
 @app.get("/v1/preset/{merchant_name}")
 def get_preset(merchant_name: str):
@@ -475,6 +588,269 @@ def get_stock_data(
         "range": {"stock": {"since": s_iso, "until": u_iso}},
         "data": stock
     }
+
+# ---------- Dashboard overview (top merchants by latest evaluation) ----------
+
+@app.get("/v1/dashboard/overview")
+def dashboard_overview(
+    interval: str = "30m",
+    top: int = 5,
+    include_all: bool = True,
+    include_inactive: bool = False,
+):
+    """Return latest evaluation per merchant and the top-N by total risk score.
+    interval: window label (30m|1h|1d)
+    top: number of top merchants to include
+    include_all: include the full merchant list with their latest evaluation
+    """
+    interval_key = interval.lower()
+    if interval_key not in RISK_INTERVAL_MAP:
+        raise HTTPException(status_code=400, detail=f"Unsupported interval '{interval}'.")
+    interval_minutes = RISK_INTERVAL_MAP[interval_key]
+    eval_col = db["merchant_evaluations"]
+    # Aggregate latest evaluation per merchant for the interval
+    pipeline = [
+        {"$match": {"interval_minutes": interval_minutes}},
+        {"$sort": {"window_end_ts": -1}},
+        {"$group": {"_id": "$merchant", "doc": {"$first": "$$ROOT"}}},
+        {"$project": {"_id": 0, "merchant": "$_id", "evaluation": "$doc", "risk_score": "$doc.scores.total", "confidence": "$doc.confidence"}},
+    ]
+    try:
+        latest = list(eval_col.aggregate(pipeline))
+    except Exception as e:
+        log(f"dashboard_overview aggregation error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to aggregate evaluations")
+    # Fetch merchant base docs for enrichment
+    merchant_docs = {m.get("merchant_name"): m for m in db["merchants"].find({}, projection={"_id": 0})}
+    def _coerce_bool(v, default=True):
+        if v is None:
+            return default
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, (int, float)):
+            return v != 0
+        if isinstance(v, str):
+            s = v.strip().lower()
+            if s in {"false", "0", "no", "off", "inactive"}:
+                return False
+            if s in {"true", "1", "yes", "on", "active"}:
+                return True
+            # Fallback: non-empty string -> True
+            return True
+        return bool(v)
+
+    out_all = []
+    inactive_count = 0
+    for row in latest:
+        mname = row["merchant"]
+        if mname in DASHBOARD_EXCLUDE:
+            continue
+        details = merchant_docs.get(mname) or {}
+        # Normalized shape for frontend
+        eval_doc = row.get("evaluation") or {}
+        scores = (eval_doc.get("scores") or {})
+        activation_flag = _coerce_bool(details.get("activation_flag", True), default=True)
+        auto_action = _coerce_bool(details.get("auto_action", False), default=False)
+        if not activation_flag:
+            inactive_count += 1
+            if not include_inactive:
+                continue  # fully skip inactive merchant from overview payload
+        restrictions = details.get("restrictions") if isinstance(details.get("restrictions"), dict) else None
+        out_all.append({
+            "merchant": mname,
+            "risk_score": scores.get("total"),
+            "confidence": row.get("confidence"),
+            "window_end": eval_doc.get("window_end"),
+            "scores": scores,
+            "counts": eval_doc.get("counts"),
+            "drivers": eval_doc.get("drivers"),
+            "activation_flag": activation_flag,
+            "auto_action": auto_action,
+            "has_restrictions": bool(restrictions),
+            "restrictions": restrictions,
+            "details": {
+                k: details.get(k) for k in [
+                    "merchant_name", "status", "category", "country", "created_at", "updated_at"
+                ] if k in details
+            }
+        })
+    # Compute top merchants (exclude None scores then sort desc)
+    # Exclude inactive merchants from ranking/analytics
+    scored = [r for r in out_all if isinstance(r.get("risk_score"), (int, float)) and r.get("activation_flag", True)]
+    scored.sort(key=lambda x: x.get("risk_score"), reverse=True)
+    top_list = scored[: max(1, min(int(top or 5), 50))]
+    resp = {
+        "generated_at": dt.datetime.now(dt.UTC).isoformat().replace("+00:00", "Z"),
+        "interval": interval_key,
+        "top_merchants": top_list,
+        "inactive_count": inactive_count if not include_inactive else sum(1 for r in out_all if not r.get("activation_flag", True)),
+    }
+    if include_all:
+        resp["all_merchants"] = out_all
+    # If we have merchants with no evaluation yet, list them with null risk_score
+    if include_all:
+        existing_names = {r["merchant"] for r in out_all}
+        all_names = set(n for n in SERVICE.list_merchant_names() if n not in DASHBOARD_EXCLUDE)
+        missing = sorted(all_names - existing_names)
+        for mname in missing:
+            md = merchant_docs.get(mname, {})
+            m_active = _coerce_bool(md.get("activation_flag", True), default=True)
+            if (not m_active) and (not include_inactive):
+                inactive_count += 1
+                continue
+            resp.setdefault("all_merchants", []).append({
+                "merchant": mname,
+                "risk_score": None,
+                "confidence": None,
+                "window_end": None,
+                "scores": {},
+                "counts": {},
+                "drivers": [],
+                "activation_flag": m_active,
+                "auto_action": _coerce_bool(md.get("auto_action", False), default=False),
+                "details": {}
+            })
+    if DASHBOARD_EXCLUDE:
+        resp["excluded"] = sorted(DASHBOARD_EXCLUDE)
+    return resp
+
+@app.get("/v1/dashboard/series")
+def dashboard_series(
+    interval: str = "30m",
+    top: int = 5,
+    lookback: int = 48,
+    include_components: bool = True,
+    ensure: bool = True,
+    async_ensure: bool = True,
+):
+    """Return time-series evaluation windows for top-N merchants.
+    Params:
+      interval: evaluation window label
+      top: number of merchants to include (based on latest risk score)
+      lookback: number of recent windows per merchant (max 500)
+      include_components: include per-window component scores & counts
+    """
+    interval_key = interval.lower()
+    if interval_key not in RISK_INTERVAL_MAP:
+        raise HTTPException(status_code=400, detail=f"Unsupported interval '{interval}'.")
+    interval_minutes = RISK_INTERVAL_MAP[interval_key]
+    lookback = max(5, min(int(lookback or 48), 500))
+    eval_col = db["merchant_evaluations"]
+    # Latest evaluation per merchant
+    pipeline = [
+        {"$match": {"interval_minutes": interval_minutes}},
+        {"$sort": {"window_end_ts": -1}},
+        {"$group": {"_id": "$merchant", "doc": {"$first": "$$ROOT"}}},
+        {"$project": {"_id": 0, "merchant": "$_id", "risk_score": "$doc.scores.total", "confidence": "$doc.confidence", "window_end_ts": "$doc.window_end_ts"}},
+    ]
+    try:
+        latest = list(eval_col.aggregate(pipeline))
+    except Exception as e:
+        log(f"dashboard_series aggregation error: {e}")
+        raise HTTPException(status_code=500, detail="Aggregation failed")
+    # Filter exclusions & sort
+    latest = [r for r in latest if r.get("merchant") not in DASHBOARD_EXCLUDE]
+    # Filter out inactive merchants (need merchant docs)
+    merchant_docs_raw = {m.get("merchant_name"): m for m in db["merchants"].find({}, projection={"_id":0, "merchant_name":1, "activation_flag":1, "auto_action":1})}
+    def _coerce_bool(v, default=True):
+        if v is None:
+            return default
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, (int,float)):
+            return v != 0
+        if isinstance(v, str):
+            s = v.strip().lower()
+            if s in {"false","0","no","off","inactive"}: return False
+            if s in {"true","1","yes","on","active"}: return True
+            return True
+        return bool(v)
+    merchant_docs = {k: {**v, "activation_flag": _coerce_bool(v.get("activation_flag", True), True), "auto_action": _coerce_bool(v.get("auto_action", False), False)} for k, v in merchant_docs_raw.items()}
+    latest = [r for r in latest if merchant_docs.get(r.get("merchant"), {}).get("activation_flag", True)]
+    latest_sorted = [r for r in latest if isinstance(r.get("risk_score"), (int, float))]
+    latest_sorted.sort(key=lambda x: x.get("risk_score"), reverse=True)
+    selected_merchants = [r["merchant"] for r in latest_sorted[: max(1, min(int(top or 5), 50))]]
+    # Fallback: if no merchants have any evaluations yet, pick from merchant registry directly
+    if not selected_merchants:
+        try:
+            candidate = [m for m in SERVICE.list_merchant_names() if m not in DASHBOARD_EXCLUDE]
+            # filter out inactive from fallback list
+            candidate = [m for m in candidate if merchant_docs.get(m, {}).get("activation_flag", True)]
+            candidate.sort()  # deterministic subset
+            selected_merchants = candidate[: max(1, min(int(top or 5), 50))]
+        except Exception as e:
+            log(f"dashboard_series fallback merchant list error: {e}")
+    # Fallback if not enough merchants with scores
+    if len(selected_merchants) < top:
+        extra = [r["merchant"] for r in latest if r["merchant"] not in selected_merchants]
+        for m in extra:
+            if len(selected_merchants) >= top:
+                break
+            selected_merchants.append(m)
+    now_ts = dt.datetime.now(dt.UTC).timestamp()
+    interval_seconds = interval_minutes * 60
+    since_ts = now_ts - lookback * interval_seconds
+    # Ensure evaluations if requested (optionally async via job system for progress reporting)
+    jobs_started = []
+    if ensure:
+        if async_ensure:
+            for m in selected_merchants:
+                try:
+                    status = RISK.trigger_or_status(m, interval_key, submit_fn=TASKS.pool.submit, max_backfill_hours=168)
+                    # attach percent if possible
+                    planned = status.get("planned") or status.get("missing_planned") or 0
+                    processed = status.get("processed") or 0
+                    if planned:
+                        status["percent"] = round(min(100.0, processed / planned * 100.0), 2)
+                    jobs_started.append(status)
+                except Exception as e:
+                    log(f"dashboard_series async trigger error [{m}]: {e}")
+        else:
+            for m in selected_merchants:
+                try:
+                    RISK.ensure_evaluations(m, interval_key, since_ts, now_ts)
+                except Exception as e:
+                    log(f"dashboard_series ensure_evaluations error [{m}]: {e}")
+    # Fetch series per merchant
+    merchants_series = []
+    for m in selected_merchants:
+        cur = eval_col.find(
+            {"merchant": m, "interval_minutes": interval_minutes},
+            projection={"_id": 0},
+            sort=[("window_end_ts", -1)],
+            limit=lookback,
+        )
+        rows = list(cur)
+        rows.sort(key=lambda x: x.get("window_end_ts", 0))  # ascending for charting
+        if not include_components:
+            slim = []
+            for r in rows:
+                slim.append({
+                    "window_end": r.get("window_end"),
+                    "window_end_ts": r.get("window_end_ts"),
+                    "scores": {"total": (r.get("scores", {}) or {}).get("total")},
+                    "counts": r.get("counts", {}),
+                })
+            rows = slim
+        merchants_series.append({
+            "merchant": m,
+            "series": rows,
+            "activation_flag": merchant_docs.get(m, {}).get("activation_flag", True),
+            "auto_action": merchant_docs.get(m, {}).get("auto_action", False)
+        })
+    resp = {
+        "generated_at": dt.datetime.now(dt.UTC).isoformat().replace("+00:00", "Z"),
+        "interval": interval_key,
+        "top": len(selected_merchants),
+        "lookback": lookback,
+        "since_ts": since_ts,
+        "until_ts": now_ts,
+        "merchants": merchants_series,
+    }
+    if jobs_started:
+        # Only include active/queued/running jobs to limit payload size
+        resp["jobs"] = [j for j in jobs_started if j.get("status") in {"queued","running"} or j.get("missing_planned")]
+    return resp
 
 # ---------------- Risk Evaluation Endpoints (moved above __main__) ----------------
 
@@ -829,8 +1205,6 @@ def boost_seed_and_recompute(
         except Exception as e:
             log(f"boost-seed recompute delete error: {e}")
             deleted = 0
-    else:
-        deleted = 0
     # Trigger a capped recompute immediately (limit backfill to hours provided)
     cap_hours = hours + 2  # small cushion
     status = RISK.trigger_or_status(merchant_name, interval, submit_fn=TASKS.pool.submit, max_backfill_hours=cap_hours)
@@ -1002,6 +1376,28 @@ def risk_eval_probe(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/v1/risk-eval/jobs")
+def list_risk_jobs(active: bool = True):
+    """Return current risk evaluation jobs with progress.
+    active=true filters to queued/running; false returns all cached jobs.
+    """
+    jobs = []
+    for jid, rec in RISK.jobs.items():
+        if active:
+            if rec.get("status") in {"queued","running"}:
+                jobs.append({"job_id": jid, **rec})
+        else:
+            jobs.append({"job_id": jid, **rec})
+    # compute percentage
+    for j in jobs:
+        planned = j.get("planned") or j.get("missing_planned") or 0
+        processed = j.get("processed", 0)
+        if planned:
+            j["percent"] = round(min(100.0, processed / planned * 100.0), 2)
+        elif j.get("status") == "done":
+            j["percent"] = 100.0
+    return {"jobs": jobs, "count": len(jobs)}
+
 if __name__ == "__main__":
     # When running as a script, all routes (including risk eval) are now already registered above.
     import uvicorn
@@ -1124,3 +1520,32 @@ def evaluations_summary(interval: str = "30m", limit_per: int = 5):
         return {"interval": interval, "merchants": out}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/v1/{merchant_name}/window-counts")
+def window_counts(
+    merchant_name: str,
+    interval: str = "30m",
+    lookback: int = 24
+):
+    """Return raw per-window counts (no scoring) so we can see if volume/activity should exist.
+    Useful when volume/activity charts are blank – verifies the counting strategy.
+    """
+    from risk_eval import INTERVAL_MAP
+    ilabel = interval.lower()
+    if ilabel not in INTERVAL_MAP:
+        raise HTTPException(status_code=400, detail="Unsupported interval")
+    iv = INTERVAL_MAP[ilabel]
+    now_ts = dt.datetime.now(dt.UTC).timestamp()
+    start_ts = now_ts - lookback * iv * 60
+    # Ensure windows so counts are computed
+    try:
+        RISK.ensure_windows(merchant_name, ilabel, start_ts, now_ts)
+    except Exception as e:
+        log(f"window_counts ensure error: {e}")
+    coll = db["risk_scores"]
+    rows = list(coll.find({
+        "merchant": merchant_name,
+        "interval_minutes": iv,
+        "window_start_ts": {"$gte": start_ts}
+    }, projection={"_id":0, "window_start_ts":1, "window_end_ts":1, "raw_counts":1}).sort([("window_start_ts",1)]))
+    return {"merchant": merchant_name, "interval": ilabel, "windows": len(rows), "rows": rows}

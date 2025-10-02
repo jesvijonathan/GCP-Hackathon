@@ -59,7 +59,20 @@
       >
         <div class="merchant-summary">
           <div class="merchant-header">
-            <div class="merchant-name">{{ m.name }}</div>
+            <div class="merchant-name">
+              <!-- Status dots: red (inactive) highest priority, then yellow (restrictions) -->
+              <span
+                v-if="m.activation_flag === false || m.status==='inactive'"
+                class="status-dot inactive-dot"
+                title="Inactive"
+              ></span>
+              <span
+                v-else-if="m.has_restrictions || (m.restrictions && Object.keys(m.restrictions||{}).length)"
+                class="status-dot restriction-dot"
+                title="Restrictions Active"
+              ></span>
+              {{ m.name }}
+            </div>
             <div class="selected-badge" v-if="selectedMerchant && m.id === selectedMerchant.id">
               ✓
             </div>
@@ -285,6 +298,7 @@ export default {
   flex: 1;
   max-height: 500px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .merchant-list::-webkit-scrollbar {
@@ -341,7 +355,14 @@ export default {
 .merchant-name {
   font-weight: 600;
   font-size: 16px;
+  display:flex;
+  align-items:center;
+  gap:6px;
 }
+/* Inactive status indicator */
+.status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; flex-shrink:0; }
+.inactive-dot { background:#dc2626; box-shadow:0 0 0 2px #fee2e2; }
+.restriction-dot { background:#f59e0b; box-shadow:0 0 0 2px #fef3c7; }
 
 .selected-badge {
   background: rgba(255, 255, 255, 0.2);
