@@ -1,0 +1,464 @@
+{
+  "global": {
+    "start_date": "2022-09-29",
+    "end_date": "2026-09-28",
+    "output_dir": ".",
+    "defaults": {
+      "wl": {
+        "n_transactions": 50000
+      }
+    }
+  },
+  "merchants": [
+    {
+      "merchant_name": "HomeGear",
+      "start_date": "2022-09-29",
+      "end_date": "2026-09-28",
+      "seed": 4286148,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 9844,
+        "trend_plan": [
+          {
+            "month": "2022-09",
+            "intensity": 0.68,
+            "label": "scandal",
+            "posts": "12%"
+          },
+          {
+            "month": "2023-02",
+            "intensity": 0.95,
+            "label": "spike - data breach",
+            "posts": "9%"
+          },
+          {
+            "month": "2023-04",
+            "intensity": 0.71,
+            "label": "buyback",
+            "posts": "12%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.8,
+            "label": "spike - data breach",
+            "posts": "11%"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 7506,
+        "trend_plan": [
+          {
+            "month": "2022-09",
+            "intensity": 0.68,
+            "label": "scandal",
+            "posts": "15%"
+          },
+          {
+            "month": "2023-02",
+            "intensity": 0.95,
+            "label": "spike - data breach",
+            "posts": "12%"
+          },
+          {
+            "month": "2023-04",
+            "intensity": 0.71,
+            "label": "buyback",
+            "posts": "15%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.8,
+            "label": "spike - data breach",
+            "posts": "5%"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 4014,
+        "trend_plan": [
+          {
+            "month": "2022-09",
+            "intensity": 0.68,
+            "label": "scandal"
+          },
+          {
+            "month": "2023-02",
+            "intensity": 0.95,
+            "label": "spike - data breach",
+            "posts": "12%",
+            "articles": "10%"
+          },
+          {
+            "month": "2023-04",
+            "intensity": 0.71,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.8,
+            "label": "spike - data breach"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 7,
+        "merchant_score": 4.03,
+        "n_reviews": 37482,
+        "trend_plan": [
+          {
+            "month": "2022-09",
+            "intensity": 0.68,
+            "label": "scandal",
+            "reviews": "12%"
+          },
+          {
+            "month": "2023-02",
+            "intensity": 0.95,
+            "label": "spike - data breach",
+            "posts": "12%",
+            "reviews": "17%"
+          },
+          {
+            "month": "2023-04",
+            "intensity": 0.71,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.8,
+            "label": "spike - data breach",
+            "reviews": "4%"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "HOM",
+        "base_price": 308.09,
+        "sigma_annual": 0.53,
+        "avg_daily_volume": 14589000,
+        "shares_outstanding": 640500000,
+        "target_total_return": 0.464,
+        "trend_plan": [
+          {
+            "month": "2022-09",
+            "intensity": 0.68,
+            "label": "scandal",
+            "return": -0.091,
+            "volatility": "+60%",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2023-02",
+            "intensity": 0.95,
+            "label": "spike - data breach",
+            "return": -0.094,
+            "volatility": "+60%",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2023-04",
+            "intensity": 0.71,
+            "label": "buyback",
+            "return": 0.134,
+            "volatility": "+20%",
+            "volume": "150%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.8,
+            "label": "spike - data breach",
+            "return": -0.136,
+            "volatility": "1.4x",
+            "volume": "x2.0"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 118781,
+        "trend_plan": [
+          {
+            "month": "2022-09",
+            "intensity": 0.68,
+            "label": "scandal",
+            "transactions": "10%",
+            "high_risk_intensity": 0.565,
+            "decline_rate": 0.204,
+            "gambling_share": 0.133
+          },
+          {
+            "month": "2023-02",
+            "intensity": 0.95,
+            "label": "spike - data breach",
+            "high_risk_intensity": 0.486,
+            "decline_rate": 0.303,
+            "gambling_share": 0.104
+          },
+          {
+            "month": "2023-04",
+            "intensity": 0.71,
+            "label": "buyback",
+            "transactions": "3%",
+            "high_risk_intensity": 0.128,
+            "decline_rate": null
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.8,
+            "label": "spike - data breach",
+            "high_risk_intensity": 0.476,
+            "decline_rate": null
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "BuildPro",
+      "start_date": "2022-09-29",
+      "end_date": "2026-09-28",
+      "seed": 7674192,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 8040,
+        "trend_plan": [
+          {
+            "month": "2023-03",
+            "intensity": 0.89,
+            "label": "award"
+          },
+          {
+            "month": "2023-07",
+            "intensity": 0.65,
+            "label": "promo period"
+          },
+          {
+            "month": "2023-09",
+            "intensity": 0.66,
+            "label": "lawsuit"
+          },
+          {
+            "month": "2024-07",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "posts": "5%"
+          },
+          {
+            "month": "2026-05",
+            "intensity": 0.69,
+            "label": "promo period"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 9561,
+        "trend_plan": [
+          {
+            "month": "2023-03",
+            "intensity": 0.89,
+            "label": "award"
+          },
+          {
+            "month": "2023-07",
+            "intensity": 0.65,
+            "label": "promo period",
+            "posts": "15%"
+          },
+          {
+            "month": "2023-09",
+            "intensity": 0.66,
+            "label": "lawsuit"
+          },
+          {
+            "month": "2024-07",
+            "intensity": 0.89,
+            "label": "spike - data breach"
+          },
+          {
+            "month": "2026-05",
+            "intensity": 0.69,
+            "label": "promo period",
+            "posts": "13%"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 8147,
+        "trend_plan": [
+          {
+            "month": "2023-03",
+            "intensity": 0.89,
+            "label": "award",
+            "articles": "11%"
+          },
+          {
+            "month": "2023-07",
+            "intensity": 0.65,
+            "label": "promo period",
+            "posts": "3%",
+            "articles": "2%"
+          },
+          {
+            "month": "2023-09",
+            "intensity": 0.66,
+            "label": "lawsuit"
+          },
+          {
+            "month": "2024-07",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "articles": "9%"
+          },
+          {
+            "month": "2026-05",
+            "intensity": 0.69,
+            "label": "promo period"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 7,
+        "merchant_score": 3.93,
+        "n_reviews": 27661,
+        "trend_plan": [
+          {
+            "month": "2023-03",
+            "intensity": 0.89,
+            "label": "award"
+          },
+          {
+            "month": "2023-07",
+            "intensity": 0.65,
+            "label": "promo period",
+            "posts": "3%",
+            "reviews": "6%"
+          },
+          {
+            "month": "2023-09",
+            "intensity": 0.66,
+            "label": "lawsuit",
+            "posts": "2%",
+            "reviews": "21%"
+          },
+          {
+            "month": "2024-07",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "reviews": "6%"
+          },
+          {
+            "month": "2026-05",
+            "intensity": 0.69,
+            "label": "promo period"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "BUI",
+        "base_price": 149.07,
+        "sigma_annual": 0.43,
+        "avg_daily_volume": 3768000,
+        "shares_outstanding": 1180380000,
+        "target_total_return": 0.191,
+        "trend_plan": [
+          {
+            "month": "2023-03",
+            "intensity": 0.89,
+            "label": "award",
+            "return": 0.047,
+            "volatility": "1.2x",
+            "volume": "x1.3"
+          },
+          {
+            "month": "2023-07",
+            "intensity": 0.65,
+            "label": "promo period",
+            "return": -0.01,
+            "volatility": "1.0x",
+            "volume": "x1.1"
+          },
+          {
+            "month": "2023-09",
+            "intensity": 0.66,
+            "label": "lawsuit",
+            "return": -0.086,
+            "volatility": "+60%",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2024-07",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "return": -0.146,
+            "volatility": "1.6x",
+            "volume": "180%"
+          },
+          {
+            "month": "2026-05",
+            "intensity": 0.69,
+            "label": "promo period",
+            "return": -0.0,
+            "volatility": "1.0x",
+            "volume": "110%"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 168904,
+        "trend_plan": [
+          {
+            "month": "2023-03",
+            "intensity": 0.89,
+            "label": "award",
+            "high_risk_intensity": 0.142,
+            "decline_rate": 0.058,
+            "gambling_share": 0.039
+          },
+          {
+            "month": "2023-07",
+            "intensity": 0.65,
+            "label": "promo period",
+            "transactions": "6%",
+            "high_risk_intensity": 0.197,
+            "decline_rate": 0.068,
+            "gambling_share": 0.107
+          },
+          {
+            "month": "2023-09",
+            "intensity": 0.66,
+            "label": "lawsuit",
+            "transactions": "5%",
+            "high_risk_intensity": 0.581,
+            "decline_rate": 0.209
+          },
+          {
+            "month": "2024-07",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "transactions": "13%",
+            "high_risk_intensity": 0.651,
+            "decline_rate": 0.305,
+            "gambling_share": 0.074
+          },
+          {
+            "month": "2026-05",
+            "intensity": 0.69,
+            "label": "promo period",
+            "transactions": "14%",
+            "high_risk_intensity": 0.122,
+            "decline_rate": null
+          }
+        ]
+      }
+    }
+  ]
+}

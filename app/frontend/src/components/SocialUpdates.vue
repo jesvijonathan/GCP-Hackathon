@@ -21,7 +21,53 @@
       <span class="breadcrumb-item current">Social Updates</span>
     </nav>
   </div>
-  <div class="data-dashboard">
+
+  <!-- Themed Loading State -->
+  <div v-if="isLoading" class="loading-container">
+    <div class="loader-wrapper">
+      <div class="themed-loader">
+        <!-- Main Spinner -->
+        <div class="loader-spinner">
+          <div class="spinner-ring"></div>
+          <div class="spinner-inner">
+            <div class="spinner-icon">📊</div>
+          </div>
+        </div>
+
+        <!-- Animated Dots -->
+        <div class="loader-dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="loading-text">
+        <h3>Loading Social Data</h3>
+        <p>
+          Fetching latest updates for
+          <span class="merchant-highlight">{{ merchantName }}</span
+          >...
+        </p>
+        <div class="loading-steps">
+          <div class="step">📰 News articles</div>
+          <div class="step">🔗 Reddit discussions</div>
+          <div class="step">⭐ Customer reviews</div>
+          <div class="step">🐦 Social media posts</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard Content -->
+  <div v-else class="data-dashboard">
     <!-- Header Buttons -->
     <div class="header-buttons">
       <button class="back-btn" @click="goBack">← Back</button>
@@ -516,13 +562,19 @@
 </template>
 
 <script>
-import socialUpdatesData from "@/assets/social-updates-data.json";
+// Import axios for making HTTP requests
+import axios from "axios";
 
 export default {
   name: "SocialDashboard",
   data() {
     return {
-      socialData: socialUpdatesData,
+      socialData: {
+        news: [],
+        reddit: [],
+        reviews: [],
+        tweet: [],
+      },
       showModal: false,
       showAISummaryModal: false,
       modalType: "",
@@ -530,19 +582,133 @@ export default {
       aiSummary: "",
       merchantName: "",
       merchantId: "",
+      backendEndpoint: "", // Backend endpoint will be constructed
+      isLoading: false, // Loading state
     };
   },
-  created() {
-    this.merchantName = this.$route.query.merchantName || "Unknown Merchant";
-    this.merchantId = this.$route.query.merchantId || this.$route.params.id;
+  async created() {
+    // Extract merchantName from the URL path directly
+    // For URL like: http://localhost:3000/explore/BuildPro
+    const currentPath = this.$route.path; // Gets: /explore/BuildPro
+    const pathSegments = currentPath
+      .split("/")
+      .filter((segment) => segment !== "");
+
+    // Find the segment after 'explore'
+    const exploreIndex = pathSegments.findIndex(
+      (segment) => segment === "explore"
+    );
+    if (exploreIndex !== -1 && exploreIndex + 1 < pathSegments.length) {
+      this.merchantName = pathSegments[exploreIndex + 1];
+    } else {
+      // Fallback: try route params
+      this.merchantName =
+        this.$route.params.merchantName ||
+        this.$route.params.merchantname ||
+        this.$route.params.id ||
+        "Unknown Merchant";
+    }
+
+    // Also set merchantId for backward compatibility
+    this.merchantId = this.merchantName;
+
+    const simNow = this.$route.query.simNow || new Date().toISOString();
+
+    // Construct the backend endpoint using the merchant name
+    this.backendEndpoint = `http://localhost:8000/v1/${this.merchantName}/data?streams=all&order=desc&limit=5000&window=90d&allow_future=false&now=${simNow}&include_stock_meta=true`;
+
+    console.log("Current path:", currentPath);
+    console.log("Path segments:", pathSegments);
+    console.log("Extracted merchant name:", this.merchantName);
+    console.log("SimNow from query:", simNow);
+    console.log("Constructed endpoint:", this.backendEndpoint);
+
+    // Fetch data from the backend endpoint
+    await this.fetchSocialData();
   },
   methods: {
-    goBack() {
-      if (this.merchantId) {
-        this.$router.push(`/merchant/${this.merchantId}`);
-      } else {
-        this.$router.go(-1);
+    async fetchSocialData() {
+      this.isLoading = true; // Start loading
+
+      try {
+        console.log("Fetching data from:", this.backendEndpoint);
+        console.log("Merchant name extracted from URL:", this.merchantName);
+
+        const response = await axios.get(this.backendEndpoint);
+
+        // Determine the payload shape robustly
+        const dataRoot =
+          response && response.data && response.data.data
+            ? response.data.data
+            : response?.data ?? {};
+
+        // Normalize potential alternative key names
+        const rawNews = Array.isArray(dataRoot.news) ? dataRoot.news : [];
+        const rawReddit = Array.isArray(dataRoot.reddit) ? dataRoot.reddit : [];
+        const rawReviews = Array.isArray(dataRoot.reviews)
+          ? dataRoot.reviews
+          : [];
+        const rawTweets = Array.isArray(dataRoot.tweet)
+          ? dataRoot.tweet
+          : Array.isArray(dataRoot.tweets)
+          ? dataRoot.tweets
+          : [];
+
+        // Helper to sort by date key (newest first)
+        const sortDescByDate = (arr, dateKey) =>
+          arr
+            .slice()
+            .sort((a, b) => new Date(b[dateKey]) - new Date(a[dateKey]));
+
+        // Filter to latest 20 items
+        const filteredNews = sortDescByDate(rawNews, "published_at").slice(
+          0,
+          20
+        );
+        const filteredReddit = sortDescByDate(rawReddit, "created_at").slice(
+          0,
+          20
+        );
+        const filteredReviews = sortDescByDate(rawReviews, "created_at").slice(
+          0,
+          20
+        );
+        const filteredTweets = sortDescByDate(rawTweets, "created_at").slice(
+          0,
+          20
+        );
+
+        // Store filtered data into their respective arrays
+        this.socialData = {
+          news: filteredNews,
+          reddit: filteredReddit,
+          reviews: filteredReviews,
+          tweet: filteredTweets,
+        };
+
+        // Console log the filtered data
+        console.log("Fetched News (latest 20):", filteredNews);
+        console.log("Fetched Reddit (latest 20):", filteredReddit);
+        console.log("Fetched Reviews (latest 20):", filteredReviews);
+        console.log("Fetched Tweets (latest 20):", filteredTweets);
+      } catch (error) {
+        console.error("Error fetching social data:", error);
+        console.error("Failed endpoint:", this.backendEndpoint);
+        console.error("Merchant name:", this.merchantName);
+        // Set default empty state for socialData
+        this.socialData = {
+          news: [],
+          reddit: [],
+          reviews: [],
+          tweet: [],
+        };
+      } finally {
+        this.isLoading = false; // Stop loading
       }
+    },
+    goBack() {
+      // Navigate back to explore page
+      this.$router.go(-1);
     },
     truncateText(text, maxLength) {
       if (!text) return "";
@@ -615,7 +781,9 @@ export default {
           (item) => item.sentiment_label === "neutral"
         ).length;
 
-        this.aiSummary = `📊 **AudioTech Social Media Analysis Summary**
+        this.aiSummary = `📊 **${
+          this.merchantName
+        } Social Media Analysis Summary**
         
 **Overall Activity:** 
 - ${totalNews} news articles
@@ -633,7 +801,9 @@ export default {
 - Neutral: ${neutral} items (${((neutral / allItems.length) * 100).toFixed(1)}%)
 
 **Key Insights:**
-- Recent news coverage shows mixed reactions to AudioTech's latest moves
+- Recent news coverage shows mixed reactions to ${
+          this.merchantName
+        }'s latest moves
 - Reddit discussions indicate community interest with varied opinions
 - Customer reviews are predominantly positive with high ratings
 - Social media engagement appears moderate with growing attention
@@ -655,6 +825,255 @@ export default {
 </script>
 
 <style scoped>
+/* Themed Loading Styles - Teal, White, Grey Theme */
+.loading-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  padding: 2rem;
+}
+
+.loader-wrapper {
+  text-align: center;
+  background: #ffffff;
+  padding: 3rem 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(20, 184, 166, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  max-width: 450px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.loader-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #14b8a6, #0d9488, #14b8a6);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.themed-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.loader-spinner {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.spinner-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #14b8a6;
+  border-right: 3px solid #0d9488;
+  border-radius: 50%;
+  animation: spin 1.2s linear infinite;
+}
+
+.spinner-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: counterSpin 1.2s linear infinite;
+}
+
+.spinner-icon {
+  font-size: 1.5rem;
+  animation: bounce 1.5s ease-in-out infinite;
+}
+
+.loader-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  border-radius: 50%;
+  animation: dotPulse 1.8s ease-in-out infinite;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+.progress-container {
+  width: 100%;
+  max-width: 300px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #14b8a6, #0d9488, #14b8a6);
+  background-size: 200% 100%;
+  border-radius: 3px;
+  animation: progressFill 2s ease-in-out infinite;
+}
+
+.loading-text {
+  color: #374151;
+}
+
+.loading-text h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: #1f2937;
+}
+
+.loading-text p {
+  font-size: 1rem;
+  margin: 0 0 1.5rem 0;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.merchant-highlight {
+  color: #14b8a6;
+  font-weight: 600;
+}
+
+.loading-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.step {
+  background: linear-gradient(135deg, #f0fdfa, #ecfdf5);
+  border: 1px solid #a7f3d0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #065f46;
+  font-weight: 500;
+  animation: stepGlow 2s ease-in-out infinite;
+}
+
+.step:nth-child(1) {
+  animation-delay: 0s;
+}
+.step:nth-child(2) {
+  animation-delay: 0.5s;
+}
+.step:nth-child(3) {
+  animation-delay: 1s;
+}
+.step:nth-child(4) {
+  animation-delay: 1.5s;
+}
+
+/* Animations */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes counterSpin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes dotPulse {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+@keyframes progressFill {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes stepGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(20, 184, 166, 0.3);
+    border-color: #a7f3d0;
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.4);
+    border-color: #14b8a6;
+  }
+}
+
+/* Existing Dashboard Styles */
 .data-dashboard {
   padding: 2rem;
   background-color: #f8fafc;
@@ -1050,11 +1469,11 @@ export default {
 }
 
 .breadcrumb-item:hover {
-  color: #008080;
+  color: #14b8a6;
 }
 
 .breadcrumb-item.current {
-  color: #008080;
+  color: #14b8a6;
   font-weight: 500;
 }
 
@@ -1062,8 +1481,23 @@ export default {
   color: #d1d5db;
   user-select: none;
 }
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .loading-container {
+    padding: 1rem;
+  }
+
+  .loader-wrapper {
+    padding: 2rem 1.5rem;
+    border-radius: 16px;
+  }
+
+  .loading-steps {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
   .data-dashboard {
     padding: 1rem;
   }

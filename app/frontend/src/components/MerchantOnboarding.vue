@@ -1,26 +1,50 @@
 <script>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import { useRouter } from "vue-router";
 
 export default {
   name: "ProgressiveForm",
   setup() {
-    const currentStep = ref(1);
+    const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
+    const router = useRouter();
 
+    const currentStep = ref(1);
     const steps = ref([
       { title: "Basic Information" },
       { title: "Location & Contact" },
       { title: "Financial & Operational" },
+      { title: "Result" },
     ]);
 
+    const defaultRange = () => {
+      const now = new Date();
+      const start = new Date(now);
+      start.setFullYear(now.getFullYear() - 3);
+      const end = new Date(now);
+      end.setFullYear(now.getFullYear() + 1);
+      const toDateStr = (d) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}-${String(d.getDate()).padStart(2, "0")}`;
+      return { start: toDateStr(start), end: toDateStr(end) };
+    };
+
+    // WLMerchant + range fields
     const formData = ref({
       id: "",
       name: "",
+      start_date: "",
+      end_date: "",
+
+      merchant_code: "",
       legal_name: "",
       acceptor_name: "",
       acceptor_category_code: "",
       url: "",
       language_code: "",
       time_zone_id: "",
+
       country_code: "",
       country_sub_division_code: "",
       home_country_code: "",
@@ -28,6 +52,13 @@ export default {
       city: "",
       postal_code: "",
       street: "",
+      city_category_code: "",
+
+      business_service_phone_number: "",
+      customer_service_phone_number: "",
+      additional_contact_information: "",
+      description: "",
+
       currency_code: "",
       tax_id: "",
       trade_register_number: "",
@@ -38,62 +69,418 @@ export default {
       activation_time: "",
       activation_start_time: "",
       activation_end_time: "",
-      city_category_code: "",
-      business_service_phone_number: "",
-      customer_service_phone_number: "",
-      additional_contact_information: "",
     });
+
+    // Preset deep scan mode
+    const deepScanMode = ref("none"); // none | redo | replace
+
+    // Suggestion and existing merchants
+    const merchantsList = ref([]); // names
+    const nameSuggestion = ref("");
+    const isSubmitting = ref(false);
+    const submitError = ref("");
+    const responseData = ref(null);
+    const pollTimer = ref(null);
+    const pollingIntervalMs = ref(1500);
+
+    // Helpers
+    const toHHMMSS = (val) => {
+      if (!val) return null;
+      const parts = String(val).split(":");
+      const hh = (parts[0] || "00").padStart(2, "0");
+      const mm = (parts[1] || "00").padStart(2, "0");
+      const ss = (parts[2] || "00").padStart(2, "0");
+      return `${hh}:${mm}:${ss}`;
+    };
+    const isoToDatetimeLocal = (iso) => {
+      if (!iso) return "";
+      try {
+        const d = new Date(iso);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+      } catch {
+        return "";
+      }
+    };
+    const hmsToTimeInput = (hms) => {
+      if (!hms) return "";
+      const parts = String(hms).split(":");
+      const hh = (parts[0] || "00").padStart(2, "0");
+      const mm = (parts[1] || "00").padStart(2, "0");
+      return `${hh}:${mm}`;
+    };
+    const fmtDateTime = (iso) => {
+      if (!iso) return "-";
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString();
+      } catch {
+        return iso;
+      }
+    };
+
+    const fetchMerchants = async () => {
+      try {
+        const resp = await fetch(`${API_BASE}/v1/merchants`, { method: "GET" });
+        const data = await resp.json();
+        merchantsList.value = Array.isArray(data.merchants)
+          ? data.merchants
+          : [];
+      } catch {
+        merchantsList.value = [];
+      }
+    };
+
+    const updateNameSuggestion = (q) => {
+      const query = (q || "").trim().toLowerCase();
+      if (!query) {
+        nameSuggestion.value = "";
+        return;
+      }
+      const starts = merchantsList.value
+        .filter((n) => n && n.toLowerCase().startsWith(query))
+        .sort((a, b) => a.length - b.length);
+      if (starts.length) {
+        nameSuggestion.value = starts[0];
+        return;
+      }
+      const includes = merchantsList.value
+        .filter((n) => n && n.toLowerCase().includes(query))
+        .sort((a, b) => a.length - b.length);
+      nameSuggestion.value = includes[0] || "";
+    };
+
+    const isNameUnique = computed(() => {
+      const q = (formData.value.name || "").trim().toLowerCase();
+      if (!q) return false;
+      return !merchantsList.value.some((n) => n.toLowerCase() === q);
+    });
+
+    const fillFormFromMerchant = (m) => {
+      try {
+        formData.value.id = m?.merchant_id || "";
+        formData.value.name = m?.merchant_name || formData.value.name;
+
+        formData.value.start_date = m?.start_date || formData.value.start_date;
+        formData.value.end_date = m?.end_date || formData.value.end_date;
+
+        formData.value.merchant_code = m?.merchant_code || "";
+        formData.value.legal_name = m?.legal_name || "";
+        formData.value.acceptor_name = m?.acceptor_name || "";
+        formData.value.acceptor_category_code = m?.acceptor_category_code || "";
+        formData.value.url = m?.url || "";
+        formData.value.language_code = m?.language_code || "";
+        formData.value.time_zone_id = m?.time_zone_id || "";
+
+        formData.value.country_code = m?.country_code || "";
+        formData.value.country_sub_division_code =
+          m?.country_sub_division_code || "";
+        formData.value.home_country_code = m?.home_country_code || "";
+        formData.value.region_id = m?.region_id || "";
+        formData.value.city = m?.city || "";
+        formData.value.postal_code = m?.postal_code || "";
+        formData.value.street = m?.street || "";
+        formData.value.city_category_code = m?.city_category_code || "";
+
+        formData.value.business_service_phone_number =
+          m?.business_service_phone_number || "";
+        formData.value.customer_service_phone_number =
+          m?.customer_service_phone_number || "";
+        formData.value.additional_contact_information =
+          m?.additional_contact_information || "";
+        formData.value.description = m?.description || "";
+
+        formData.value.currency_code = m?.currency_code || "";
+        formData.value.tax_id = m?.tax_id || "";
+        formData.value.trade_register_number = m?.trade_register_number || "";
+        formData.value.iban = m?.iban || "";
+        formData.value.domiciliary_bank_number =
+          m?.domiciliary_bank_number || "";
+
+        formData.value.cut_off_time = hmsToTimeInput(m?.cut_off_time || "");
+        formData.value.activation_flag = !!m?.activation_flag;
+        formData.value.activation_time = isoToDatetimeLocal(
+          m?.activation_time || ""
+        );
+        formData.value.activation_start_time = isoToDatetimeLocal(
+          m?.activation_start_time || ""
+        );
+        formData.value.activation_end_time = isoToDatetimeLocal(
+          m?.activation_end_time || ""
+        );
+      } catch {
+        /* no-op */
+      }
+    };
+
+    const fetchMerchantByName = async () => {
+      const name = (formData.value.name || "").trim();
+      if (!name) return;
+      const exact = merchantsList.value.some(
+        (n) => n.toLowerCase() === name.toLowerCase()
+      );
+      if (!exact) return;
+      try {
+        const resp = await fetch(
+          `${API_BASE}/v1/merchants/${encodeURIComponent(name)}`,
+          { method: "GET" }
+        );
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const m = data?.merchant || null;
+        if (m) fillFormFromMerchant(m);
+      } catch {
+        /* ignore */
+      }
+    };
 
     const isCurrentStepValid = computed(() => {
       switch (currentStep.value) {
         case 1:
-          return formData.value.id && formData.value.name;
+          return !!formData.value.name;
         case 2:
-          return true; // No required fields in step 2
         case 3:
-          return true; // No required fields in step 3
+        case 4:
+          return true;
         default:
           return false;
       }
     });
 
     const nextStep = () => {
-      if (currentStep.value < 3 && isCurrentStepValid.value) {
+      if (currentStep.value < steps.value.length && isCurrentStepValid.value) {
         currentStep.value++;
       }
     };
-
     const previousStep = () => {
       if (currentStep.value > 1) {
         currentStep.value--;
       }
     };
 
-    const handleSubmit = () => {
-      if (isCurrentStepValid.value) {
-        // Create the final JSON object
-        const submissionData = {
-          ...formData.value,
-          // Convert string dates to proper format if needed
-          activation_time: formData.value.activation_time || null,
-          activation_start_time: formData.value.activation_start_time || null,
-          activation_end_time: formData.value.activation_end_time || null,
-          cut_off_time: formData.value.cut_off_time || null,
-        };
-
-        console.log("Form submitted with data:", JSON.stringify(submissionData, null, 2));
-        alert("Form submitted successfully! Check console for JSON data.");
+    const chooseSuggestion = async () => {
+      if (nameSuggestion.value) {
+        formData.value.name = nameSuggestion.value;
+        await fetchMerchantByName();
       }
     };
 
+    const handleSubmit = async () => {
+      submitError.value = "";
+      responseData.value = null;
+      if (!isCurrentStepValid.value) return;
+
+      try {
+        const details = {
+          merchant_code: formData.value.merchant_code || undefined,
+          legal_name: formData.value.legal_name || undefined,
+          acceptor_name: formData.value.acceptor_name || undefined,
+          acceptor_category_code:
+            formData.value.acceptor_category_code || undefined,
+          url: formData.value.url || undefined,
+          language_code: formData.value.language_code || undefined,
+          time_zone_id: formData.value.time_zone_id || undefined,
+          country_code: formData.value.country_code || undefined,
+          country_sub_division_code:
+            formData.value.country_sub_division_code || undefined,
+          home_country_code: formData.value.home_country_code || undefined,
+          region_id: formData.value.region_id || undefined,
+          city: formData.value.city || undefined,
+          postal_code: formData.value.postal_code || undefined,
+          street: formData.value.street || undefined,
+          city_category_code: formData.value.city_category_code || undefined,
+          business_service_phone_number:
+            formData.value.business_service_phone_number || undefined,
+          customer_service_phone_number:
+            formData.value.customer_service_phone_number || undefined,
+          additional_contact_information:
+            formData.value.additional_contact_information || undefined,
+          description: formData.value.description || undefined,
+          currency_code: formData.value.currency_code || undefined,
+          tax_id: formData.value.tax_id || undefined,
+          trade_register_number:
+            formData.value.trade_register_number || undefined,
+          iban: formData.value.iban || undefined,
+          domiciliary_bank_number:
+            formData.value.domiciliary_bank_number || undefined,
+          cut_off_time: toHHMMSS(formData.value.cut_off_time) || undefined,
+          activation_flag: formData.value.activation_flag,
+          activation_time: formData.value.activation_time || undefined,
+          activation_start_time:
+            formData.value.activation_start_time || undefined,
+          activation_end_time: formData.value.activation_end_time || undefined,
+        };
+
+        const payload = {
+          merchant_name: (formData.value.name || "").trim(),
+          deep_scan: deepScanMode.value !== "none",
+          details,
+          start_date: formData.value.start_date || undefined,
+          end_date: formData.value.end_date || undefined,
+          preset_overrides_mode: deepScanMode.value, // optional hint
+        };
+
+        isSubmitting.value = true;
+
+        const resp = await fetch(`${API_BASE}/v1/onboard`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(
+            data?.detail || "Failed to submit onboarding request"
+          );
+        }
+        const taskId = data?.task_id;
+        if (!taskId) {
+          throw new Error("No task_id returned from server");
+        }
+        pollTask(taskId);
+      } catch (e) {
+        isSubmitting.value = false;
+        submitError.value = String(e?.message || e || "Unknown error");
+        currentStep.value = 4;
+      }
+    };
+
+    const pollTask = (taskId) => {
+      if (pollTimer.value) {
+        clearInterval(pollTimer.value);
+        pollTimer.value = null;
+      }
+      pollTimer.value = setInterval(async () => {
+        try {
+          const r = await fetch(`${API_BASE}/v1/tasks/${taskId}`, {
+            method: "GET",
+          });
+          const t = await r.json();
+          if (t.status === "done") {
+            clearInterval(pollTimer.value);
+            pollTimer.value = null;
+            isSubmitting.value = false;
+            responseData.value = t.result || null;
+
+            const m = responseData.value?.merchant;
+            if (m?.merchant_id) formData.value.id = m.merchant_id;
+            if (m?.merchant_name) formData.value.name = m.merchant_name;
+
+            fetchMerchants();
+            submitError.value = "";
+            currentStep.value = 4;
+          } else if (t.status === "error") {
+            clearInterval(pollTimer.value);
+            pollTimer.value = null;
+            isSubmitting.value = false;
+            submitError.value = t.error || "Task failed";
+            currentStep.value = 4;
+          }
+        } catch {
+          /* keep polling */
+        }
+      }, pollingIntervalMs.value);
+    };
+
+    const onNameBlur = async () => {
+      await fetchMerchantByName();
+    };
+
+    onMounted(() => {
+      const rng = defaultRange();
+      formData.value.start_date = rng.start;
+      formData.value.end_date = rng.end;
+      fetchMerchants();
+    });
+
+    const resetToStart = () => {
+      submitError.value = "";
+      responseData.value = null;
+      isSubmitting.value = false;
+      const rng = defaultRange();
+      formData.value = {
+        id: "",
+        name: "",
+        start_date: rng.start,
+        end_date: rng.end,
+        merchant_code: "",
+        legal_name: "",
+        acceptor_name: "",
+        acceptor_category_code: "",
+        url: "",
+        language_code: "",
+        time_zone_id: "",
+        country_code: "",
+        country_sub_division_code: "",
+        home_country_code: "",
+        region_id: "",
+        city: "",
+        postal_code: "",
+        street: "",
+        city_category_code: "",
+        business_service_phone_number: "",
+        customer_service_phone_number: "",
+        additional_contact_information: "",
+        description: "",
+        currency_code: "",
+        tax_id: "",
+        trade_register_number: "",
+        iban: "",
+        domiciliary_bank_number: "",
+        cut_off_time: "",
+        activation_flag: false,
+        activation_time: "",
+        activation_start_time: "",
+        activation_end_time: "",
+      };
+      currentStep.value = 1;
+      updateNameSuggestion("");
+    };
+
+    const viewMerchant = () => {
+      const name = (
+        responseData.value?.merchant?.merchant_name ||
+        formData.value.name ||
+        ""
+      ).trim();
+      if (!name) return;
+      try {
+        router.push(`/merchant/${encodeURIComponent(name)}`);
+      } catch {
+        // If router path differs, adjust here.
+      }
+    };
+
+    watch(
+      () => formData.value.name,
+      (val) => updateNameSuggestion(val)
+    );
+
     return {
+      API_BASE,
       currentStep,
       steps,
       formData,
+      deepScanMode,
       isCurrentStepValid,
       nextStep,
       previousStep,
       handleSubmit,
+      merchantsList,
+      nameSuggestion,
+      chooseSuggestion,
+      isNameUnique,
+      isSubmitting,
+      submitError,
+      responseData,
+      onNameBlur,
+      resetToStart,
+      viewMerchant,
+      fmtDateTime,
     };
   },
 };
@@ -103,15 +490,26 @@ export default {
   <div class="page-header">
     <nav class="breadcrumb">
       <router-link to="/dashboard" class="breadcrumb-item"
-        >Home</router-link
+        >Dashboard</router-link
       >
       <span class="breadcrumb-separator">/</span>
-      <span class="breadcrumb-item">merchant-onboarding</span>
+      <span class="breadcrumb-item">Merchants</span>
+      <span class="breadcrumb-separator">/</span>
+      <span class="breadcrumb-item current">Onboarding</span>
     </nav>
   </div>
+
+  <!-- Full-screen submission overlay -->
+  <div v-if="isSubmitting" class="overlay">
+    <div class="loader">
+      <div class="spinner"></div>
+      <div class="loader-text">Please wait, Processing...</div>
+    </div>
+  </div>
+
   <div class="progressive-form-container">
     <div class="form-card">
-      <!-- Progress Bar -->
+      <!-- Progress bar -->
       <div class="progress-header">
         <h2 class="form-title">Merchant Registration Form</h2>
         <div class="progress-bar">
@@ -135,42 +533,158 @@ export default {
           <div class="progress-line">
             <div
               class="progress-fill"
-              :style="{ width: `${((currentStep - 1) / 2) * 100}%` }"
+              :style="{
+                width: `${((currentStep - 1) / (steps.length - 1)) * 100}%`,
+              }"
             ></div>
           </div>
         </div>
       </div>
 
-      <!-- Form Content -->
-      <form @submit.prevent="handleSubmit" class="form-content">
-        <!-- Step 1: Basic Information -->
+      <!-- Result step -->
+      <div v-if="currentStep === 4" class="result-step">
+        <div v-if="!submitError" class="success-card">
+          <div class="success-icon">✓</div>
+          <div class="success-text">
+            <h3>Merchant onboarded successfully</h3>
+          </div>
+          <div class="success-details">
+            <div class="detail-row">
+              <span class="detail-label">Merchant ID:</span>
+              <span class="detail-value">{{
+                responseData?.merchant?.merchant_id || "-"
+              }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Merchant Name:</span>
+              <span class="detail-value">{{
+                responseData?.merchant?.merchant_name || formData.name
+              }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Active status:</span>
+              <span class="detail-value">
+                {{
+                  responseData?.merchant?.activation_flag ??
+                  formData.activation_flag
+                    ? "Active"
+                    : "Inactive"
+                }}
+              </span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Added on:</span>
+              <span class="detail-value">
+                {{ fmtDateTime(responseData?.merchant?.created_at) }}
+              </span>
+            </div>
+          </div>
+          <div class="result-actions">
+
+            <button class="btn btn-secondary" @click="resetToStart">
+              New Merchantㅤ(+) 
+            </button>
+            <button class="btn btn-primary" @click="viewMerchant">
+              View merchant
+            </button>
+          </div>
+        </div>
+
+        <div v-else class="error-card">
+          <div class="error-title">Submission failed</div>
+          <div class="error-text">{{ submitError }}</div>
+          <div class="result-actions">
+            <button class="btn btn-secondary" @click="previousStep">
+              Back
+            </button>
+            <button class="btn btn-primary" @click="resetToStart">
+              Start over
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inline error on steps 1-3 -->
+      <div v-if="submitError && currentStep !== 4" class="error-card-inline">
+        <strong>Error:</strong> {{ submitError }}
+      </div>
+
+      <!-- Form (steps 1–3) -->
+      <form
+        v-if="currentStep !== 4"
+        @submit.prevent="handleSubmit"
+        class="form-content"
+      >
+        <!-- Step 1 -->
         <div v-if="currentStep === 1" class="form-step">
           <h3 class="step-title">Basic Information</h3>
           <div class="form-grid">
             <div class="form-group">
-              <label for="id">ID *</label>
+              <label for="id">ID</label>
               <input
                 id="id"
                 v-model="formData.id"
                 type="text"
-                required
-                maxlength="20"
-                class="form-input"
-                placeholder="Enter unique ID (max 20 chars)"
+                maxlength="32"
+                class="readonlymode form-input"
+                placeholder="*Auto-Generated*"
+                readonly
+                disabled
               />
             </div>
-            <div class="form-group">
+
+            <div class="form-group name-col">
               <label for="name">Name *</label>
+              <div class="name-input-wrapper">
+                <input
+                  id="name"
+                  v-model="formData.name"
+                  type="text"
+                  required
+                  maxlength="255"
+                  class="form-input"
+                  placeholder="Enter name"
+                  autofocus
+                  @blur="onNameBlur"
+                />
+                <!-- Chips aligned near name -->
+                <div class="name-chips">
+                  <span
+                    v-if="formData.name"
+                    class="chip"
+                    :class="{ available: isNameUnique, taken: !isNameUnique }"
+                  >
+                    <template v-if="isNameUnique">Available</template>
+                    <template v-else>Existing merchant</template>
+                  </span>
+                  <span
+                    v-if="
+                      nameSuggestion &&
+                      nameSuggestion.toLowerCase() !==
+                        (formData.name || '').toLowerCase()
+                    "
+                    class="chip suggestion"
+                    @click="chooseSuggestion"
+                    title="Click to use suggested name"
+                  >
+                    {{ nameSuggestion }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="merchant_code">Merchant Code</label>
               <input
-                id="name"
-                v-model="formData.name"
+                id="merchant_code"
+                v-model="formData.merchant_code"
                 type="text"
-                required
-                maxlength="255"
+                maxlength="10"
                 class="form-input"
-                placeholder="Enter name"
+                placeholder="8-digit or 6-digit + 00"
               />
             </div>
+
             <div class="form-group">
               <label for="legal_name">Legal Name</label>
               <input
@@ -201,7 +715,7 @@ export default {
                 type="text"
                 maxlength="10"
                 class="form-input"
-                placeholder="Enter category code"
+                placeholder="e.g., 5411"
               />
             </div>
             <div class="form-group">
@@ -212,7 +726,7 @@ export default {
                 type="url"
                 maxlength="255"
                 class="form-input"
-                placeholder="https://example.com"
+                placeholder="https://merchant.example.com"
               />
             </div>
             <div class="form-group">
@@ -240,19 +754,48 @@ export default {
               >
                 <option value="">Select timezone</option>
                 <option value="UTC">UTC</option>
-                <option value="America/New_York">Eastern Time</option>
-                <option value="America/Chicago">Central Time</option>
-                <option value="America/Denver">Mountain Time</option>
-                <option value="America/Los_Angeles">Pacific Time</option>
-                <option value="Europe/London">London</option>
-                <option value="Europe/Paris">Paris</option>
-                <option value="Asia/Tokyo">Tokyo</option>
+                <option value="America/New_York">America/New_York</option>
+                <option value="Europe/London">Europe/London</option>
+                <option value="Europe/Paris">Europe/Paris</option>
+                <option value="Asia/Tokyo">Asia/Tokyo</option>
               </select>
+            </div>
+
+            <div class="form-group">
+              <label for="deep_scan_mode">Preset action</label>
+              <select
+                id="deep_scan_mode"
+                v-model="deepScanMode"
+                class="form-input"
+              >
+                <option value="none">None</option>
+                <option value="redo">Redo preset</option>
+                <option value="replace">Replace preset</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="start_date">Start Date (range)</label>
+              <input
+                id="start_date"
+                v-model="formData.start_date"
+                type="date"
+                class="form-input"
+              />
+            </div>
+            <div class="form-group">
+              <label for="end_date">End Date (range)</label>
+              <input
+                id="end_date"
+                v-model="formData.end_date"
+                type="date"
+                class="form-input"
+              />
             </div>
           </div>
         </div>
 
-        <!-- Step 2: Location & Contact -->
+        <!-- Step 2 -->
         <div v-if="currentStep === 2" class="form-step">
           <h3 class="step-title">Location & Contact Information</h3>
           <div class="form-grid">
@@ -264,7 +807,7 @@ export default {
                 type="text"
                 maxlength="5"
                 class="form-input"
-                placeholder="e.g., US, CA, GB"
+                placeholder="e.g., GB, US, DE"
               />
             </div>
             <div class="form-group">
@@ -275,7 +818,7 @@ export default {
                 type="text"
                 maxlength="5"
                 class="form-input"
-                placeholder="e.g., CA, NY, ON"
+                placeholder="e.g., LND, NY"
               />
             </div>
             <div class="form-group">
@@ -286,7 +829,7 @@ export default {
                 type="text"
                 maxlength="5"
                 class="form-input"
-                placeholder="Home country code"
+                placeholder="e.g., GB"
               />
             </div>
             <div class="form-group">
@@ -297,7 +840,7 @@ export default {
                 type="text"
                 maxlength="20"
                 class="form-input"
-                placeholder="Enter region ID"
+                placeholder="e.g., UK, EU, US"
               />
             </div>
             <div class="form-group">
@@ -341,7 +884,7 @@ export default {
                 type="text"
                 maxlength="10"
                 class="form-input"
-                placeholder="City category"
+                placeholder="e.g., URB, SUB, RUR"
               />
             </div>
             <div class="form-group">
@@ -352,22 +895,26 @@ export default {
                 type="tel"
                 maxlength="20"
                 class="form-input"
-                placeholder="Business phone number"
+                placeholder="e.g., +44-20-1234-5678"
               />
             </div>
             <div class="form-group">
-              <label for="customer_service_phone_number">Customer Service Phone</label>
+              <label for="customer_service_phone_number"
+                >Customer Service Phone</label
+              >
               <input
                 id="customer_service_phone_number"
                 v-model="formData.customer_service_phone_number"
                 type="tel"
                 maxlength="20"
                 class="form-input"
-                placeholder="Customer service phone"
+                placeholder="e.g., +44-20-9876-5432"
               />
             </div>
             <div class="form-group full-width">
-              <label for="additional_contact_information">Additional Contact Information</label>
+              <label for="additional_contact_information"
+                >Additional Contact Information</label
+              >
               <textarea
                 id="additional_contact_information"
                 v-model="formData.additional_contact_information"
@@ -376,10 +923,20 @@ export default {
                 placeholder="Any additional contact information..."
               ></textarea>
             </div>
+            <div class="form-group full-width">
+              <label for="description">Description</label>
+              <textarea
+                id="description"
+                v-model="formData.description"
+                class="form-input"
+                rows="3"
+                placeholder="Merchant/acceptor profile notes"
+              ></textarea>
+            </div>
           </div>
         </div>
 
-        <!-- Step 3: Financial & Operational -->
+        <!-- Step 3 -->
         <div v-if="currentStep === 3" class="form-step">
           <h3 class="step-title">Financial & Operational Information</h3>
           <div class="form-grid">
@@ -391,12 +948,12 @@ export default {
                 class="form-input"
               >
                 <option value="">Select currency</option>
-                <option value="USD">USD - US Dollar</option>
-                <option value="EUR">EUR - Euro</option>
-                <option value="GBP">GBP - British Pound</option>
-                <option value="CAD">CAD - Canadian Dollar</option>
-                <option value="JPY">JPY - Japanese Yen</option>
-                <option value="AUD">AUD - Australian Dollar</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="CAD">CAD</option>
+                <option value="JPY">JPY</option>
+                <option value="AUD">AUD</option>
               </select>
             </div>
             <div class="form-group">
@@ -407,7 +964,7 @@ export default {
                 type="text"
                 maxlength="50"
                 class="form-input"
-                placeholder="Enter tax ID"
+                placeholder="e.g., TAX-ABCDEFG"
               />
             </div>
             <div class="form-group">
@@ -418,7 +975,7 @@ export default {
                 type="text"
                 maxlength="50"
                 class="form-input"
-                placeholder="Trade register number"
+                placeholder="e.g., REG-12345678"
               />
             </div>
             <div class="form-group">
@@ -433,14 +990,16 @@ export default {
               />
             </div>
             <div class="form-group">
-              <label for="domiciliary_bank_number">Domiciliary Bank Number</label>
+              <label for="domiciliary_bank_number"
+                >Domiciliary Bank Number</label
+              >
               <input
                 id="domiciliary_bank_number"
                 v-model="formData.domiciliary_bank_number"
                 type="text"
                 maxlength="50"
                 class="form-input"
-                placeholder="Bank number"
+                placeholder="e.g., BANK-123456"
               />
             </div>
             <div class="form-group">
@@ -454,15 +1013,14 @@ export default {
             </div>
             <div class="form-group">
               <label for="activation_flag">Activation Status</label>
-              <div class="checkbox-wrapper">
-                <input
-                  id="activation_flag"
-                  v-model="formData.activation_flag"
-                  type="checkbox"
-                  class="form-checkbox"
-                />
-                <label for="activation_flag" class="checkbox-label">Active</label>
-              </div>
+              <select
+                id="activation_flag"
+                v-model="formData.activation_flag"
+                class="form-input"
+              >
+                <option :value="true">Enabled</option>
+                <option :value="false">Disabled</option>
+              </select>
             </div>
             <div class="form-group">
               <label for="activation_time">Activation Time</label>
@@ -494,7 +1052,7 @@ export default {
           </div>
         </div>
 
-        <!-- Navigation Buttons -->
+        <!-- Navigation -->
         <div class="form-navigation">
           <button
             v-if="currentStep > 1"
@@ -518,7 +1076,7 @@ export default {
             v-if="currentStep === 3"
             type="submit"
             class="btn btn-primary"
-            :disabled="!isCurrentStepValid"
+            :disabled="!isCurrentStepValid || isSubmitting"
           >
             Submit
           </button>
@@ -529,9 +1087,267 @@ export default {
 </template>
 
 <style scoped>
+.form-card {
+  background: #fff;
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  margin: 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+.progress-header {
+  margin-bottom: 12px;
+}
+.progress-steps {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f3f3f3ff;
+}
+.step.active .step-circle {
+  border-color: #0b5fa4;
+  color: #0b5fa4;
+}
+.step.completed .step-circle {
+  background: #0b5fa4;
+  color: #fff;
+}
+.step-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.progress-line {
+  height: 6px;
+  background: #eee;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+.progress-fill {
+  height: 6px;
+  background: #0b5fa4;
+  border-radius: 4px;
+  transition: width 0.2s ease;
+}
+
+.form-content {
+  margin-top: 16px;
+}
+.form-step {
+  margin-bottom: 16px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+.form-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.readonlymode {
+  background: #f9f9f9;
+  color: #999;
+}
+
+.name-col {
+  position: relative;
+}
+.name-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.name-chips {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  background: #f7f7f7;
+  color: #444;
+}
+.chip.available {
+  background: #e6f6ea;
+  color: #1f7a33;
+  border-color: #9fddb0;
+}
+.chip.taken {
+  background: #fff4e6;
+  color: #8a5700;
+  border-color: #ffd195;
+}
+.chip.suggestion {
+  background: #f5f8ff;
+  cursor: pointer;
+}
+
+.btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-primary {
+  background: #0b5fa4;
+  color: #fff;
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background: #777;
+  color: #fff;
+}
+.spacer {
+  flex: 1;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.loader {
+  text-align: center;
+}
+.spinner {
+  width: 56px;
+  height: 56px;
+  border: 6px solid #008080c4  ;
+  border-top-color: #cccccc86 ;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  margin: 0 auto 10px;
+}
+.loader-text {
+  color: #008080c4  ;
+  font-weight: 600;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.result-step {
+  margin-top: 16px;
+}
+.success-card {
+    display: flex
+;
+    align-items: center;
+    gap: 12px;
+
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 1.7rem;
+    flex-direction: column;
+    justify-content: center;
+    align-content: center;
+    flex-wrap: nowrap;
+    padding-top: 3rem;
+}
+.success-icon {
+  width: 3.7rem;
+  height: 3.7rem;
+  font-size: 1.6rem;
+  border-radius: 50%;
+  background: #1f7a33;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+.success-text h3 {
+  margin: 0;
+  color: #1f7a33;
+  margin-top: 1rem;
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  text-decoration: underline;
+}
+.success-details {
+  margin-bottom: 3rem;
+}
+.detail-row {
+display: flex
+;
+    gap: 8px;
+    width: 17rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    flex-direction: row;
+}
+.detail-label {
+  font-weight: 600;
+  color: #333;
+}
+.detail-value {
+  color: #0b5fa4;
+}
+.result-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 1rem;
+}
+
+.error-card {
+  border: 1px solid #f5c0c0;
+  background: #fff5f5;
+  color: #7a1f1f;
+  border-radius: 8px;
+  padding: 12px;
+}
+.error-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.error-text {
+  margin-bottom: 12px;
+}
+.error-card-inline {
+  border: 1px solid #f5c0c0;
+  background: #fff5f5;
+  color: #7a1f1f;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+</style>
+
+<style scoped>
 .progressive-form-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #ffffffff 0%, #acb9ce4f 100%);
   padding: 2rem;
   display: flex;
   justify-content: center;
@@ -549,14 +1365,14 @@ export default {
 }
 
 .progress-header {
-  background: linear-gradient(135deg, #008080 0%, #20b2aa 100%);
+  background: linear-gradient(135deg, #008080c4 0%, #008080d7 100%);
   color: white;
   padding: 2rem;
   text-align: center;
 }
 
 .form-title {
-  margin: 0 0 2rem 0;
+  margin: 0 0 1.8rem 0;
   font-size: 2rem;
   font-weight: 300;
 }
@@ -570,6 +1386,7 @@ export default {
   justify-content: space-between;
   position: relative;
   z-index: 2;
+  padding-top: 8px;
 }
 
 .step {
@@ -636,7 +1453,8 @@ export default {
 }
 
 .form-content {
-  padding: 2rem;
+  padding: 2.4rem;
+  padding-top: 1.3rem;
 }
 
 .form-step {
@@ -645,7 +1463,7 @@ export default {
 
 .step-title {
   color: #333;
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
   font-size: 1.5rem;
   font-weight: 400;
   text-align: center;
@@ -696,6 +1514,12 @@ export default {
 textarea.form-input {
   resize: vertical;
   min-height: 100px;
+}
+
+/* readonly */
+.readonlymode:read-only {
+  background: #d3d3d3ff;
+  cursor: not-allowed;
 }
 
 .checkbox-wrapper {

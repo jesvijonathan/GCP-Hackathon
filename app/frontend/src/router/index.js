@@ -47,7 +47,7 @@ const router = createRouter({
       redirect: "/dashboard",
     },
     {
-      path: "/merchant/:id/social-updates",
+      path: "/explore/:name",
       name: "social-updates",
       component: SocialUpdates,
     },

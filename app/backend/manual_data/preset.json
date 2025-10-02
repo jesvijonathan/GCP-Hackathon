@@ -1,0 +1,178 @@
+{
+  "global": {
+    "start_date": "2025-01-01",
+    "end_date": "2026-12-31",
+    "output_dir": ".",
+    "defaults": {
+      "wl": {
+        "n_transactions": 50000
+      }
+    }
+  },
+  "merchants": [
+    {
+      "merchant_name": "HomeGear",
+      "start_date": "2020-01-01",
+      "end_date": "2024-12-31",
+      "seed": 6604045,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 7753,
+        "trend_plan": [
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz",
+            "posts": "13%"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 3178,
+        "trend_plan": [
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal",
+            "posts": "6%"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 6597,
+        "trend_plan": [
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage",
+            "posts": "9%",
+            "articles": "3%"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 8,
+        "merchant_score": 4.23,
+        "n_reviews": 20404,
+        "trend_plan": [
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage",
+            "posts": "9%",
+            "reviews": "6%"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "HOM",
+        "base_price": 154.54,
+        "sigma_annual": 0.36,
+        "avg_daily_volume": 8867000,
+        "shares_outstanding": 4354370000,
+        "target_total_return": 0.384,
+        "trend_plan": [
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage",
+            "return": -0.054,
+            "volatility": "1.4x",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz",
+            "return": 0.006,
+            "volatility": "1.0x",
+            "volume": "x1.0"
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal",
+            "return": -0.001,
+            "volatility": "1.0x",
+            "volume": "110%"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 160560,
+        "trend_plan": [
+          {
+            "month": "2021-12",
+            "intensity": 0.81,
+            "label": "outage",
+            "transactions": "3%",
+            "high_risk_intensity": 0.671,
+            "decline_rate": 0.34,
+            "gambling_share": 0.121
+          },
+          {
+            "month": "2022-05",
+            "intensity": 0.59,
+            "label": "seasonal buzz",
+            "transactions": "19%",
+            "high_risk_intensity": 0.124,
+            "decline_rate": null,
+            "gambling_share": 0.104
+          },
+          {
+            "month": "2023-01",
+            "intensity": 0.68,
+            "label": "normal",
+            "high_risk_intensity": 0.095,
+            "decline_rate": 0.114
+          }
+        ]
+      }
+    }
+  ]
+}

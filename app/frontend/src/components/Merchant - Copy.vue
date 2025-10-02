@@ -17,19 +17,20 @@
     <div v-if="merchant && !loading" class="layout">
       <!-- Side summary panel -->
       <div class="side-column" style="display:flex;flex-direction:column;gap:20px;">
-  <aside v-if="activePanel==='info'" class="side-panel" style="display:flex;flex-direction:column;overflow-y:auto;">
-          <div class="merchant-header" style="position:relative;">
-            <div class="title-row">
-              <span class="status-dot" :class="{ active: isActive, inactive: !isActive }"></span>
-              <h1 class="merchant-title">{{ merchant.name || "Merchant" }}</h1>
-            </div>
-            <p class="merchant-id">ID: {{ merchant.id || "-" }}</p>
+        <aside class="side-panel">
+          <div class="merchant-header">
+        <div class="title-row">
+          <span class="status-dot" :class="{ active: isActive, inactive: !isActive }"></span>
+          <h1 class="merchant-title">{{ merchant.name || "Merchant" }}</h1>
+        </div>
+        <p class="merchant-id">ID: {{ merchant.id || "-" }}</p>
           </div>
+
           <div class="summary-list">
-            <div class="summary-item">
-              <span class="label">Region</span>
-              <span class="value">{{ merchant.region_id || "-" }}</span>
-            </div>
+        <div class="summary-item">
+          <span class="label">Region</span>
+          <span class="value">{{ merchant.region_id || "-" }}</span>
+        </div>
         <div class="summary-item">
           <span class="label">Timezone</span>
           <span class="value">{{ merchant.time_zone_id || "-" }}</span>
@@ -49,7 +50,18 @@
           </div>
 
         <!-- Auto refresh (quick toggle) -->
-          <!-- Removed duplicate Auto Refresh controls (now only in Data Controls card) -->
+          <div class="panel-section">
+        <div class="action-center-dropdown">
+          <label class="checkbox-label">
+            <input v-model="autoRefresh" type="checkbox" class="form-checkbox" />
+            Auto refresh
+          </label>
+          <div v-if="autoRefresh" class="form-group">
+            <label for="refreshSec">Refresh interval (seconds)</label>
+            <input id="refreshSec" v-model.number="refreshSec" type="number" min="2" class="form-input" />
+          </div>
+        </div>
+          </div>
 
           <!-- Admin actions -->
           <div class="panel-section action-center-dropdown">
@@ -71,21 +83,28 @@
           {{ actionsTaken.length > 0 ? actionsTaken.join(", ") : "No actions taken" }}
         </p>
           </div>
-          <!-- Moved Data Controls toggle button to bottom -->
-          <div style="margin-top:auto;display:flex;justify-content:flex-end;padding-top:8px;">
-            <button @click="togglePanel" aria-label="Show Data Controls" title="Show Data Controls"
-              style="padding:8px 14px;font-size:12px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;border-radius:8px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.08);">
-              Data ▸
-            </button>
-          </div>
-  </aside>
+        </aside>
 
         <!-- NEW: Data Controls separate card -->
-  <section v-if="activePanel === 'data'"
-    class="card data-controls-card"
-    style="padding:0;z-index:99;position:sticky;top:0;overflow:hidden;display:flex;flex-direction:column;"
+        <section
+          class="card"
+          style="
+            padding:0;
+            z-index:99;
+            position:sticky;
+            top:10px;
+            border:1px solid #e2e8f0;
+            box-shadow:
+              0 -8px 18px -6px rgba(0,0,0,0.18),      /* soft top glow */
+              0 4px 14px -4px rgba(0,128,128,0.25),   /* subtle depth below */
+              0 0 0 1px rgba(255,255,255,0.6) inset;  /* crisp edge */
+            backdrop-filter: blur(3px);
+            background: rgba(255,255,255,0.92);
+            border-radius:14px;
+            overflow:hidden;
+          "
         >
-          <div class="card-header" style="position:relative;padding-top:18px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div class="card-header" style="position:relative;padding-top:18px;">
             <span
               style="
           content:'';
@@ -98,10 +117,9 @@
           box-shadow:0 2px 6px -2px rgba(0,0,0,0.25);
               "
             ></span>
-        <h3 style="margin:0;">Data Controls</h3>
-        <button @click="togglePanel" style="position:relative;z-index:2;padding:6px 10px;font-size:11px;border:1px solid #14b8a6;background:#ffffff;color:#008080;border-radius:6px;font-weight:600;cursor:pointer;">◂ Info</button>
+        <h3>Data Controls</h3>
           </div>
-          <div class="card-body scrollable" style="display:flex;flex-direction:column;gap:14px;overflow-y:auto;">
+          <div class="card-body" style="display:flex;flex-direction:column;gap:14px;height: 76vh;">
         <!-- Mode Toggle -->
         <div style="display:flex;gap:6px;">
           <button
@@ -169,51 +187,9 @@
             <input type="checkbox" v-model="allowFuture" />
           </div>
 
-          <div style="display:grid;gap:10px;">
-            <!-- Simulated time block -->
-            <div style="display:grid;gap:6px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;background:#f9fafb;">
-              <div style="display:flex;align-items:center;justify-content:space-between;">
-                <label style="font-size:11px;font-weight:700;color:#0f766e;">Simulated Time</label>
-                <label style="font-size:11px;color:#0f766e;font-weight:600;display:flex;align-items:center;gap:4px;">
-                  <input type="checkbox" v-model="simEnabled" /> Enable
-                </label>
-              </div>
-              <div style="font-size:12px;color:#111827;font-weight:600;">
-                {{ simNow }} <span v-if="simEnabled" style="color:#6b7280;font-weight:500;">(x{{ accel }})</span>
-              </div>
-              <div v-if="simEnabled" style="display:grid;gap:6px;">
-                <div style="display:flex;gap:6px;">
-                  <div style="flex:1;display:flex;flex-direction:column;gap:2px;">
-                    <label style="font-size:10px;font-weight:600;color:#6b7280;">Start ISO (optional)</label>
-                    <input v-model.trim="simStartInput" class="form-input" placeholder="YYYY-MM-DDTHH:MM:SSZ" />
-                  </div>
-                  <div style="width:90px;display:flex;flex-direction:column;gap:2px;">
-                    <label style="font-size:10px;font-weight:600;color:#6b7280;">Accel x</label>
-                    <input type="number" min="0" step="0.1" v-model.number="accel" class="form-input" />
-                  </div>
-                </div>
-                <div style="display:flex;gap:6px;">
-                  <div style="flex:1;display:flex;flex-direction:column;gap:2px;">
-                    <label style="font-size:10px;font-weight:600;color:#6b7280;">Jump (+/- s)</label>
-                    <input type="number" step="1" v-model.number="jumpValue" class="form-input" />
-                  </div>
-                  <div style="display:flex;align-items:flex-end;gap:6px;">
-                    <button type="button" @click="applyJump" style="padding:8px 10px;font-size:11px;border:1px solid #14b8a6;background:#ffffff;color:#008080;border-radius:6px;cursor:pointer;font-weight:600;">Jump</button>
-                    <button type="button" @click="resetSim" style="padding:8px 10px;font-size:11px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;border-radius:6px;cursor:pointer;font-weight:600;">Reset</button>
-                  </div>
-                </div>
-                <div style="display:flex;gap:6px;">
-                  <button type="button" @click="toggleSimRun" :disabled="!simEnabled" style="flex:1;padding:8px 10px;font-size:12px;font-weight:600;border:1px solid #14b8a6;border-radius:6px;cursor:pointer;" :style="simRunning ? 'background:#dcfce7;color:#065f46;' : 'background:#fee2e2;color:#991b1b;'">
-                    {{ simRunning ? 'Pause' : 'Start' }}
-                  </button>
-                  <button type="button" @click="syncRealNow" :disabled="!simEnabled" style="flex:1;padding:8px 10px;font-size:12px;font-weight:600;border:1px solid #14b8a6;border-radius:6px;background:#ffffff;color:#008080;cursor:pointer;">Sync Now</button>
-                </div>
-              </div>
-              <div v-else style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:11px;font-weight:600;color:#6b7280;">Override Now (ISO)</label>
-                <input v-model.trim="nowIso" class="form-input" placeholder="Leave blank for real now" />
-              </div>
-            </div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;">Override Now (ISO)</label>
+            <input v-model.trim="nowIso" class="form-input" placeholder="Leave blank for real now" />
           </div>
 
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -255,235 +231,26 @@
 
       <!-- Main cards -->
 
-      
       <main class="merchant-detail">
-
-                <!-- Risk Eval (New) -->
-        <div class="card" style="position:relative;">
-          <div class="card-header pipeline-header clickable" role="button" tabindex="0"
-               @click="toggleCollapse('riskEval')"
-               @keydown.enter.prevent="toggleCollapse('riskEval')"
-               @keydown.space.prevent="toggleCollapse('riskEval')"
-               :aria-expanded="!collapsed.riskEval"
-               style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
-              <span class="collapse-icon" :class="{ rotated: collapsed.riskEval }">▾</span>
-              Risk Eval
-            </h3>
-            <div style="display:flex;gap:6px;" v-show="!collapsed.riskEval">
-              <a href="#re-slide-1" style="text-decoration:none;">
-                <button type="button" style="width:34px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">‹</button>
-              </a>
-              <a href="#re-slide-2" style="text-decoration:none;">
-                <button type="button" style="width:34px;height:34px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;font-weight:700;border-radius:6px;cursor:pointer;">›</button>
-              </a>
-            </div>
-          </div>
-          <div v-show="!collapsed.riskEval" style="position:relative;overflow-x:auto;scroll-behavior:smooth;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;display:flex;width:100%;">
-            <div style="display:flex;width:100%;flex-wrap:nowrap;">
-              <!-- Risk Assessment Placeholder Slide -->
-              <div id="re-slide-1" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px;">
-                <div class="slide-title-bar">
-                  <h4 class="slide-title">Risk Assessment</h4>
-                  <a href="#re-slide-2" class="nav-link next" style="text-decoration:none;">
-                    <button type="button" class="nav-btn nav-next">Next ›</button>
-                  </a>
-                </div>
-                <!-- Risk Assessment Slide replacement start -->
-                <MerchantRisk
-                  ref="riskRef"
-                  :merchant="merchantKey"
-                  :now="nowIso"
-                />
-                <!-- Risk Assessment Slide replacement end -->
-              </div>
-              <!-- News Slide -->
-              <div id="re-slide-2" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                  <a href="#re-slide-1" style="text-decoration:none;">
-                    <button type="button" style="border:1px solid #14b8a6;background:#ffffff;color:#008080;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;">‹ Prev</button>
-                  </a>
-                  <h4 style="margin:0;color:#008080;">News Intelligence</h4>
-                  <span style="width:74px;"></span>
-                </div>
-                <div>
-                  <div v-if="newsError" style="color:#b91c1c;font-size:12px;font-weight:600;">{{ newsError }}</div>
-                  <MerchantNews :news="newsItems" :loading="newsLoading" :unit="unit" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-show="!collapsed.riskEval" style="display:flex;justify-content:center;gap:10px;padding:12px 0 16px;">
-            <a href="#re-slide-1" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
-            <a href="#re-slide-2" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
-          </div>
-        </div>
-        <!-- Combined Carousel Card -->
-        <div class="card" style="position:relative;">
-                  <div class="card-header pipeline-header clickable" role="button" tabindex="0"
-                       @click="toggleCollapse('pipelines')"
-                       @keydown.enter.prevent="toggleCollapse('pipelines')"
-                       @keydown.space.prevent="toggleCollapse('pipelines')"
-                       :aria-expanded="!collapsed.pipelines"
-                       style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
-                      <span class="collapse-icon" :class="{ rotated: collapsed.pipelines }">▾</span>
-                      Merchant Data Pipelines
-                    </h3>
-          </div>
-                  <!-- Carousel Wrapper -->
-                  <div v-show="!collapsed.pipelines"
-            style="
-              position:relative;
-              overflow-x:auto;
-              scroll-behavior:smooth;
-              scroll-snap-type:x mandatory;
-              -webkit-overflow-scrolling:touch;
-              display:flex;
-              width:100%;
-            "
-          >
-
-            <div
-              style="
-                display:flex;
-                width:100%;
-                flex-wrap:nowrap;
-              "
-            >
-
-              <!-- Slide 1 -->
-              <div
-                id="dp-slide-1"
-                style="
-                  scroll-snap-align:start;
-                  flex:0 0 100%;
-                  padding:16px 18px;
-                  box-sizing:border-box;
-                  display:flex;
-                  flex-direction:column;
-                  gap:18px;
-                "
-              >
-                <div class="slide-title-bar">
-                  <h4 class="slide-title">Twitter Data Pipeline</h4>
-                  <a href="#dp-slide-2" class="nav-link next" style="text-decoration:none;">
-                    <button type="button" class="nav-btn nav-next">Next ›</button>
-                  </a>
-                </div>
-
-                <div>
-                  <MerchantTwitter :tweets="tweets" :loading="tweetsLoading" :unit="unit" />
-                </div>
-
-              </div>
-
-              <!-- Slide 2 -->
-              <div
-                id="dp-slide-2"
-                style="
-                  scroll-snap-align:start;
-                  flex:0 0 100%;
-                  padding:16px 18px;
-                  box-sizing:border-box;
-                  display:flex;
-                  flex-direction:column;
-                  gap:18px;
-                "
-              >
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                  <a href="#dp-slide-1" style="text-decoration:none;">
-                    <button type="button" style="border:1px solid #14b8a6;background:#ffffff;color:#008080;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;">‹ Prev</button>
-                  </a>
-                  <h4 style="margin:0;color:#008080;">Reddit Data Pipeline</h4>
-                  <span style="width:74px;"></span>
-                </div>
-
-                <div>
-                  <MerchantReddit :posts="redditPosts" :loading="redditLoading" :unit="unit" />
-                </div>
-              </div>
-
-            </div>
+        <section class="card">
+          <div class="card-header">
+            <h3>Twitter Data Pipeline</h3>
           </div>
 
-          <!-- Dots -->
-          <div style="display:flex;justify-content:center;gap:10px;padding:12px 0 16px;">
-            <a href="#dp-slide-1"
-               style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
-            <a href="#dp-slide-2"
-               style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
+          <!-- pass the json to the merchant_twitter component -->
+          <div class="card-body">
+            <MerchantTwitter :tweets="tweets" :loading="tweetsLoading" :unit="unit" />
           </div>
-        </div>
+        </section>
 
 
-        <div class="card" style="position:relative;">
-          <div class="card-header pipeline-header clickable" role="button" tabindex="0"
-               @click="toggleCollapse('risk')"
-               @keydown.enter.prevent="toggleCollapse('risk')"
-               @keydown.space.prevent="toggleCollapse('risk')"
-               :aria-expanded="!collapsed.risk"
-               style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
-              <span class="collapse-icon" :class="{ rotated: collapsed.risk }">▾</span>
-              Risk & Stock Pipelines
-            </h3>
 
-          </div>
-          <div v-show="!collapsed.risk" style="position:relative;overflow-x:auto;scroll-behavior:smooth;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;display:flex;width:100%;">
-            <div style="display:flex;width:100%;flex-wrap:nowrap;">
-              <!-- WL Slide -->
-              <div id="rs-slide-1" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px;">
-                <div class="slide-title-bar">
-                  <h4 class="slide-title">WL Data Pipeline</h4>
-                  <a href="#rs-slide-2" class="nav-link next" style="text-decoration:none;">
-                    <button type="button" class="nav-btn nav-next">Next ›</button>
-                  </a>
-                </div>
-                <div>
-                  <div v-if="wlError" style="color:#b91c1c;font-size:12px;font-weight:600;">{{ wlError }}</div>
-                  <MerchantWl_Data :txns="wlTxns" :loading="wlLoading" :unit="unit" />
-                </div>
-              </div>
-              <!-- Stock + Reviews Slide -->
-              <div id="rs-slide-2" style="scroll-snap-align:start;flex:0 0 100%;padding:16px 18px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                  <a href="#rs-slide-1" style="text-decoration:none;">
-                    <button type="button" style="border:1px solid #14b8a6;background:#ffffff;color:#008080;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;">‹ Prev</button>
-                  </a>
-                  <h4 style="margin:0;color:#008080;">Stock & Reviews</h4>
-                  <span style="width:74px;"></span>
-                </div>
-                <div>
-                  <div v-if="stockError" style="color:#b91c1c;font-size:12px;font-weight:600;">{{ stockError }}</div>
-                  <MerchantStock :prices="stockPrices" :earnings="stockEarnings" :actions="stockActions" :meta="stockMeta" :loading="stockLoading" />
-                </div>
-                <div style="border-top:1px solid #e5e7eb;padding-top:12px;display:grid;gap:16px;">
-                  <h4 class="slide-title center">Customer Reviews</h4>
-                  <div v-if="reviewsError" style="color:#b91c1c;font-size:12px;font-weight:600;">{{ reviewsError }}</div>
-                  <MerchantReviews :reviews="reviewsData" :loading="reviewsLoading" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:center;gap:10px;padding:12px 0 16px;">
-            <a href="#rs-slide-1" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
-            <a href="#rs-slide-2" style="width:12px;height:12px;border-radius:50%;background:#14b8a6;opacity:.35;display:inline-block;transition:.25s;"></a>
-          </div>
-        </div>
 
         <section class="card">
-          <div class="card-header pipeline-header clickable" role="button" tabindex="0"
-               @click="toggleCollapse('actions')"
-               @keydown.enter.prevent="toggleCollapse('actions')"
-               @keydown.space.prevent="toggleCollapse('actions')"
-               :aria-expanded="!collapsed.actions">
-            <h3 style="display:flex;align-items:center;gap:8px;margin:0;">
-              <span class="collapse-icon" :class="{ rotated: collapsed.actions }">▾</span>
-              Merchant Actions & Restrictions
-            </h3>
+          <div class="card-header">
+        <h3>Merchant Actions & Restrictions</h3>
           </div>
-          <div v-show="!collapsed.actions" class="card-body" style="display:flex;flex-direction:column;gap:18px;">
+          <div class="card-body" style="display:flex;flex-direction:column;gap:18px;">
 
         <!-- Current Action Chips -->
         <div>
@@ -592,18 +359,11 @@
       
   <!-- Single, comprehensive card for all merchant info -->
   <section class="card">
-    <div class="card-header pipeline-header clickable" role="button" tabindex="0"
-         @click="toggleCollapse('details')"
-         @keydown.enter.prevent="toggleCollapse('details')"
-         @keydown.space.prevent="toggleCollapse('details')"
-         :aria-expanded="!collapsed.details">
-      <h3 style="display:flex;align-items:center;gap:8px;margin:0;">
-        <span class="collapse-icon" :class="{ rotated: collapsed.details }">▾</span>
-        Merchant Details
-      </h3>
+    <div class="card-header">
+      <h3>Merchant Details</h3>
     </div>
 
-    <div v-show="!collapsed.details" class="card-body grid-3">
+    <div class="card-body grid-3">
 
       <!-- display all merchant data here
        
@@ -1100,20 +860,18 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import { ref, reactive, computed, onMounted, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import MerchantTwitter from "./MerchantTwitter.vue";
-import MerchantWl_Data from "./MerchantWl_Data.vue";
-import MerchantReddit from "./MerchantReddit.vue";
-import MerchantStock from "./MerchantStock.vue";
-import MerchantReviews from "./MerchantReviews.vue";
-import MerchantNews from "./MerchantNews.vue";
-import MerchantRisk from "./MerchantRisk.vue";
 
+// Centralized API config
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
+// -------------------------------------
+// Utilities
+// -------------------------------------
 function toHHMMSS(val) {
   if (!val) return null;
   const p = String(val).split(":");
@@ -1178,6 +936,9 @@ async function apiPost(path, body) {
   return json;
 }
 
+// -------------------------------------
+// Local, small components
+// -------------------------------------
 const FieldRow = {
   name: "FieldRow",
   props: {
@@ -1185,7 +946,7 @@ const FieldRow = {
     field: { type: String, required: true },
     modelValue: { required: false },
     edit: { type: Boolean, default: false },
-    type: { type: String, default: "text" },
+    type: { type: String, default: "text" }, // text | textarea | date | time | datetime-local | select-bool
   },
   emits: ["update:modelValue", "update:edit"],
   setup(props, { emit }) {
@@ -1204,14 +965,14 @@ const FieldRow = {
       async (isEdit) => {
         if (isEdit) {
           await nextTick();
-            if (inputRef.value) {
-              inputRef.value.focus();
-              const el = inputRef.value;
-              if (el.setSelectionRange) {
-                const len = String(el.value || "").length;
-                el.setSelectionRange(len, len);
-              }
+          if (inputRef.value) {
+            inputRef.value.focus();
+            const el = inputRef.value;
+            if (el.setSelectionRange) {
+              const len = String(el.value || "").length;
+              el.setSelectionRange(len, len);
             }
+          }
         }
       }
     );
@@ -1244,14 +1005,19 @@ const FieldRow = {
   `,
 };
 
+// -------------------------------------
+// Main component
+// -------------------------------------
 export default {
   name: "MerchantDetail",
-  components: { FieldRow, MerchantTwitter, MerchantReddit, MerchantWl_Data, MerchantStock, MerchantReviews, MerchantNews, MerchantRisk },
+  components: { FieldRow, MerchantTwitter },
 
   setup() {
+    // Routing
     const route = useRoute();
     const router = useRouter();
 
+    // Route helpers
     const routeName = computed(() => {
       return (
         (route.params.name && String(route.params.name)) ||
@@ -1270,10 +1036,12 @@ export default {
       () => routeName.value || routeId.value || ""
     );
 
+    // Base state
     const loading = ref(true);
     const saving = ref(false);
     const originalDoc = ref(null);
 
+    // Merchant model (view-model)
     const merchant = reactive({
       id: "",
       name: "",
@@ -1313,6 +1081,7 @@ export default {
       status: "Unknown",
     });
 
+    // Edit flags for fields
     const editFields = reactive({});
     [
       "merchant_code",
@@ -1348,6 +1117,7 @@ export default {
       "description",
     ].forEach((k) => (editFields[k] = false));
 
+    // Status and labels
     const isActive = computed(() => !!merchant.activation_flag);
     const fullAddress = computed(() =>
       [merchant.street, merchant.city, merchant.postal_code, merchant.country_code]
@@ -1376,6 +1146,7 @@ export default {
       return code && mccMap[code] ? `(${mccMap[code]})` : "";
     });
 
+    // Actions and modals (kept compact)
     const actionsTaken = ref([]);
     const showPermanentBanModal = ref(false);
     const showShadowBanModal = ref(false);
@@ -1414,6 +1185,7 @@ export default {
         position: "top-right",
       });
     }
+    // Simple restrictions model
     const restrictionData = reactive({
       dailyTransactionLimit: null,
       monthlyTransactionLimit: null,
@@ -1455,6 +1227,7 @@ export default {
       });
     }
 
+    // Auto-refresh controls
     const autoRefresh = ref(false);
     const refreshSec = ref(10);
     let refreshTimer = null;
@@ -1466,6 +1239,7 @@ export default {
       }
       if (on) {
         refreshTimer = setInterval(() => {
+          // Only refresh streams by default; full doc reload is heavier.
           fetchStreams();
         }, Math.max(2000, (refreshSec.value || 10) * 1000));
       }
@@ -1473,10 +1247,13 @@ export default {
     watch(refreshSec, () => {
       if (autoRefresh.value) {
         autoRefresh.value = false;
-        autoRefresh.value = true;
+        autoRefresh.value = true; // retrigger timer with new interval
       }
     });
 
+    // -------------------------------------
+    // Merchant fetch + mapping
+    // -------------------------------------
     function mapDocToView(doc) {
       originalDoc.value = doc;
 
@@ -1513,7 +1290,7 @@ export default {
       merchant.trade_register_number = doc.trade_register_number || "";
       merchant.iban = (doc.iban === null ? "" : doc.iban) || "";
       merchant.domiciliary_bank_number = doc.domiciliary_bank_number || "";
-      merchant.cut_off_time = (doc.cut_off_time || "").slice(0, 5);
+      merchant.cut_off_time = (doc.cut_off_time || "").slice(0, 5); // HH:MM
 
       merchant.activation_flag = !!doc.activation_flag;
       merchant.activation_time = isoToLocal(doc.activation_time || "");
@@ -1536,14 +1313,17 @@ export default {
     }
 
     function mapViewToDetails() {
+      // Prepare a narrow "details" object compatible with backend "onboard" details
       return {
         merchant_code: merchant.merchant_code || undefined,
         url: merchant.url || undefined,
         language_code: merchant.language_code || undefined,
         time_zone_id: merchant.time_zone_id || undefined,
+
         legal_name: merchant.legal_name || undefined,
         acceptor_name: merchant.acceptor_name || undefined,
         acceptor_category_code: merchant.acceptor_category_code || undefined,
+
         country_code: merchant.country_code || undefined,
         country_sub_division_code: merchant.country_sub_division_code || undefined,
         home_country_code: merchant.home_country_code || undefined,
@@ -1552,18 +1332,21 @@ export default {
         postal_code: merchant.postal_code || undefined,
         street: merchant.street || undefined,
         city_category_code: merchant.city_category_code || undefined,
+
         business_service_phone_number:
           merchant.business_service_phone_number || undefined,
         customer_service_phone_number:
           merchant.customer_service_phone_number || undefined,
         additional_contact_information:
           merchant.additional_contact_information || undefined,
+
         currency_code: merchant.currency_code || undefined,
         tax_id: merchant.tax_id || undefined,
         trade_register_number: merchant.trade_register_number || undefined,
         iban: merchant.iban === "" ? null : merchant.iban,
         domiciliary_bank_number: merchant.domiciliary_bank_number || undefined,
         cut_off_time: toHHMMSS(merchant.cut_off_time || "") || undefined,
+
         activation_flag: !!merchant.activation_flag,
         activation_time: merchant.activation_time
           ? new Date(merchant.activation_time).toISOString()
@@ -1574,6 +1357,7 @@ export default {
         activation_end_time: merchant.activation_end_time
           ? new Date(merchant.activation_end_time).toISOString()
           : null,
+
         start_date: merchant.start_date || undefined,
         end_date: merchant.end_date || undefined,
         description: merchant.description || undefined,
@@ -1588,6 +1372,8 @@ export default {
     }
 
     async function fetchById(id) {
+      // If your backend supports by-id lookup via the same endpoint (service resolves it),
+      // this will work. Otherwise, you can adapt to your by-id route.
       const data = await apiGet(`/v1/merchants/${encodeURIComponent(id)}`);
       const doc = data?.merchant || null;
       if (!doc) throw new Error("Merchant not found");
@@ -1604,6 +1390,7 @@ export default {
         } else {
           await fetchByName(ident);
         }
+        // Fetch streams after merchant is loaded
         await fetchStreams();
       } catch (e) {
         loading.value = false;
@@ -1612,18 +1399,22 @@ export default {
       }
     };
 
+    // Change detection
     const hasChanges = computed(() => {
       const doc = originalDoc.value;
       if (!doc) return false;
       const cmp = (a, b) => (a ?? null) !== (b ?? null);
+
       if (cmp(merchant.merchant_code, doc.merchant_code)) return true;
       if (cmp(merchant.url, doc.url)) return true;
       if (cmp(merchant.language_code, doc.language_code)) return true;
       if (cmp(merchant.time_zone_id, doc.time_zone_id)) return true;
+
       if (cmp(merchant.legal_name, doc.legal_name)) return true;
       if (cmp(merchant.acceptor_name, doc.acceptor_name)) return true;
       if (cmp(merchant.acceptor_category_code, doc.acceptor_category_code))
         return true;
+
       if (cmp(merchant.country_code, doc.country_code)) return true;
       if (
         cmp(merchant.country_sub_division_code, doc.country_sub_division_code)
@@ -1635,6 +1426,7 @@ export default {
       if (cmp(merchant.postal_code, doc.postal_code)) return true;
       if (cmp(merchant.street, doc.street)) return true;
       if (cmp(merchant.city_category_code, doc.city_category_code)) return true;
+
       if (
         cmp(
           merchant.business_service_phone_number,
@@ -1656,6 +1448,7 @@ export default {
         )
       )
         return true;
+
       if (cmp(merchant.currency_code, doc.currency_code)) return true;
       if (cmp(merchant.tax_id, doc.tax_id)) return true;
       if (cmp(merchant.trade_register_number, doc.trade_register_number))
@@ -1666,6 +1459,7 @@ export default {
         return true;
       if (cmp(toHHMMSS(merchant.cut_off_time || ""), doc.cut_off_time))
         return true;
+
       if (cmp(!!merchant.activation_flag, !!doc.activation_flag)) return true;
       const actTimeISO = merchant.activation_time
         ? new Date(merchant.activation_time).toISOString()
@@ -1679,12 +1473,15 @@ export default {
       if (cmp(actTimeISO, doc.activation_time || null)) return true;
       if (cmp(actStartISO, doc.activation_start_time || null)) return true;
       if (cmp(actEndISO, doc.activation_end_time || null)) return true;
+
       if (cmp(merchant.start_date, doc.start_date)) return true;
       if (cmp(merchant.end_date, doc.end_date)) return true;
       if (cmp(merchant.description, doc.description)) return true;
+
       return false;
     });
 
+    // Save updates via /v1/onboard (background task)
     async function saveUpdates() {
       if (!originalDoc.value || !merchant.name) return;
       saving.value = true;
@@ -1692,12 +1489,12 @@ export default {
         const details = mapViewToDetails();
         const body = {
           merchant_name: merchant.name,
-            deep_scan: false,
-            details,
-            preset_overrides: {},
-            start_date: merchant.start_date || undefined,
-            end_date: merchant.end_date || undefined,
-            seed: undefined,
+          deep_scan: false,
+          details,
+          preset_overrides: {},
+          start_date: merchant.start_date || undefined,
+          end_date: merchant.end_date || undefined,
+          seed: undefined,
         };
         const res = await apiPost("/v1/onboard", body);
         const tid = res?.task_id;
@@ -1706,6 +1503,7 @@ export default {
           await loadFromRoute();
           return;
         }
+        // Poll task until done
         const started = Date.now();
         let status = "pending";
         while (status === "pending" || status === "running") {
@@ -1714,7 +1512,7 @@ export default {
           status = t?.status || "unknown";
           if (status === "done") break;
           if (status === "error") throw new Error(t?.error || "Task failed");
-          if (Date.now() - started > 30000) break;
+          if (Date.now() - started > 30_000) break; // 30s sanity timeout
         }
         toast.success("Saved and refreshed.");
         await loadFromRoute();
@@ -1725,247 +1523,41 @@ export default {
       }
     }
 
+    // Navigation helpers
     function goBack() {
       router.back();
     }
     function openEmailBox() {
-      router.push('/mailbox');
-      // toast.info("Open notifications center", { autoClose: 2000 });
+      toast.info("Open notifications center", { autoClose: 2000 });
     }
     function openSocialUpdates() {
       toast.info("Open social updates", { autoClose: 2000 });
     }
     function openExplore() {
-      toast.info("Opening explore", { autoClose: 2000 });
-      router.push({
-        path: `/explore/${merchant.name}`,
-        query: {
-          simNow: simNow.value || undefined, // Pass simNow as query parameter
-        },
-      });
+      toast.info("Open explore", { autoClose: 2000 });
     }
 
-    // Streams state
+    // -------------------------------------
+    // Streams: Tweets only (efficient)
+    // -------------------------------------
     const tweets = ref([]);
     const tweetsLoading = ref(false);
     const tweetsError = ref("");
 
-    // Reddit (new)
-    const redditPosts = ref([]);
-    const redditLoading = ref(false);
-    const redditError = ref("");
-
-  // WL_data
-    const wlTxns = ref([]);
-    const wlLoading = ref(false);
-  const wlError = ref("");
-  // Stock data
-  const stockPrices = ref([]);
-  const stockEarnings = ref([]);
-  const stockActions = ref([]);
-  const stockMeta = ref({});
-  const stockLoading = ref(false);
-  const stockError = ref("");
-  // Reviews data
-  const reviewsData = ref([]);
-  const reviewsLoading = ref(false);
-  const reviewsError = ref("");
-  // News data
-  const newsItems = ref([]);
-  const newsLoading = ref(false);
-  const newsError = ref("");
-    // Which side panel is visible: 'info' or 'data'
-    const activePanel = ref('info');
-    function togglePanel() {
-      activePanel.value = (activePanel.value === 'info') ? 'data' : 'info';
-    }
-
-    const streamWindow = ref("7d");
+    // Query params (aligned with backend)
+    const streamWindow = ref("7d"); // e.g., 1h, 6h, 1d, 7d
     const streamOrder = ref("desc");
     const streamLimit = ref(5000);
     const allowFuture = ref(false);
-    const sinceStr = ref("");
-    const untilStr = ref("");
-    const nowIso = ref("");
-    // --- Simulated Time State ---
-    const simEnabled = ref(false);        // master enable
-    const simRunning = ref(false);        // running vs paused
-    const accel = ref(1.0);               // acceleration multiplier
-    const simStartInput = ref("");        // user-provided ISO start
-  const simBaseIso = ref("");           // internal anchor
-  const jumpValue = ref(0);              // seconds to jump (+/-)
-  const liveSimUpdate = ref(true);       // automatically fetch while running
-  const liveSimIntervalSec = ref(5);     // real seconds between fetches
-  let lastSimFetchMs = 0;
-  let streamsInFlight = false;
-    let wallStartMs = Date.now();          // real clock anchor
-    let simTimer = null;                   // interval handle
-    function normalizeStart(raw) {
-      if (!raw) return Date.now();
-      // Append 'Z' if no timezone specified.
-      const needsZ = /\dT\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(raw) && !/[zZ]|[\+\-]\d{2}:?\d{2}$/.test(raw);
-      const s = needsZ ? raw + 'Z' : raw;
-      const ts = Date.parse(s);
-      return isFinite(ts) ? ts : Date.now();
-    }
-    function initSimBase() {
-      const raw = (simStartInput.value || '').trim();
-      const base = normalizeStart(raw);
-      simBaseIso.value = new Date(base).toISOString();
-      wallStartMs = Date.now();
-      simClock.value = Date.now();
-      nowIso.value = simBaseIso.value;
-    }
-    const simClock = ref(Date.now()); // reactive heartbeat
-    const simNow = computed(() => {
-      if (!simEnabled.value) return nowIso.value || new Date().toISOString();
-      if (!simBaseIso.value) return new Date().toISOString();
-      const base = Date.parse(simBaseIso.value);
-      if (!isFinite(base)) return new Date().toISOString();
-      const elapsedReal = simClock.value - wallStartMs;
-      const adv = simRunning.value ? elapsedReal * Math.max(0, accel.value) : 0;
-      return new Date(base + adv).toISOString();
-    });
-    function tickSim() {
-      if (!simEnabled.value) return;
-      simClock.value = Date.now(); // advance heartbeat
-      nowIso.value = simNow.value; // keep override param aligned
-      if (simRunning.value && liveSimUpdate.value) {
-        const nowMs = Date.now();
-        if (!streamsInFlight && (nowMs - lastSimFetchMs) >= Math.max(1000, (liveSimIntervalSec.value||5)*1000)) {
-          lastSimFetchMs = nowMs;
-          fetchStreams();
-        }
-      }
-    }
-    function startSimLoop() { if (simTimer) clearInterval(simTimer); simTimer = setInterval(tickSim, 1000); }
-    function stopSimLoop() { if (simTimer) { clearInterval(simTimer); simTimer = null; } }
-    function toggleSimRun() {
-      if (!simEnabled.value) return;
-      if (!simRunning.value) {
-        if (!simBaseIso.value) initSimBase();
-        simRunning.value = true;
-        // Auto-enable standard auto refresh toggle for visibility when simulation starts
-        if (!autoRefresh.value) autoRefresh.value = true;
-        // Sync refreshSec with liveSimIntervalSec if user hasn't customized
-        if (!refreshSec.value || refreshSec.value < 1) {
-          refreshSec.value = Math.max(2, liveSimIntervalSec.value || 5);
-        }
-        if (liveSimUpdate.value && !streamsInFlight) fetchStreams();
-        tickSim();
-      } else {
-        // pause - freeze base at current simNow
-        simBaseIso.value = simNow.value;
-        wallStartMs = Date.now();
-        simRunning.value = false;
-      }
-    }
-    function resetSim() {
-      if (!simEnabled.value) return;
-      simRunning.value = false;
-      initSimBase();
-    }
-    function applyStart() {
-      if (!simEnabled.value) return;
-      initSimBase();
-    }
-    function applyJump() {
-      if (!simEnabled.value || !jumpValue.value) return;
-      const current = Date.parse(simNow.value);
-      const delta = jumpValue.value * 1000;
-      if (simRunning.value) {
-        const elapsedReal = Date.now() - wallStartMs;
-        const newBase = current + delta - elapsedReal * Math.max(0, accel.value);
-        simBaseIso.value = new Date(newBase).toISOString();
-      } else {
-        simBaseIso.value = new Date(current + delta).toISOString();
-      }
-      jumpValue.value = 0;
-      nowIso.value = simNow.value;
-    }
-    function syncRealNow() {
-      if (!simEnabled.value) return;
-      simBaseIso.value = new Date().toISOString();
-      wallStartMs = Date.now();
-      nowIso.value = simBaseIso.value;
-    }
-    watch(simEnabled, (en) => {
-      if (en) {
-        initSimBase();
-        startSimLoop();
-      } else {
-        stopSimLoop();
-      }
-    });
-    watch([accel, simRunning], () => {
-      if (simEnabled.value && simRunning.value) {
-        // re-anchor base so perceived current does not jump
-        const cur = simNow.value;
-        simBaseIso.value = cur;
-        wallStartMs = Date.now();
-      }
-    });
-    watch(simStartInput, (v) => {
-      // If user edits start while paused, reinitialize base automatically
-      if (simEnabled.value && !simRunning.value) {
-        if ((v || '').trim()) initSimBase();
-      }
-    });
+    const sinceStr = ref(""); // optional ISO/epoch
+    const untilStr = ref(""); // optional ISO/epoch
+    const nowIso = ref(""); // optional; let server use real now if blank
 
-    // --- Persistence ---
-    const SIM_KEY = 'merchantSimState';
-    function persistSim() {
-      try {
-        const payload = {
-          enabled: simEnabled.value,
-          running: simRunning.value,
-          accel: accel.value,
-          simBaseIso: simBaseIso.value,
-          simStartInput: simStartInput.value,
-          lastSimNow: simNow.value,
-          live: liveSimUpdate.value,
-          liveInterval: liveSimIntervalSec.value,
-          savedAt: Date.now(),
-        };
-        localStorage.setItem(SIM_KEY, JSON.stringify(payload));
-      } catch {}
-    }
-    function loadSim() {
-      try {
-        const raw = localStorage.getItem(SIM_KEY);
-        if (!raw) return;
-        const st = JSON.parse(raw);
-        simEnabled.value = !!st.enabled;
-        accel.value = Number(st.accel) || 1;
-        simStartInput.value = st.simStartInput || '';
-        simBaseIso.value = st.simBaseIso || st.lastSimNow || '';
-        wallStartMs = Date.now();
-        simRunning.value = !!st.running; // resume running state
-        liveSimUpdate.value = st.live !== false; // default true
-        if (typeof st.liveInterval === 'number') liveSimIntervalSec.value = st.liveInterval;
-        if (simEnabled.value) startSimLoop();
-      } catch {}
-    }
-    // persist on key changes
-  watch([simEnabled, simRunning, accel, simBaseIso, simStartInput, liveSimUpdate, liveSimIntervalSec], persistSim, { deep: false });
-    onBeforeUnmount(() => stopSimLoop());
+    // Client-side aggregation granularity for child charts
     const unit = ref("hour");
 
-    // Collapsible sections state
-    const collapsed = reactive({
-      pipelines: false,
-      risk: false,
-      riskEval: false,
-      actions: false,
-      details: false,
-    });
-    function toggleCollapse(key) {
-      if (Object.prototype.hasOwnProperty.call(collapsed, key)) {
-        collapsed[key] = !collapsed[key];
-      }
-    }
-
     const merchantKey = computed(() => {
+      // Prefer the merchant_name from the loaded doc
       return (
         (originalDoc.value && originalDoc.value.merchant_name) ||
         (routeName.value || "").trim() ||
@@ -1975,120 +1567,57 @@ export default {
 
     let streamsAbort = null;
 
-async function fetchStreams() {
-  if (!merchantKey.value) return;
-  if (streamsAbort) streamsAbort.abort();
-  streamsAbort = new AbortController();
-  streamsInFlight = true;
+    async function fetchStreams() {
+      if (!merchantKey.value) return;
+      if (streamsAbort) streamsAbort.abort();
+      streamsAbort = new AbortController();
 
-  tweetsLoading.value = true;
-  redditLoading.value = true;
-  wlLoading.value = true;
-  stockLoading.value = true;
-  reviewsLoading.value = true;
-  newsLoading.value = true;
-  tweetsError.value = "";
-  redditError.value = "";
-  wlError.value = "";
-  stockError.value = "";
-  reviewsError.value = "";
-  newsError.value = "";
+      tweetsLoading.value = true;
+      tweetsError.value = "";
 
-  try {
-    const params = new URLSearchParams();
-  // Request tweets, reddit, wl, stock and reviews in one call (include_stock_meta to retrieve meta block)
-  params.set("streams", "tweets,reddit,wl,stock,reviews,news");
-  params.set("include_stock_meta", "true");
-    params.set("order", streamOrder.value || "desc");
-    if (streamWindow.value && streamWindow.value.trim()) params.set("window", streamWindow.value.trim());
-    if ((sinceStr.value || "").trim()) params.set("since", sinceStr.value.trim());
-    if ((untilStr.value || "").trim()) params.set("until", untilStr.value.trim());
-    if (Number(streamLimit.value) > 0) params.set("limit", String(Number(streamLimit.value)));
-    if (allowFuture.value) params.set("allow_future", "true");
-    if ((nowIso.value || "").trim()) params.set("now", nowIso.value.trim());
+      try {
+        const params = new URLSearchParams();
+        params.set("streams", "tweets"); // only tweets for efficiency
+        params.set("order", streamOrder.value || "desc");
+        if (streamWindow.value && streamWindow.value.trim())
+          params.set("window", streamWindow.value.trim());
+        if ((sinceStr.value || "").trim()) params.set("since", sinceStr.value.trim());
+        if ((untilStr.value || "").trim()) params.set("until", untilStr.value.trim());
+        if (Number(streamLimit.value) > 0)
+          params.set("limit", String(Number(streamLimit.value)));
+        if (allowFuture.value) params.set("allow_future", "true");
+        if ((nowIso.value || "").trim()) params.set("now", nowIso.value.trim());
 
-    const url = `/v1/${encodeURIComponent(merchantKey.value)}/data`;
-    const json = await apiGet(url, Object.fromEntries(params), streamsAbort.signal);
+        const url = `/v1/${encodeURIComponent(merchantKey.value)}/data`;
+        const json = await apiGet(url, Object.fromEntries(params), streamsAbort.signal);
 
-    tweets.value = Array.isArray(json?.data?.tweets) ? json.data.tweets : [];
-    // Reddit data (as before)
-    const redditArr =
-      json?.data?.reddit_posts ||
-      json?.data?.reddit ||
-      json?.data?.redditPosts ||
-      [];
-    redditPosts.value = Array.isArray(redditArr) ? redditArr : [];
-
-    // WL data (support multiple possible keys)
-    const wlArr =
-      json?.data?.wl ||
-      json?.data?.wl_transactions ||
-      json?.data?.wlTxns ||
-      json?.data?.wl_transactions_raw ||
-      [];
-    wlTxns.value = Array.isArray(wlArr) ? wlArr : [];
-
-    // Stock composite payload keys (backend returns stock as nested object)
-    const stockObj = json?.data?.stock || json?.data?.stock_data || null;
-    if (stockObj && typeof stockObj === 'object') {
-      stockPrices.value = Array.isArray(stockObj.prices) ? stockObj.prices : [];
-      stockEarnings.value = Array.isArray(stockObj.earnings) ? stockObj.earnings : [];
-      stockActions.value = Array.isArray(stockObj.corporate_actions || stockObj.actions) ? (stockObj.corporate_actions || stockObj.actions) : [];
-      stockMeta.value = (stockObj.meta && typeof stockObj.meta === 'object') ? stockObj.meta : {};
-    } else {
-      stockPrices.value = [];
-      stockEarnings.value = [];
-      stockActions.value = [];
-      stockMeta.value = {};
+        tweets.value = Array.isArray(json?.data?.tweets) ? json.data.tweets : [];
+      } catch (e) {
+        if (String(e?.name) !== "AbortError") {
+          tweetsError.value = String(e?.message || e);
+          tweets.value = [];
+          toast.error(tweetsError.value, { autoClose: 3000 });
+        }
+      } finally {
+        tweetsLoading.value = false;
+      }
     }
 
-  // Reviews (simple list)
-  const revArr = json?.data?.reviews || json?.data?.customer_reviews || [];
-  reviewsData.value = Array.isArray(revArr) ? revArr : [];
-  // News list
-  const newsArr = json?.data?.news || json?.data?.news_items || json?.data?.newsData || [];
-  newsItems.value = Array.isArray(newsArr) ? newsArr : [];
-
-  } catch (e) {
-    if (String(e?.name) !== "AbortError") {
-      const msg = String(e?.message || e);
-      tweetsError.value = msg;
-      redditError.value = msg;
-    wlError.value = msg;
-    reviewsError.value = msg;
-    newsError.value = msg;
-      stockError.value = msg;
-      tweets.value = [];
-      redditPosts.value = [];
-      wlTxns.value = [];
-      stockPrices.value = [];
-      stockEarnings.value = [];
-      stockActions.value = [];
-    stockMeta.value = {};
-    reviewsData.value = [];
-    newsItems.value = [];
-      toast.error(msg, { autoClose: 3000 });
-    }
-  } finally {
-    tweetsLoading.value = false;
-    redditLoading.value = false;
-    wlLoading.value = false;
-    stockLoading.value = false;
-  reviewsLoading.value = false;
-  newsLoading.value = false;
-    streamsInFlight = false;
-  }
-}
-
+    // Refetch when any stream control changes
     watch(
-      [streamWindow, streamOrder, streamLimit, allowFuture, sinceStr, untilStr],
-      () => { fetchStreams(); }
+      [streamWindow, streamOrder, streamLimit, allowFuture, sinceStr, untilStr, nowIso],
+      () => {
+        fetchStreams();
+      }
     );
+
+    // On merchant change (route) refetch
     watch(merchantKey, () => {
       fetchStreams();
     });
 
-  onMounted(() => { loadSim(); loadFromRoute(); });
+    // Lifecycle
+    onMounted(loadFromRoute);
     watch(
       () => route.fullPath,
       () => {
@@ -2096,23 +1625,11 @@ async function fetchStreams() {
       }
     );
 
-    const riskRef = ref(null);
-    // Bridge simulated time + window to MerchantRisk component after mount
-    watch([simNow, streamWindow], () => {
-      const comp = riskRef.value;
-      if (comp) {
-        if (comp.activeWindow !== undefined) comp.activeWindow = streamWindow.value || null;
-        if (comp.simNowTs !== undefined) {
-          try {
-            comp.simNowTs = simNow.value ? Math.floor(Date.parse(simNow.value)/1000) : null;
-          } catch { comp.simNowTs = null; }
-        }
-        if (comp.refresh) comp.refresh();
-      }
-    });
-
+    // Expose to template
     return {
+      // route
       routeIdentifier,
+      // base
       merchant,
       originalDoc,
       editFields,
@@ -2122,6 +1639,7 @@ async function fetchStreams() {
       isActive,
       fullAddress,
       mccLabel,
+      // actions
       actionsTaken,
       showPermanentBanModal,
       showShadowBanModal,
@@ -2139,35 +1657,21 @@ async function fetchStreams() {
       restrictionData,
       addCategoryCode,
       removeCategoryCode,
+      // utils
       formatDate,
+      // ops
       saveUpdates,
       goBack,
       openEmailBox,
       openSocialUpdates,
       openExplore,
+      // auto refresh
       autoRefresh,
       refreshSec,
+      // streams
       tweets,
       tweetsLoading,
       tweetsError,
-      redditPosts,
-      redditLoading,
-      redditError,
-      wlTxns,
-      wlLoading,
-  wlError,
-  stockPrices,
-  stockEarnings,
-  stockActions,
-  stockMeta,
-  stockLoading,
-  stockError,
-  reviewsData,
-  reviewsLoading,
-  reviewsError,
-    newsItems,
-    newsLoading,
-    newsError,
       streamWindow,
       streamOrder,
       streamLimit,
@@ -2175,30 +1679,8 @@ async function fetchStreams() {
       sinceStr,
       untilStr,
       nowIso,
-      // Simulated time exports
-      simEnabled,
-      simRunning,
-      accel,
-      simStartInput,
-      simNow,
-      jumpValue,
-  applyStart,
-      toggleSimRun,
-      resetSim,
-      applyJump,
-      syncRealNow,
-  simBaseIso,
-  liveSimUpdate,
-  liveSimIntervalSec,
-  activePanel,
-  togglePanel,
       unit,
       fetchStreams,
-      collapsed,
-      toggleCollapse,
-      merchantKey,
-      API_BASE,
-      riskRef,
     };
   },
 };
@@ -2213,8 +1695,6 @@ async function fetchStreams() {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background-color: #f5f5f5;
   min-height: 100vh;
-  /* header offset variable for sticky elements */
-  --header-offset: 70px;
 }
 
 .layout {
@@ -2228,9 +1708,6 @@ async function fetchStreams() {
   padding: 16px 20px;
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
-  position: sticky;
-  top: 0;
-  z-index: 120;
 }
 .breadcrumb {
   display: flex;
@@ -2251,13 +1728,12 @@ async function fetchStreams() {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     border: 1px solid #e5e7eb;
     padding: 18px;
-  position: sticky;
-  top: var(--header-offset);
-  height: calc(100vh - var(--header-offset) - 20px);
-  height: auto;
-  min-height: 77vh !important;
-  max-height: calc(100vh - var(--header-offset) - 20px);
-  overflow-y: auto;
+    height: -moz-fit-content;
+    height: fit-content;
+    height: -webkit-fill-available;
+    height: 81vh;
+    position: sticky;
+    top: 20px;
     display: flex
 ;
     flex-direction: column;
@@ -2340,26 +1816,7 @@ async function fetchStreams() {
 }
 .card-header { padding: 16px 18px; background: #f8fafc; border-bottom: 1px solid #e5e7eb; }
 .card-header h3 { margin: 0; color: #008080; font-size: 16px; font-weight: 600; }
-.card-header.clickable { cursor:pointer; user-select:none; }
-.card-header.clickable:focus { outline:2px solid #0d9488; outline-offset:2px; }
-.collapse-icon { display:inline-block; transition: transform .25s ease; font-size:14px; }
-.collapse-icon.rotated { transform: rotate(-90deg); }
-.pipeline-header { background: linear-gradient(90deg,#008080 0%,#14b8a6 60%,#0d9488 100%); color:#ffffff; border-bottom:1px solid #0f766e; }
-.pipeline-header h3 { color:#ffffff; letter-spacing:.5px; }
-.slide-title-bar { position:relative; display:flex; align-items:center; justify-content:center; background:linear-gradient(90deg,#f0fdfa,#ecfeff); padding:10px 12px; border:1px solid #14b8a6; border-radius:8px; }
-.slide-title-bar .slide-title { margin:0; font-size:15px; font-weight:700; color:#008080; text-align:center; flex:1; }
-.slide-title { margin:0; font-size:15px; font-weight:700; color:#008080; }
-.slide-title.center { text-align:center; justify-self:center; }
-.nav-btn { border:1px solid #14b8a6; background:#ffffff; color:#008080; font-weight:600; padding:6px 12px; border-radius:6px; cursor:pointer; }
-.nav-btn:hover { background:#008080; color:#f0fdfa; }
 .card-body { padding: 16px 18px; display: grid; gap: 12px; }
-.card-body.scrollable { flex:1; min-height:0; }
-.data-controls-card { 
-  height: calc(100vh - var(--header-offset) - 20px);
-  max-height: calc(100vh - var(--header-offset) - 20px);
-  top: var(--header-offset) !important;
-  display:flex; flex-direction:column;
-}
 .card-footer { padding: 12px 18px; background: #fafbfc; border-top: 1px solid #e5e7eb; }
 .meta-footer { display: flex; gap: 24px; color: #374151; font-size: 13px; }
 .grid-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
@@ -2392,6 +1849,7 @@ async function fetchStreams() {
 .desc-label { color: #374151; font-weight: 600; font-size: 13px; }
 .desc-content { display: grid; gap: 8px; }
 .desc-text { color: #111827; font-size: 14px; }
+.desc-edit { }
 
 /* Display rows */
 .row-display { margin: 0; font-size: 14px; color: #374151; display: flex; gap: 8px; }
