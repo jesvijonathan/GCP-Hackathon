@@ -296,6 +296,7 @@ class MerchantService:
             "activation_time": dt_to_iso(now - dt.timedelta(days=rng.randint(0, 300))),
             "activation_start_time": dt_to_iso(act_start),
             "activation_end_time": (dt_to_iso(act_end) if act_end else None),
+            "auto_action": False,
             "city_category_code": rng.choice(["URB","SUB","RUR", None]),
             "business_service_phone_number": random_phone(rng),
             "customer_service_phone_number": random_phone(rng),

@@ -17,10 +17,11 @@
     <div v-if="merchant && !loading" class="layout">
       <!-- Side summary panel -->
       <div class="side-column" style="display:flex;flex-direction:column;gap:20px;">
-  <aside v-if="activePanel==='info'" class="side-panel" style="display:flex;flex-direction:column;overflow-y:auto;">
+  <aside class="side-panel" style="display:flex;flex-direction:column;overflow-y:auto;">
           <div class="merchant-header" style="position:relative;">
             <div class="title-row">
-              <span class="status-dot" :class="{ active: isActive, inactive: !isActive }"></span>
+              <!-- Status dot priority: inactive (red) > restricted (yellow) > active (green) -->
+              <span class="status-dot" :class="statusDotClass"></span>
               <h1 class="merchant-title">{{ merchant.name || "Merchant" }}</h1>
             </div>
             <p class="merchant-id">ID: {{ merchant.id || "-" }}</p>
@@ -37,6 +38,12 @@
         <div class="summary-item">
           <span class="label">Status</span>
           <span class="value">{{ isActive ? "Active" : "Inactive" }}</span>
+        </div>
+        <div class="summary-item">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px;color:#065f5b;cursor:pointer;">
+            <input type="checkbox" v-model="merchant.auto_action" style="transform:scale(1.1);"/>
+            <span>Auto Action</span>
+          </label>
         </div>
           </div>
 
@@ -71,186 +78,7 @@
           {{ actionsTaken.length > 0 ? actionsTaken.join(", ") : "No actions taken" }}
         </p>
           </div>
-          <!-- Moved Data Controls toggle button to bottom -->
-          <div style="margin-top:auto;display:flex;justify-content:flex-end;padding-top:8px;">
-            <button @click="togglePanel" aria-label="Show Data Controls" title="Show Data Controls"
-              style="padding:8px 14px;font-size:12px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;border-radius:8px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.08);">
-              Data ▸
-            </button>
-          </div>
   </aside>
-
-        <!-- NEW: Data Controls separate card -->
-  <section v-if="activePanel === 'data'"
-    class="card data-controls-card"
-    style="padding:0;z-index:99;position:sticky;top:0;overflow:hidden;display:flex;flex-direction:column;"
-        >
-          <div class="card-header" style="position:relative;padding-top:18px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-            <span
-              style="
-          content:'';
-          position:absolute;
-          top:0;
-          left:0;
-          right:0;
-          height:6px;
-          background:linear-gradient(90deg,#008080,#14b8a6,#0d9488);
-          box-shadow:0 2px 6px -2px rgba(0,0,0,0.25);
-              "
-            ></span>
-        <h3 style="margin:0;">Data Controls</h3>
-        <button @click="togglePanel" style="position:relative;z-index:2;padding:6px 10px;font-size:11px;border:1px solid #14b8a6;background:#ffffff;color:#008080;border-radius:6px;font-weight:600;cursor:pointer;">◂ Info</button>
-          </div>
-          <div class="card-body scrollable" style="display:flex;flex-direction:column;gap:14px;overflow-y:auto;">
-        <!-- Mode Toggle -->
-        <div style="display:flex;gap:6px;">
-          <button
-            type="button"
-            @click="sinceStr='', untilStr='', streamWindow = streamWindow || '7d'"
-            :class="{'active': !!streamWindow}"
-            style="flex:1;padding:8px 10px;font-size:12px;font-weight:600;border:1px solid #14b8a6;border-radius:6px;background:var(--c-win,#f0fdfa);color:#008080;cursor:pointer;"
-          >Window</button>
-          <button
-            type="button"
-            @click="streamWindow='', sinceStr = sinceStr || new Date(Date.now()-24*3600*1000).toISOString(), untilStr=''"
-            :class="{'active': !streamWindow}"
-            style="flex:1;padding:8px 10px;font-size:12px;font-weight:600;border:1px solid #14b8a6;border-radius:6px;background:var(--c-su,#ffffff);color:#008080;cursor:pointer;"
-          >Since / Until</button>
-        </div>
-
-        <!-- Window Mode -->
-        <div v-if="streamWindow" style="display:grid;gap:10px;">
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <label style="font-size:11px;font-weight:600;color:#6b7280;">Window (e.g. 1h, 6h, 1d, 7d)</label>
-            <input v-model.trim="streamWindow" class="form-input" placeholder="7d" />
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <label style="font-size:11px;font-weight:600;color:#6b7280;">Aggregate Unit</label>
-            <select v-model="unit" class="form-input">
-          <option value="hour">Hour</option>
-          <option value="day">Day</option>
-          <option value="week">Week</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Since / Until Mode -->
-        <div v-else style="display:grid;gap:10px;">
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <label style="font-size:11px;font-weight:600;color:#6b7280;">Since (ISO / epoch)</label>
-            <input v-model.trim="sinceStr" class="form-input" placeholder="2025-01-01T00:00:00Z" />
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <label style="font-size:11px;font-weight:600;color:#6b7280;">Until (ISO / epoch)</label>
-            <input v-model.trim="untilStr" class="form-input" placeholder="Optional" />
-          </div>
-          <small style="font-size:11px;color:#6b7280;line-height:1.3;">
-            Leave Until blank for open-ended range. Clearing both re-enables Window mode.
-          </small>
-        </div>
-
-        <!-- Shared Controls -->
-        <div style="display:grid;gap:10px;">
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <label style="font-size:11px;font-weight:600;color:#6b7280;">Limit</label>
-            <input type="number" min="1" v-model.number="streamLimit" class="form-input" />
-          </div>
-
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <label style="font-size:11px;font-weight:600;color:#6b7280;">Order</label>
-            <select v-model="streamOrder" class="form-input">
-          <option value="desc">Newest First</option>
-          <option value="asc">Oldest First</option>
-            </select>
-          </div>
-
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-            <label style="font-size:11px;font-weight:600;color:#6b7280;">Allow Future</label>
-            <input type="checkbox" v-model="allowFuture" />
-          </div>
-
-          <div style="display:grid;gap:10px;">
-            <!-- Simulated time block -->
-            <div style="display:grid;gap:6px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;background:#f9fafb;">
-              <div style="display:flex;align-items:center;justify-content:space-between;">
-                <label style="font-size:11px;font-weight:700;color:#0f766e;">Simulated Time</label>
-                <label style="font-size:11px;color:#0f766e;font-weight:600;display:flex;align-items:center;gap:4px;">
-                  <input type="checkbox" v-model="simEnabled" /> Enable
-                </label>
-              </div>
-              <div style="font-size:12px;color:#111827;font-weight:600;">
-                {{ simNow }} <span v-if="simEnabled" style="color:#6b7280;font-weight:500;">(x{{ accel }})</span>
-              </div>
-              <div v-if="simEnabled" style="display:grid;gap:6px;">
-                <div style="display:flex;gap:6px;">
-                  <div style="flex:1;display:flex;flex-direction:column;gap:2px;">
-                    <label style="font-size:10px;font-weight:600;color:#6b7280;">Start ISO (optional)</label>
-                    <input v-model.trim="simStartInput" class="form-input" placeholder="YYYY-MM-DDTHH:MM:SSZ" />
-                  </div>
-                  <div style="width:90px;display:flex;flex-direction:column;gap:2px;">
-                    <label style="font-size:10px;font-weight:600;color:#6b7280;">Accel x</label>
-                    <input type="number" min="0" step="0.1" v-model.number="accel" class="form-input" />
-                  </div>
-                </div>
-                <div style="display:flex;gap:6px;">
-                  <div style="flex:1;display:flex;flex-direction:column;gap:2px;">
-                    <label style="font-size:10px;font-weight:600;color:#6b7280;">Jump (+/- s)</label>
-                    <input type="number" step="1" v-model.number="jumpValue" class="form-input" />
-                  </div>
-                  <div style="display:flex;align-items:flex-end;gap:6px;">
-                    <button type="button" @click="applyJump" style="padding:8px 10px;font-size:11px;border:1px solid #14b8a6;background:#ffffff;color:#008080;border-radius:6px;cursor:pointer;font-weight:600;">Jump</button>
-                    <button type="button" @click="resetSim" style="padding:8px 10px;font-size:11px;border:1px solid #14b8a6;background:#f0fdfa;color:#008080;border-radius:6px;cursor:pointer;font-weight:600;">Reset</button>
-                  </div>
-                </div>
-                <div style="display:flex;gap:6px;">
-                  <button type="button" @click="toggleSimRun" :disabled="!simEnabled" style="flex:1;padding:8px 10px;font-size:12px;font-weight:600;border:1px solid #14b8a6;border-radius:6px;cursor:pointer;" :style="simRunning ? 'background:#dcfce7;color:#065f46;' : 'background:#fee2e2;color:#991b1b;'">
-                    {{ simRunning ? 'Pause' : 'Start' }}
-                  </button>
-                  <button type="button" @click="syncRealNow" :disabled="!simEnabled" style="flex:1;padding:8px 10px;font-size:12px;font-weight:600;border:1px solid #14b8a6;border-radius:6px;background:#ffffff;color:#008080;cursor:pointer;">Sync Now</button>
-                </div>
-              </div>
-              <div v-else style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:11px;font-weight:600;color:#6b7280;">Override Now (ISO)</label>
-                <input v-model.trim="nowIso" class="form-input" placeholder="Leave blank for real now" />
-              </div>
-            </div>
-          </div>
-
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-            <label style="font-size:11px;font-weight:600;color:#6b7280;">Auto Refresh</label>
-            <input type="checkbox" v-model="autoRefresh" />
-          </div>
-
-          <div v-if="autoRefresh" style="display:flex;flex-direction:column;gap:4px;">
-            <label style="font-size:11px;font-weight:600;color:#6b7280;">Refresh Interval (s)</label>
-            <input type="number" min="2" v-model.number="refreshSec" class="form-input" />
-          </div>
-        </div>
-
-        <div style="display:flex;gap:8px;margin-top:4px;">
-          <button
-            class="btn-primary"
-            style="flex:1;padding:10px 14px;border-radius:6px;border:none;font-weight:600;font-size:13px;"
-            @click="fetchStreams"
-            :disabled="tweetsLoading"
-          >
-            {{ tweetsLoading ? 'Fetching...' : 'Fetch Data' }}
-          </button>
-          <button
-            type="button"
-            class="btn-secondary"
-            style="padding:10px 14px;border-radius:6px;font-weight:600;font-size:13px;"
-            @click="streamWindow ? (streamWindow='') : (sinceStr='', untilStr='')"
-          >
-            {{ streamWindow ? 'Use Since/Until' : 'Use Window' }}
-          </button>
-        </div>
-
-        <div v-if="tweetsError" style="font-size:11px;color:#b91c1c;font-weight:600;white-space:pre-line;">
-          {{ tweetsError }}
-        </div>
-          </div>
-        </section>
       </div>
 
       <!-- Main cards -->
@@ -294,6 +122,7 @@
                   ref="riskRef"
                   :merchant="merchantKey"
                   :now="nowIso"
+                  :loading="tweetsLoading || redditLoading || wlLoading || stockLoading || reviewsLoading || newsLoading"
                 />
                 <!-- Risk Assessment Slide replacement end -->
               </div>
@@ -949,7 +778,7 @@
 </main>
     </div>
 
-    <div v-else-if="!loading" class="error">
+  <div v-if="!loading && !merchant" class="error">
       <h2>Merchant not found</h2>
       <p>The merchant "{{ routeIdentifier }}" could not be found.</p>
       <button @click="goBack" class="btn btn-secondary">← Back to Dashboard</button>
@@ -1097,6 +926,8 @@
       </div>
     </div>
   </div>
+  <!-- Floating Merchant Data Controls -->
+  <MerchantDataControls :loading="streamsInFlight" @fetch="onFloatingFetch" />
 </template>
 
 <script>
@@ -1111,6 +942,7 @@ import MerchantStock from "./MerchantStock.vue";
 import MerchantReviews from "./MerchantReviews.vue";
 import MerchantNews from "./MerchantNews.vue";
 import MerchantRisk from "./MerchantRisk.vue";
+import MerchantDataControls from "./MerchantDataControls.vue";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
@@ -1246,7 +1078,7 @@ const FieldRow = {
 
 export default {
   name: "MerchantDetail",
-  components: { FieldRow, MerchantTwitter, MerchantReddit, MerchantWl_Data, MerchantStock, MerchantReviews, MerchantNews, MerchantRisk },
+  components: { FieldRow, MerchantTwitter, MerchantReddit, MerchantWl_Data, MerchantStock, MerchantReviews, MerchantNews, MerchantRisk, MerchantDataControls },
 
   setup() {
     const route = useRoute();
@@ -1277,6 +1109,7 @@ export default {
     const merchant = reactive({
       id: "",
       name: "",
+      auto_action: false,
       url: "",
       language_code: "",
       time_zone_id: "",
@@ -1349,6 +1182,29 @@ export default {
     ].forEach((k) => (editFields[k] = false));
 
     const isActive = computed(() => !!merchant.activation_flag);
+    const hasRestrictions = computed(() => {
+      // Derive from actionsTaken OR backend originalDoc OR current restrictionData state
+      if (actionsTaken.value.includes('Restricted')) return true;
+      const doc = originalDoc.value;
+      if (doc && doc.restrictions && typeof doc.restrictions === 'object' && Object.keys(doc.restrictions).length) return true;
+      // Fallback: inspect local restrictionData for any meaningful field set
+      const r = restrictionData;
+      return !!(
+        r.reason?.trim() ||
+        r.dailyTransactionLimit != null ||
+        r.monthlyTransactionLimit != null ||
+        r.maxTransactionAmount != null ||
+        (Array.isArray(r.restrictedCategoryCodes) && r.restrictedCategoryCodes.length) ||
+        r.allowedCountries?.trim() ||
+        r.requireAdditionalVerification ||
+        r.blockInternationalTransactions
+      );
+    });
+    const statusDotClass = computed(() => {
+      if (!isActive.value) return 'inactive';
+      if (hasRestrictions.value) return 'restricted';
+      return 'active';
+    });
     const fullAddress = computed(() =>
       [merchant.street, merchant.city, merchant.postal_code, merchant.country_code]
         .filter(Boolean)
@@ -1439,7 +1295,7 @@ export default {
       const ix = restrictionData.restrictedCategoryCodes.indexOf(code);
       if (ix >= 0) restrictionData.restrictedCategoryCodes.splice(ix, 1);
     }
-    function confirmRestriction() {
+    async function confirmRestriction() {
       if (!restrictionData.reason.trim()) {
         toast.error("Please provide a reason for the restriction.", {
           autoClose: 3000,
@@ -1447,12 +1303,31 @@ export default {
         });
         return;
       }
-      actionsTaken.value.push("Restricted");
-      showRestrictModal.value = false;
-      toast.success(`Restrictions applied on ${merchant.name}!`, {
-        autoClose: 4000,
-        position: "top-right",
-      });
+      // Build payload cloning reactive object (avoid proxy serialization quirks)
+      const payload = JSON.parse(JSON.stringify({ restrictions: { ...restrictionData } }));
+      try {
+        const resp = await fetch(`${API_BASE}/v1/merchants/${encodeURIComponent(merchant.name)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          throw new Error(json?.detail || 'Failed to apply restrictions');
+        }
+        if (!actionsTaken.value.includes('Restricted')) actionsTaken.value.push('Restricted');
+        // Refresh originalDoc so computed hasRestrictions also reflects backend
+        if (json.merchant) {
+          originalDoc.value = json.merchant;
+        }
+        toast.success(`Restrictions applied on ${merchant.name}!`, {
+          autoClose: 4000,
+          position: "top-right",
+        });
+        showRestrictModal.value = false;
+      } catch (e) {
+        toast.error(String(e?.message || e), { autoClose: 4000, position: 'top-right' });
+      }
     }
 
     const autoRefresh = ref(false);
@@ -1521,6 +1396,7 @@ export default {
         doc.activation_start_time || ""
       );
       merchant.activation_end_time = isoToLocal(doc.activation_end_time || "");
+  merchant.auto_action = !!doc.auto_action;
 
       merchant.start_date = doc.start_date || "";
       merchant.end_date = doc.end_date || "";
@@ -1529,7 +1405,43 @@ export default {
 
       merchant.description = doc.description || "";
 
+  merchant.auto_action = !!doc.auto_action;
+
       merchant.status = merchant.activation_flag ? "Active" : "Inactive";
+
+      // --- Sync restrictions from backend (added) ---
+      try {
+        const r = (doc && typeof doc.restrictions === 'object') ? doc.restrictions : null;
+        if (r && Object.keys(r).length) {
+          restrictionData.dailyTransactionLimit = r.dailyTransactionLimit ?? null;
+          restrictionData.monthlyTransactionLimit = r.monthlyTransactionLimit ?? null;
+          restrictionData.maxTransactionAmount = r.maxTransactionAmount ?? null;
+          restrictionData.restrictedCategoryCodes = Array.isArray(r.restrictedCategoryCodes) ? [...new Set(r.restrictedCategoryCodes)] : [];
+          restrictionData.allowedCountries = r.allowedCountries || '';
+          restrictionData.requireAdditionalVerification = !!r.requireAdditionalVerification;
+          restrictionData.blockInternationalTransactions = !!r.blockInternationalTransactions;
+          restrictionData.reason = r.reason || '';
+          restrictionData.startDate = r.startDate || restrictionData.startDate || new Date().toISOString().split('T')[0];
+          restrictionData.endDate = r.endDate || '';
+          if (!actionsTaken.value.includes('Restricted')) actionsTaken.value.push('Restricted');
+        } else {
+          // No restrictions -> clear local state & remove action chip if present
+          restrictionData.dailyTransactionLimit = null;
+          restrictionData.monthlyTransactionLimit = null;
+          restrictionData.maxTransactionAmount = null;
+          restrictionData.restrictedCategoryCodes = [];
+          restrictionData.allowedCountries = '';
+          restrictionData.requireAdditionalVerification = false;
+          restrictionData.blockInternationalTransactions = false;
+          restrictionData.reason = '';
+          // Preserve existing startDate default
+          restrictionData.endDate = '';
+          const idx = actionsTaken.value.indexOf('Restricted');
+          if (idx >= 0) actionsTaken.value.splice(idx,1);
+        }
+      } catch (e) {
+        console.warn('[Merchant] Failed syncing restrictions', e);
+      }
 
       Object.keys(editFields).forEach((k) => (editFields[k] = false));
       loading.value = false;
@@ -1538,6 +1450,7 @@ export default {
     function mapViewToDetails() {
       return {
         merchant_code: merchant.merchant_code || undefined,
+        auto_action: !!merchant.auto_action,
         url: merchant.url || undefined,
         language_code: merchant.language_code || undefined,
         time_zone_id: merchant.time_zone_id || undefined,
@@ -1604,7 +1517,28 @@ export default {
         } else {
           await fetchByName(ident);
         }
-        await fetchStreams();
+        // If a simulated time session is active (persisted), we skip this immediate fetch
+        // so that the panel's initial emit (which carries the simulated 'now') becomes the
+        // first data load. Otherwise we'd fetch once with real time and then again with sim time,
+        // leading to user perception that it didn't load under simulation until manual click.
+        try {
+          const simRaw = localStorage.getItem('merchantSimState');
+          if (!simRaw) {
+            await fetchStreams();
+          } else {
+            const st = JSON.parse(simRaw);
+            if (!st || !st.enabled) {
+              await fetchStreams();
+            } else {
+              // simulation enabled: defer to panel initial fetch
+              console.log('[Merchant] Skipping initial fetchStreams; simulation enabled, waiting for panel payload');
+            }
+          }
+        } catch {
+          // On parse error, fall back to fetching
+          await fetchStreams();
+        }
+        loading.value = false;
       } catch (e) {
         loading.value = false;
         originalDoc.value = null;
@@ -1667,6 +1601,7 @@ export default {
       if (cmp(toHHMMSS(merchant.cut_off_time || ""), doc.cut_off_time))
         return true;
       if (cmp(!!merchant.activation_flag, !!doc.activation_flag)) return true;
+  if (cmp(!!merchant.auto_action, !!doc.auto_action)) return true;
       const actTimeISO = merchant.activation_time
         ? new Date(merchant.activation_time).toISOString()
         : null;
@@ -1740,9 +1675,26 @@ export default {
       router.push({
         path: `/explore/${merchant.name}`,
         query: {
-          simNow: simNow.value || undefined, // Pass simNow as query parameter
+          simNow: (nowIso.value || '').trim() || undefined,
         },
       });
+    }
+    function onFloatingFetch(p){
+      try { console.log('[Merchant] Floating fetch payload', p); } catch {}
+      if(p.window){
+        streamWindow.value = p.window;
+        sinceStr.value=''; untilStr.value='';
+      } else {
+        streamWindow.value='';
+        sinceStr.value = p.since || '';
+        untilStr.value = p.until || '';
+      }
+      unit.value = p.unit || unit.value;
+      streamLimit.value = p.limit || streamLimit.value;
+      streamOrder.value = p.order || streamOrder.value;
+      allowFuture.value = !!p.allowFuture;
+      if(p.now){ nowIso.value = p.now; }
+      fetchStreams();
     }
 
     // Streams state
@@ -1775,10 +1727,7 @@ export default {
   const newsLoading = ref(false);
   const newsError = ref("");
     // Which side panel is visible: 'info' or 'data'
-    const activePanel = ref('info');
-    function togglePanel() {
-      activePanel.value = (activePanel.value === 'info') ? 'data' : 'info';
-    }
+    // activePanel removed
 
     const streamWindow = ref("7d");
     const streamOrder = ref("desc");
@@ -1786,170 +1735,26 @@ export default {
     const allowFuture = ref(false);
     const sinceStr = ref("");
     const untilStr = ref("");
+    // nowIso will be set directly via floating panel fetch events
     const nowIso = ref("");
-    // --- Simulated Time State ---
-    const simEnabled = ref(false);        // master enable
-    const simRunning = ref(false);        // running vs paused
-    const accel = ref(1.0);               // acceleration multiplier
-    const simStartInput = ref("");        // user-provided ISO start
-  const simBaseIso = ref("");           // internal anchor
-  const jumpValue = ref(0);              // seconds to jump (+/-)
-  const liveSimUpdate = ref(true);       // automatically fetch while running
-  const liveSimIntervalSec = ref(5);     // real seconds between fetches
-  let lastSimFetchMs = 0;
-  let streamsInFlight = false;
-    let wallStartMs = Date.now();          // real clock anchor
-    let simTimer = null;                   // interval handle
-    function normalizeStart(raw) {
-      if (!raw) return Date.now();
-      // Append 'Z' if no timezone specified.
-      const needsZ = /\dT\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(raw) && !/[zZ]|[\+\-]\d{2}:?\d{2}$/.test(raw);
-      const s = needsZ ? raw + 'Z' : raw;
-      const ts = Date.parse(s);
-      return isFinite(ts) ? ts : Date.now();
-    }
-    function initSimBase() {
-      const raw = (simStartInput.value || '').trim();
-      const base = normalizeStart(raw);
-      simBaseIso.value = new Date(base).toISOString();
-      wallStartMs = Date.now();
-      simClock.value = Date.now();
-      nowIso.value = simBaseIso.value;
-    }
-    const simClock = ref(Date.now()); // reactive heartbeat
-    const simNow = computed(() => {
-      if (!simEnabled.value) return nowIso.value || new Date().toISOString();
-      if (!simBaseIso.value) return new Date().toISOString();
-      const base = Date.parse(simBaseIso.value);
-      if (!isFinite(base)) return new Date().toISOString();
-      const elapsedReal = simClock.value - wallStartMs;
-      const adv = simRunning.value ? elapsedReal * Math.max(0, accel.value) : 0;
-      return new Date(base + adv).toISOString();
-    });
-    function tickSim() {
-      if (!simEnabled.value) return;
-      simClock.value = Date.now(); // advance heartbeat
-      nowIso.value = simNow.value; // keep override param aligned
-      if (simRunning.value && liveSimUpdate.value) {
-        const nowMs = Date.now();
-        if (!streamsInFlight && (nowMs - lastSimFetchMs) >= Math.max(1000, (liveSimIntervalSec.value||5)*1000)) {
-          lastSimFetchMs = nowMs;
-          fetchStreams();
-        }
-      }
-    }
-    function startSimLoop() { if (simTimer) clearInterval(simTimer); simTimer = setInterval(tickSim, 1000); }
-    function stopSimLoop() { if (simTimer) { clearInterval(simTimer); simTimer = null; } }
-    function toggleSimRun() {
-      if (!simEnabled.value) return;
-      if (!simRunning.value) {
-        if (!simBaseIso.value) initSimBase();
-        simRunning.value = true;
-        // Auto-enable standard auto refresh toggle for visibility when simulation starts
-        if (!autoRefresh.value) autoRefresh.value = true;
-        // Sync refreshSec with liveSimIntervalSec if user hasn't customized
-        if (!refreshSec.value || refreshSec.value < 1) {
-          refreshSec.value = Math.max(2, liveSimIntervalSec.value || 5);
-        }
-        if (liveSimUpdate.value && !streamsInFlight) fetchStreams();
-        tickSim();
-      } else {
-        // pause - freeze base at current simNow
-        simBaseIso.value = simNow.value;
-        wallStartMs = Date.now();
-        simRunning.value = false;
-      }
-    }
-    function resetSim() {
-      if (!simEnabled.value) return;
-      simRunning.value = false;
-      initSimBase();
-    }
-    function applyStart() {
-      if (!simEnabled.value) return;
-      initSimBase();
-    }
-    function applyJump() {
-      if (!simEnabled.value || !jumpValue.value) return;
-      const current = Date.parse(simNow.value);
-      const delta = jumpValue.value * 1000;
-      if (simRunning.value) {
-        const elapsedReal = Date.now() - wallStartMs;
-        const newBase = current + delta - elapsedReal * Math.max(0, accel.value);
-        simBaseIso.value = new Date(newBase).toISOString();
-      } else {
-        simBaseIso.value = new Date(current + delta).toISOString();
-      }
-      jumpValue.value = 0;
-      nowIso.value = simNow.value;
-    }
-    function syncRealNow() {
-      if (!simEnabled.value) return;
-      simBaseIso.value = new Date().toISOString();
-      wallStartMs = Date.now();
-      nowIso.value = simBaseIso.value;
-    }
-    watch(simEnabled, (en) => {
-      if (en) {
-        initSimBase();
-        startSimLoop();
-      } else {
-        stopSimLoop();
-      }
-    });
-    watch([accel, simRunning], () => {
-      if (simEnabled.value && simRunning.value) {
-        // re-anchor base so perceived current does not jump
-        const cur = simNow.value;
-        simBaseIso.value = cur;
-        wallStartMs = Date.now();
-      }
-    });
-    watch(simStartInput, (v) => {
-      // If user edits start while paused, reinitialize base automatically
-      if (simEnabled.value && !simRunning.value) {
-        if ((v || '').trim()) initSimBase();
-      }
-    });
-
-    // --- Persistence ---
-    const SIM_KEY = 'merchantSimState';
-    function persistSim() {
-      try {
-        const payload = {
-          enabled: simEnabled.value,
-          running: simRunning.value,
-          accel: accel.value,
-          simBaseIso: simBaseIso.value,
-          simStartInput: simStartInput.value,
-          lastSimNow: simNow.value,
-          live: liveSimUpdate.value,
-          liveInterval: liveSimIntervalSec.value,
-          savedAt: Date.now(),
-        };
-        localStorage.setItem(SIM_KEY, JSON.stringify(payload));
-      } catch {}
-    }
-    function loadSim() {
-      try {
-        const raw = localStorage.getItem(SIM_KEY);
-        if (!raw) return;
-        const st = JSON.parse(raw);
-        simEnabled.value = !!st.enabled;
-        accel.value = Number(st.accel) || 1;
-        simStartInput.value = st.simStartInput || '';
-        simBaseIso.value = st.simBaseIso || st.lastSimNow || '';
-        wallStartMs = Date.now();
-        simRunning.value = !!st.running; // resume running state
-        liveSimUpdate.value = st.live !== false; // default true
-        if (typeof st.liveInterval === 'number') liveSimIntervalSec.value = st.liveInterval;
-        if (simEnabled.value) startSimLoop();
-      } catch {}
-    }
-    // persist on key changes
-  watch([simEnabled, simRunning, accel, simBaseIso, simStartInput, liveSimUpdate, liveSimIntervalSec], persistSim, { deep: false });
-    onBeforeUnmount(() => stopSimLoop());
-    const unit = ref("hour");
+    // Removed internal simulation system (replaced by MerchantDataControls component)
+    // Keep minimal flags for template (if still referenced) but not active logic
+    const simEnabled = ref(false);
+    const simRunning = ref(false);
+    const accel = ref(1.0);
+    const simStartInput = ref("");
+    const simBaseIso = ref("");
+    const jumpValue = ref(0);
+    const liveSimUpdate = ref(false);
+    const liveSimIntervalSec = ref(5);
+    function toggleSimRun(){}
+    function resetSim(){}
+    function applyJump(){}
+    function syncRealNow(){}
+    function applyStart(){}
+    function loadSim(){}
+  // Default aggregate unit aligned with original data panel (day)
+  const unit = ref("day");
 
     // Collapsible sections state
     const collapsed = reactive({
@@ -1966,6 +1771,7 @@ export default {
     }
 
     const merchantKey = computed(() => {
+      // Prefer canonical merchant_name from loaded doc, else route slug/id.
       return (
         (originalDoc.value && originalDoc.value.merchant_name) ||
         (routeName.value || "").trim() ||
@@ -1973,13 +1779,15 @@ export default {
       );
     });
 
-    let streamsAbort = null;
+  let streamsAbort = null;
+  const streamsInFlight = ref(false);
 
 async function fetchStreams() {
+  try { console.log('[Merchant] fetchStreams start', { merchant: merchantKey.value, window: streamWindow.value, since: sinceStr.value, until: untilStr.value, unit: unit.value }); } catch {}
   if (!merchantKey.value) return;
   if (streamsAbort) streamsAbort.abort();
   streamsAbort = new AbortController();
-  streamsInFlight = true;
+  streamsInFlight.value = true;
 
   tweetsLoading.value = true;
   redditLoading.value = true;
@@ -2008,7 +1816,14 @@ async function fetchStreams() {
     if ((nowIso.value || "").trim()) params.set("now", nowIso.value.trim());
 
     const url = `/v1/${encodeURIComponent(merchantKey.value)}/data`;
-    const json = await apiGet(url, Object.fromEntries(params), streamsAbort.signal);
+    let json;
+    try {
+      json = await apiGet(url, Object.fromEntries(params), streamsAbort.signal);
+    } catch (e) {
+      console.warn('[Merchant] fetchStreams request failed', e);
+      throw e;
+    }
+  try { console.log('[Merchant] fetchStreams response keys', Object.keys(json||{})); } catch {}
 
     tweets.value = Array.isArray(json?.data?.tweets) ? json.data.tweets : [];
     // Reddit data (as before)
@@ -2076,7 +1891,7 @@ async function fetchStreams() {
     stockLoading.value = false;
   reviewsLoading.value = false;
   newsLoading.value = false;
-    streamsInFlight = false;
+  streamsInFlight.value = false;
   }
 }
 
@@ -2097,15 +1912,18 @@ async function fetchStreams() {
     );
 
     const riskRef = ref(null);
-    // Bridge simulated time + window to MerchantRisk component after mount
-    watch([simNow, streamWindow], () => {
+    // Bridge current override time (from floating panel via nowIso) + window to MerchantRisk
+    watch([nowIso, streamWindow], () => {
       const comp = riskRef.value;
       if (comp) {
         if (comp.activeWindow !== undefined) comp.activeWindow = streamWindow.value || null;
         if (comp.simNowTs !== undefined) {
-          try {
-            comp.simNowTs = simNow.value ? Math.floor(Date.parse(simNow.value)/1000) : null;
-          } catch { comp.simNowTs = null; }
+          if ((nowIso.value || '').trim()) {
+            try { comp.simNowTs = Math.floor(Date.parse(nowIso.value)/1000); }
+            catch { comp.simNowTs = null; }
+          } else {
+            comp.simNowTs = null;
+          }
         }
         if (comp.refresh) comp.refresh();
       }
@@ -2120,6 +1938,8 @@ async function fetchStreams() {
       saving,
       hasChanges,
       isActive,
+        hasRestrictions,
+        statusDotClass,
       fullAddress,
       mccLabel,
       actionsTaken,
@@ -2174,24 +1994,7 @@ async function fetchStreams() {
       allowFuture,
       sinceStr,
       untilStr,
-      nowIso,
-      // Simulated time exports
-      simEnabled,
-      simRunning,
-      accel,
-      simStartInput,
-      simNow,
-      jumpValue,
-  applyStart,
-      toggleSimRun,
-      resetSim,
-      applyJump,
-      syncRealNow,
-  simBaseIso,
-  liveSimUpdate,
-  liveSimIntervalSec,
-  activePanel,
-  togglePanel,
+    nowIso,
       unit,
       fetchStreams,
       collapsed,
@@ -2199,6 +2002,8 @@ async function fetchStreams() {
       merchantKey,
       API_BASE,
       riskRef,
+      streamsInFlight,
+      onFloatingFetch,
     };
   },
 };
@@ -2287,6 +2092,7 @@ async function fetchStreams() {
 .status-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.7); }
 .status-dot.active { background: #34d399; }
 .status-dot.inactive { background: #ef4444; }
+.status-dot.restricted { background: #fbbf24; box-shadow: 0 0 0 3px rgba(251,191,36,0.35); }
 
 .summary-list { margin-top: 12px; display: grid; gap: 8px; }
 .summary-item { display: flex; justify-content: space-between; align-items: center; }
@@ -2464,4 +2270,9 @@ async function fetchStreams() {
   background: #f3f4f6;
 }
 
+</style>
+<style>
+/* Reserve space at page bottom equal to floating panel height so footer/content not obscured */
+body, html { --panel-bottom-pad: 0px; }
+main, .merchant-detail-container, .merchant-dashboard, #app { padding-bottom: var(--panel-bottom-pad); }
 </style>

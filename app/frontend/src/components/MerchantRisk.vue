@@ -16,6 +16,7 @@
 				</select>
 				<button class="btn" @click="refresh(true)" :disabled="loading">Reload</button>
 				<label class="chk"><input type="checkbox" v-model="auto" /> Auto (30s)</label>
+				<label class="chk" title="Overlay raw (unsmoothed) total if available"><input type="checkbox" v-model="showRaw" /> Raw overlay</label>
 			</div>
 		</div>
 
@@ -114,7 +115,8 @@ export default {
 	name: 'MerchantRisk',
 	props: {
 		merchant: { type: String, required: true },
-			now: { type: String, default: '' }
+			now: { type: String, default: '' },
+			loading: { type: Boolean, default: false }
 	},
 	setup(props) {
 		const interval = ref('30m')
@@ -124,6 +126,8 @@ export default {
 		const initialLoaded = ref(false)
 		const error = ref('')
 		const auto = ref(false)
+		// Raw overlay (unsmoothed total) enabled by default; persisted across sessions
+		const showRaw = ref(true)
 		const timer = ref(null)
 		const chartCanvas = ref(null)
 		let chartInstance = null
@@ -176,8 +180,8 @@ export default {
 		}
 		function riskClass(v){
 			if(v==null) return ''
-			if(v>=75) return 'risk-high'
-			if(v>=50) return 'risk-med'
+			if(v>=80) return 'risk-high'
+			if(v>=55) return 'risk-med'
 			return 'risk-low'
 		}
 
@@ -205,29 +209,93 @@ export default {
 			})
 		})
 
-				async function buildChart(){
+			async function buildChart(){
 				if(!chartCanvas.value) return
-				const points = rows.value.map(r=> r.scores?.total)
 				const labels = rows.value.map(r=> timeFmt(r.window_end))
+				const totals = rows.value.map(r=> r.scores?.total)
+				const rawTotals = rows.value.map(r=> r.scores?.total_raw ?? null)
 				const { default: Chart } = await import('chart.js/auto')
+				// Threshold color function (match dashboard)
+				const colorFor = (v) => {
+					if(v==null || !isFinite(v)) return '#9ca3af'
+					if(v >= 90) return '#7f1d1d'
+					if(v >= 80) return '#dc2626'
+					if(v >= 70) return '#ea580c'
+					if(v >= 55) return '#f59e0b'
+					if(v >= 40) return '#059669'
+					return '#6ee7b7'
+				}
+				const baseDs = {
+					label: 'Total Risk',
+					data: totals,
+					borderWidth:2,
+					pointRadius:0,
+					spanGaps:true,
+					tension:0.3,
+					segment:{ borderColor: ctx => colorFor(ctx.p1.parsed.y) },
+					borderColor:'#059669'
+				}
+				const rawDs = {
+					label:'Raw Total',
+					data: rawTotals,
+					borderWidth:1,
+					borderDash:[4,4],
+					spanGaps:true,
+					pointRadius:0,
+					tension:0.2,
+					borderColor:'#64748b'
+				}
+				const datasets = showRaw.value ? [baseDs, rawDs] : [baseDs]
+				// Risk bands plugin (same thresholds list)
+				const RiskBands = {
+					id:'riskBands',
+					beforeDraw: (chart) => {
+						const {ctx, chartArea, scales:{y}} = chart; if(!y) return;
+						const bands = [
+							{from:90,to:100,color:'rgba(127,29,29,0.10)'},
+							{from:80,to:90,color:'rgba(220,38,38,0.08)'},
+							{from:70,to:80,color:'rgba(234,88,12,0.07)'},
+							{from:55,to:70,color:'rgba(245,158,11,0.06)'},
+							{from:40,to:55,color:'rgba(5,150,105,0.05)'},
+							{from:0,to:40,color:'rgba(110,231,183,0.04)'}
+						]
+						ctx.save()
+						bands.forEach(b=>{
+							if(y.max < b.from || y.min > b.to) return;
+							const top = y.getPixelForValue(Math.min(b.to,y.max))
+							const bottom = y.getPixelForValue(Math.max(b.from,y.min))
+							const h = bottom - top; if(h<=0) return;
+							ctx.fillStyle = b.color; ctx.fillRect(chartArea.left, top, chartArea.width, h)
+						})
+						ctx.restore()
+					}
+				}
 				if(chartInstance){
 					chartInstance.data.labels = labels
-					if(chartInstance.data.datasets[0]){
-						chartInstance.data.datasets[0].data = points
-					}
-					chartInstance.update('none') // no animation
+					chartInstance.data.datasets = datasets
+					chartInstance.update('none')
 					return
 				}
-				const ctx= chartCanvas.value.getContext('2d')
+				const ctx = chartCanvas.value.getContext('2d')
+				Chart.register(RiskBands)
 				chartInstance = new Chart(ctx, {
 					type:'line',
-					data:{ labels, datasets:[{ label:'Total Risk', data:points, borderColor:'#008080', backgroundColor:'rgba(0,128,128,0.15)', tension:0.25, spanGaps:true, pointRadius:0 }] },
+					data:{ labels, datasets },
 					options:{
 						animation:false,
-							responsive:true,
-							maintainAspectRatio:false,
-							scales:{ y:{ beginAtZero:true, suggestedMax:100 }},
-							plugins:{ legend:{ display:false } }
+						responsive:true,
+						maintainAspectRatio:false,
+						scales:{
+							y:{ beginAtZero:true, min:0, max:100, ticks:{ stepSize:10 } }
+						},
+						plugins:{
+							legend:{ display: showRaw.value, position:'bottom', labels:{ usePointStyle:true, pointStyle:'line', padding:10 }},
+							tooltip:{
+								callbacks:{
+									label:(ctx)=> `${ctx.dataset.label}: ${ctx.formattedValue}`
+								}
+							}
+						}
 					}
 				})
 			}
@@ -252,6 +320,7 @@ export default {
 
 				// Re-run visibility check when rows change (e.g., first fetch) or when interval/lookback changes
 				watch(rows, ()=> { visibilityTries = 0; ensureChartVisible() })
+				watch(showRaw, (v)=> { try { localStorage.setItem('mrShowRaw', JSON.stringify(!!v)); } catch(_) {} buildChart() })
 				watch(()=> interval.value, ()=> { visibilityTries = 0; ensureChartVisible() })
 				watch(()=> lookbackHours.value, ()=> { visibilityTries = 0; ensureChartVisible() })
 
@@ -265,6 +334,11 @@ export default {
 		watch(auto, setupAuto)
 
 				onMounted(()=>{
+				// Load persisted raw overlay preference
+				try {
+					const stored = localStorage.getItem('mrShowRaw')
+					if(stored !== null) showRaw.value = JSON.parse(stored)
+				} catch(_) {}
 				fetchData(true)
 				// Fallback periodic visibility check in early lifecycle
 				setTimeout(()=> ensureChartVisible(), 500)
@@ -273,7 +347,7 @@ export default {
 			})
 			onBeforeUnmount(()=>{ clearInterval(timer.value); window.removeEventListener('resize', ensureChartVisible); if(chartInstance) chartInstance.destroy() })
 
-				return { interval, lookbackHours, rows, refreshing, initialLoaded, error, auto, refresh, chartCanvas, formatScore, formatPct, timeFmt, riskClass, latestTotal, latestConfidence, avgTotal, componentList }
+				return { interval, lookbackHours, rows, refreshing, initialLoaded, error, auto, showRaw, refresh, chartCanvas, formatScore, formatPct, timeFmt, riskClass, latestTotal, latestConfidence, avgTotal, componentList }
 	}
 }
 </script>
@@ -291,9 +365,9 @@ select { padding:4px 6px; border:1px solid #ccc; border-radius:4px; background:#
 .kpi .label { font-size:11px; color:#6b7280; text-transform:uppercase; letter-spacing:.5px; }
 .kpi .val { font-size:18px; font-weight:600; }
 .risk-low { color:#059669; }
-.risk-med { color:#d97706; }
+.risk-med { color:#f59e0b; }
 .risk-high { color:#dc2626; }
-.chart-area { position:relative; height:180px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:6px 10px; }
+.chart-area { position:relative; height:260px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:6px 10px; }
 .component-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
 .component-card { background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
 .component-card h4 { margin:0; font-size:12px; font-weight:600; letter-spacing:.5px; color:#008080; text-transform:uppercase; }
@@ -311,5 +385,5 @@ table.risk-table { width:100%; border-collapse:collapse; font-size:12px; }
 .loading { font-size:13px; color:#374151; }
 .overlay-loading { position:absolute; inset:0; background:rgba(255,255,255,0.55); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:#065f5b; border-radius:6px; pointer-events:none; }
 .error-block { background:#fee2e2; color:#991b1b; border:1px solid #dc2626; padding:8px 10px; border-radius:6px; font-size:12px; }
-@media (max-width:700px){ .chart-area { height:140px; } }
+@media (max-width:700px){ .chart-area { height:200px; } }
 </style>
