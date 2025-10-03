@@ -71,9 +71,10 @@
     <!-- Header Buttons -->
     <div class="header-buttons">
       <button class="back-btn" @click="goBack">← Back</button>
-      <button class="ai-summary-btn" @click="generateAISummary">
+      <!-- <button class="ai-summary-btn" @click="generateAISummary">
         🤖 AI Summary
-      </button>
+      </button> -->
+      <VertexAI :socialData="socialData" :merchantName="merchantName" />
     </div>
 
     <!-- News Section -->
@@ -564,9 +565,13 @@
 <script>
 // Import axios for making HTTP requests
 import axios from "axios";
+import VertexAI from "./VertexAI.vue";
 
 export default {
   name: "SocialDashboard",
+  components: {
+    VertexAI,
+  },
   data() {
     return {
       socialData: {
@@ -685,6 +690,8 @@ export default {
           reviews: filteredReviews,
           tweet: filteredTweets,
         };
+
+        console.log("Consolidated Social Data:", this.socialData);
 
         // Console log the filtered data
         console.log("Fetched News (latest 20):", filteredNews);
