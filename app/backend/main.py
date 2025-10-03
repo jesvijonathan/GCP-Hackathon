@@ -36,6 +36,33 @@ LOG_REQUESTS = str(os.getenv("MAIN_LOG_REQUESTS", "true")).lower() in ("1","true
 MAX_WORKERS = int(os.getenv("MAIN_MAX_WORKERS", str(os.cpu_count() or 4)))
 DASHBOARD_EXCLUDE = {x.strip() for x in os.getenv("DASHBOARD_EXCLUDE", "MER001").split(",") if x.strip()}
 
+# --------------- Lightweight Response Cache (Streams) -----------------
+# Simple in-memory LRU-ish cache for /v1/{merchant}/data responses.
+# Purpose: absorb rapid repeat queries from UI (e.g., multiple watcher triggers) within a short horizon.
+STREAM_RESPONSE_CACHE: dict[str, tuple[float, dict]] = {}
+STREAM_RESPONSE_CACHE_MAX = 200  # max entries
+
+def _stream_cache_get(key: str, ttl: float) -> Optional[dict]:
+    ent = STREAM_RESPONSE_CACHE.get(key)
+    if not ent:
+        return None
+    ts, payload = ent
+    if (time.time() - ts) > ttl:
+        # stale
+        STREAM_RESPONSE_CACHE.pop(key, None)
+        return None
+    return payload
+
+def _stream_cache_put(key: str, payload: dict):
+    STREAM_RESPONSE_CACHE[key] = (time.time(), payload)
+    # Trim if over size (remove oldest by timestamp)
+    if len(STREAM_RESPONSE_CACHE) > STREAM_RESPONSE_CACHE_MAX:
+        # sort by ts ascending and drop oldest 10% (at least 1)
+        items = sorted(STREAM_RESPONSE_CACHE.items(), key=lambda kv: kv[1][0])
+        drop = max(1, int(len(items) * 0.1))
+        for k,_ in items[:drop]:
+            STREAM_RESPONSE_CACHE.pop(k, None)
+
 # Mongo connection
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
@@ -96,6 +123,30 @@ def parse_any_dt(x: Optional[str]) -> Optional[dt.datetime]:
     except Exception:
         pass
     return None
+
+def resolve_sim_now(explicit_now: Optional[str]) -> tuple[dt.datetime, bool, Optional[str]]:
+    """Resolve a simulated 'now' timestamp.
+    Priority: explicit query parameter -> env var RISK_SIM_NOW -> real current UTC.
+    Returns (datetime_utc, is_simulated, source_raw_string).
+    """
+    # 1. Explicit query param
+    if explicit_now:
+        dt_parsed = parse_any_dt(explicit_now)
+        if dt_parsed:
+            if dt_parsed.tzinfo is None:
+                dt_parsed = dt_parsed.replace(tzinfo=dt.UTC)
+            return dt_parsed.astimezone(dt.UTC), True, explicit_now
+    # 2. Environment variable
+    env_raw = os.getenv("RISK_SIM_NOW")
+    if env_raw:
+        dt_env = parse_any_dt(env_raw)
+        if dt_env:
+            if dt_env.tzinfo is None:
+                dt_env = dt_env.replace(tzinfo=dt.UTC)
+            return dt_env.astimezone(dt.UTC), True, env_raw
+    # 3. Real now
+    real = dt.datetime.now(dt.UTC)
+    return real, False, None
 
 def parse_window_to_timedelta(window: str) -> dt.timedelta:
     import re
@@ -257,21 +308,39 @@ STREAM_COLLECTION_MAP = {
 }
 
 def compute_range_params(window: Optional[str], since: Optional[str], until: Optional[str], allow_future: bool, now_iso: Optional[str]) -> Tuple[float, float, str, str]:
-    now_dt = parse_any_dt(now_iso) or dt.datetime.now(dt.UTC)
+    """Resolve the [since, until] range for stream queries.
+    Adjustments:
+      - If a simulated now is provided in the future while allow_future is False, clamp to real UTC now.
+      - Gracefully recover from malformed window by falling back to 7d.
+      - Ensure start <= end; if inverted, default to a 7d window ending at end.
+    """
+    real_now = dt.datetime.now(dt.UTC)
+    candidate_now = parse_any_dt(now_iso) or real_now
+    if (not allow_future) and candidate_now > real_now:
+        candidate_now = real_now
+    now_dt = candidate_now
     if window and window.strip():
-        delta = parse_window_to_timedelta(window.strip())
+        try:
+            delta = parse_window_to_timedelta(window.strip())
+        except Exception:
+            delta = dt.timedelta(days=7)
         s = now_dt - delta
         u = now_dt
     else:
         s = parse_any_dt(since) or (now_dt - dt.timedelta(days=7))
         u = parse_any_dt(until) or now_dt
-    if not allow_future:
-        # Cap until at now
-        if u > now_dt:
-            u = now_dt
+    if not allow_future and u > real_now:
+        u = real_now
+    if s > u:
+        s = u - dt.timedelta(days=7)
     s_ts = s.timestamp()
     u_ts = u.timestamp()
-    return s_ts, u_ts, s.astimezone(dt.UTC).isoformat().replace("+00:00","Z"), u.astimezone(dt.UTC).isoformat().replace("+00:00","Z")
+    return (
+        s_ts,
+        u_ts,
+        s.astimezone(dt.UTC).isoformat().replace("+00:00","Z"),
+        u.astimezone(dt.UTC).isoformat().replace("+00:00","Z"),
+    )
 
 def query_stream(coll_name: str, merchant_name: str, s_ts: float, u_ts: float, order: str, limit: int) -> List[Dict[str, Any]]:
     coll = db[coll_name]
@@ -425,6 +494,50 @@ def patch_merchant_flags(
             log(f"restriction upsert failed [{merchant_name}]: {e}")
     return {"merchant": new_doc, "updated": True, "restriction_record": restriction_record}
 
+@app.delete("/v1/merchants/{merchant_name}")
+def delete_merchant(merchant_name: str, purge: bool = False):
+    """Delete a merchant from dashboard context while retaining raw source data.
+
+    Removes documents from collections directly tied to dashboard / risk evaluation:
+      - merchants (merchant base profile)
+      - preset (synthetic preset block)
+      - merchant_evaluations (latest eval summaries)
+      - risk_scores (historic evaluation windows)
+      - merchant_res (single restriction record)
+
+    Does NOT delete data streams (tweets/news/reddit/reviews/wl/stock) so historical
+    analytics can be reconstructed if the merchant is re-onboarded.
+
+    If query param purge=true is passed, also remove restriction + evaluation jobs
+    artifacts (best-effort) but still leave streams untouched.
+    """
+    doc = SERVICE.get_merchant(merchant_name)
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    removed = {}
+    try:
+        r_merchants = db["merchants"].delete_one({"merchant_name": merchant_name})
+        removed["merchants"] = r_merchants.deleted_count
+        r_preset = db["preset"].delete_one({"merchant_name": merchant_name})
+        removed["preset"] = r_preset.deleted_count
+        r_eval = db["merchant_evaluations"].delete_many({"merchant": merchant_name})
+        removed["merchant_evaluations"] = r_eval.deleted_count
+        r_scores = db["risk_scores"].delete_many({"merchant": merchant_name})
+        removed["risk_scores"] = r_scores.deleted_count
+        r_res = db["merchant_res"].delete_one({"merchant_name": merchant_name})
+        removed["merchant_res"] = r_res.deleted_count
+        if purge:
+            # Attempt to remove any queued jobs referencing this merchant (best-effort: implementation may vary)
+            try:
+                from risk_eval import RISK
+                RISK.drop_jobs_for_merchant(merchant_name)  # if method exists; ignore otherwise
+                removed["jobs"] = "requested"
+            except Exception:
+                pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Deletion failed: {e}")
+    return {"status": "deleted", "merchant": merchant_name, "removed": removed}
+
 @app.get("/v1/merchants/{merchant_name}/restrictions")
 def get_current_restrictions(merchant_name: str):
     mdoc = SERVICE.get_merchant(merchant_name)
@@ -501,79 +614,120 @@ def get_streams_data(
     until: Optional[str] = None,
     include_stock_meta: bool = False,
     allow_future: bool = False,
-    now: Optional[str] = None
+    now: Optional[str] = None,
+    parallel: bool = True,
+    cache_ttl: float = 2.0,
+    profile: bool = False,
 ):
     # Validate merchant
     if not SERVICE.get_merchant(merchant_name):
         raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
 
-    # Compute range
+    # Simulated time resolution (reuse risk evaluation semantics)
+    sim_dt, is_sim, sim_source = resolve_sim_now(now)
+    # Compute range relative to simulated or real now
     try:
-        s_ts, u_ts, s_iso, u_iso = compute_range_params(window, since, until, allow_future, now)
+        s_ts, u_ts, s_iso, u_iso = compute_range_params(window, since, until, allow_future, sim_dt.isoformat())
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid range: {e}")
 
     # Normalize streams
     stream_list = normalize_streams_arg(streams)
 
-    # Fetch data per stream
+    # Fetch data per stream (deferred until after cache check)
     data: Dict[str, Any] = {}
     range_info: Dict[str, Dict[str, str]] = {}
     limits: Dict[str, Any] = {}
 
-    # Tweets
-    if "tweets" in stream_list:
-        data["tweets"] = query_stream(STREAM_COLLECTION_MAP["tweets"], merchant_name, s_ts, u_ts, order, limit)
-        range_info["tweets"] = {"since": s_iso, "until": u_iso}
+    # Cache lookup key (exclude profile flag to allow reuse; include range + params that affect dataset)
+    cache_key = f"{merchant_name}|{sorted(stream_list)}|{order}|{int(limit)}|{int(s_ts)}|{int(u_ts)}|{int(include_stock_meta)}"
+    if cache_ttl > 0:
+        cached = _stream_cache_get(cache_key, cache_ttl)
+        if cached is not None:
+            if profile:
+                cached = {**cached, "cache_hit": True}
+            return cached
 
-    # Reddit
-    if "reddit" in stream_list:
-        data["reddit"] = query_stream(STREAM_COLLECTION_MAP["reddit"], merchant_name, s_ts, u_ts, order, limit)
-        range_info["reddit"] = {"since": s_iso, "until": u_iso}
+    data: Dict[str, Any] = {}
+    range_info: Dict[str, Dict[str, str]] = {}
+    limits: Dict[str, Any] = {}
+    timings: Dict[str, float] = {}
 
-    # News
-    if "news" in stream_list:
-        data["news"] = query_stream(STREAM_COLLECTION_MAP["news"], merchant_name, s_ts, u_ts, order, limit)
-        range_info["news"] = {"since": s_iso, "until": u_iso}
+    def _record(name: str, start: float):
+        if profile:
+            timings[name] = round((time.time() - start) * 1000.0, 2)
 
-    # Reviews
-    if "reviews" in stream_list:
-        data["reviews"] = query_stream(STREAM_COLLECTION_MAP["reviews"], merchant_name, s_ts, u_ts, order, limit)
-        range_info["reviews"] = {"since": s_iso, "until": u_iso}
+    # Worker function map
+    def fetch_simple(label: str, coll_key: str):
+        t0 = time.time()
+        try:
+            data[label] = query_stream(STREAM_COLLECTION_MAP[coll_key], merchant_name, s_ts, u_ts, order, limit)
+            range_info[label] = {"since": s_iso, "until": u_iso}
+        finally:
+            _record(label, t0)
 
-    # WL
-    if "wl" in stream_list:
-        data["wl"] = query_stream(STREAM_COLLECTION_MAP["wl"], merchant_name, s_ts, u_ts, order, limit)
-        range_info["wl"] = {"since": s_iso, "until": u_iso}
+    def fetch_stock_wrap():
+        t0 = time.time()
+        try:
+            data["stock"] = fetch_stock(merchant_name, s_ts, u_ts, order, limit, include_meta=include_stock_meta)
+            range_info["stock"] = {"since": s_iso, "until": u_iso}
+        finally:
+            _record("stock", t0)
 
-    # Stock (composite)
-    if "stock" in stream_list:
-        data["stock"] = fetch_stock(merchant_name, s_ts, u_ts, order, limit, include_meta=include_stock_meta)
-        range_info["stock"] = {"since": s_iso, "until": u_iso}
+    # Decide execution strategy
+    simple_map = {
+        "tweets": (fetch_simple, "tweets"),
+        "reddit": (fetch_simple, "reddit"),
+        "news": (fetch_simple, "news"),
+        "reviews": (fetch_simple, "reviews"),
+        "wl": (fetch_simple, "wl"),
+    }
 
-    return {
+    tasks: list[Future] = []
+    if parallel and len(stream_list) > 1:
+        # Launch parallel queries
+        for st in stream_list:
+            if st == "stock":
+                tasks.append(TASKS.pool.submit(fetch_stock_wrap))
+            else:
+                fn, key = simple_map.get(st, (None, None))
+                if fn:
+                    tasks.append(TASKS.pool.submit(fn, st, key))
+        # Wait for completion
+        for fut in tasks:
+            try:
+                fut.result()
+            except Exception as e:
+                log(f"streams parallel fetch error: {e}")
+    else:
+        # Serial fallback
+        for st in stream_list:
+            if st == "stock":
+                fetch_stock_wrap()
+            else:
+                fn, key = simple_map.get(st, (None, None))
+                if fn:
+                    fn(st, key)
+
+    resp = {
         "merchant": merchant_name,
         "order": order,
         "range": range_info,
-        "limits": limits,  # placeholder for future min/max/total
+        "limits": limits,
         "data": data,
+        "simulated": is_sim,
+        "sim_now_ts": sim_dt.timestamp(),
+        "sim_source": sim_source,
+        "since_ts": s_ts,
+        "until_ts": u_ts,
     }
-
-@app.get("/v1/{merchant_name}/stock")
-def get_stock_data(
-    merchant_name: str,
-    order: str = "desc",
-    limit: int = 5000,
-    window: Optional[str] = None,
-    since: Optional[str] = None,
-    until: Optional[str] = None,
-    include_stock_meta: bool = False,
-    allow_future: bool = False,
-    now: Optional[str] = None
-):
-    # Validate merchant
-    if not SERVICE.get_merchant(merchant_name):
-        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    if profile:
+        resp["timings_ms"] = timings
+        resp["parallel"] = parallel and len(stream_list) > 1
+    if cache_ttl > 0:
+        _stream_cache_put(cache_key, resp)
+    return resp
+    raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
 
     # Compute range
     try:
@@ -597,6 +751,7 @@ def dashboard_overview(
     top: int = 5,
     include_all: bool = True,
     include_inactive: bool = False,
+    now: str | None = None,
 ):
     """Return latest evaluation per merchant and the top-N by total risk score.
     interval: window label (30m|1h|1d)
@@ -607,10 +762,16 @@ def dashboard_overview(
     if interval_key not in RISK_INTERVAL_MAP:
         raise HTTPException(status_code=400, detail=f"Unsupported interval '{interval}'.")
     interval_minutes = RISK_INTERVAL_MAP[interval_key]
+    # Resolve simulated now (query param -> env -> real now)
+    sim_now_dt, is_sim, sim_source = resolve_sim_now(now)
+    gen_now_ts = sim_now_dt.timestamp()
     eval_col = db["merchant_evaluations"]
-    # Aggregate latest evaluation per merchant for the interval
+    # Aggregate latest evaluation per merchant for the interval, respecting simulated now if provided
+    match_filter: dict[str, Any] = {"interval_minutes": interval_minutes}
+    if is_sim:
+        match_filter["window_end_ts"] = {"$lte": gen_now_ts}
     pipeline = [
-        {"$match": {"interval_minutes": interval_minutes}},
+        {"$match": match_filter},
         {"$sort": {"window_end_ts": -1}},
         {"$group": {"_id": "$merchant", "doc": {"$first": "$$ROOT"}}},
         {"$project": {"_id": 0, "merchant": "$_id", "evaluation": "$doc", "risk_score": "$doc.scores.total", "confidence": "$doc.confidence"}},
@@ -620,6 +781,24 @@ def dashboard_overview(
     except Exception as e:
         log(f"dashboard_overview aggregation error: {e}")
         raise HTTPException(status_code=500, detail="Failed to aggregate evaluations")
+    # If simulated rewind and missing recent windows, optionally trigger lightweight ensure (capped)
+    if not latest:
+        try:
+            cap_hours = 168
+            for mdoc in db["merchants"].find({}, projection={"merchant_name":1, "_id":0}):
+                mname = mdoc.get("merchant_name")
+                if not mname or mname in DASHBOARD_EXCLUDE:
+                    continue
+                # Only ensure a very small range ending at sim_now to avoid heavy backfill
+                until_ts = gen_now_ts
+                since_ts = until_ts - interval_minutes * 60 * 6  # last 6 windows
+                try:
+                    RISK.ensure_windows(mname, interval_key, since_ts, until_ts)
+                except Exception:
+                    pass
+            latest = list(eval_col.aggregate(pipeline))
+        except Exception:
+            pass
     # Fetch merchant base docs for enrichment
     merchant_docs = {m.get("merchant_name"): m for m in db["merchants"].find({}, projection={"_id": 0})}
     def _coerce_bool(v, default=True):
@@ -679,9 +858,13 @@ def dashboard_overview(
     scored = [r for r in out_all if isinstance(r.get("risk_score"), (int, float)) and r.get("activation_flag", True)]
     scored.sort(key=lambda x: x.get("risk_score"), reverse=True)
     top_list = scored[: max(1, min(int(top or 5), 50))]
+    # Filter future windows relative to simulated now by post-processing (pipeline can't reuse local var)
     resp = {
-        "generated_at": dt.datetime.now(dt.UTC).isoformat().replace("+00:00", "Z"),
+        "generated_at": dt.datetime.fromtimestamp(gen_now_ts, tz=dt.UTC).isoformat().replace("+00:00", "Z"),
         "interval": interval_key,
+        "sim_now_ts": gen_now_ts,
+        "simulated": is_sim,
+        "sim_source": sim_source,
         "top_merchants": top_list,
         "inactive_count": inactive_count if not include_inactive else sum(1 for r in out_all if not r.get("activation_flag", True)),
     }
@@ -722,6 +905,8 @@ def dashboard_series(
     include_components: bool = True,
     ensure: bool = True,
     async_ensure: bool = True,
+    include_axis: bool = True,
+    now: str | None = None,
 ):
     """Return time-series evaluation windows for top-N merchants.
     Params:
@@ -736,9 +921,13 @@ def dashboard_series(
     interval_minutes = RISK_INTERVAL_MAP[interval_key]
     lookback = max(5, min(int(lookback or 48), 500))
     eval_col = db["merchant_evaluations"]
-    # Latest evaluation per merchant
+    # Latest evaluation per merchant (respect simulated now if provided)
+    match_filter: dict[str, Any] = {"interval_minutes": interval_minutes}
+    sim_now_dt, is_sim, sim_source = resolve_sim_now(now)
+    if is_sim:
+        match_filter["window_end_ts"] = {"$lte": sim_now_dt.timestamp()}
     pipeline = [
-        {"$match": {"interval_minutes": interval_minutes}},
+        {"$match": match_filter},
         {"$sort": {"window_end_ts": -1}},
         {"$group": {"_id": "$merchant", "doc": {"$first": "$$ROOT"}}},
         {"$project": {"_id": 0, "merchant": "$_id", "risk_score": "$doc.scores.total", "confidence": "$doc.confidence", "window_end_ts": "$doc.window_end_ts"}},
@@ -787,28 +976,61 @@ def dashboard_series(
             if len(selected_merchants) >= top:
                 break
             selected_merchants.append(m)
-    now_ts = dt.datetime.now(dt.UTC).timestamp()
+    # Additional fallback: pull from full merchant registry (even if they have no evaluations yet)
+    if len(selected_merchants) < top:
+        try:
+            registry_names = [m for m in SERVICE.list_merchant_names() if m not in DASHBOARD_EXCLUDE]
+            # filter inactive
+            registry_names = [m for m in registry_names if merchant_docs.get(m, {}).get("activation_flag", True)]
+            for m in registry_names:
+                if len(selected_merchants) >= top:
+                    break
+                if m not in selected_merchants:
+                    selected_merchants.append(m)
+        except Exception as e:
+            log(f"dashboard_series registry fallback error: {e}")
+    # Reuse parsed simulated now (if any) else real now
+    now_ts = sim_now_dt.timestamp()
     interval_seconds = interval_minutes * 60
     since_ts = now_ts - lookback * interval_seconds
     # Ensure evaluations if requested (optionally async via job system for progress reporting)
     jobs_started = []
+    # Auto-force ensure if caller disabled ensure but we have zero scored evaluations (cold start)
+    force_ensure = False
+    if not ensure and not latest_sorted and selected_merchants:
+        force_ensure = True
+        ensure = True
+        log(f"dashboard_series: forcing ensure (cold start) interval={interval_key} merchants={len(selected_merchants)}")
     if ensure:
+        # Adaptive backfill cap: widen if simulated now is far in the past relative to real now
+        real_now_ts = dt.datetime.now(dt.UTC).timestamp()
+        # Distance (hours) from real now
+        delta_hours = (real_now_ts - now_ts) / 3600.0
+        # Minimum horizon to cover lookback fully
+        needed_hours = max(lookback * interval_minutes / 60.0, 1)
+        base_cap = 168  # default 7d
+        # If simulating past beyond base_cap or lookback exceeds base, expand
+        adaptive_cap = max(base_cap, needed_hours)
+        if delta_hours > base_cap:
+            # expand up to distance (capped) to allow rewind planning
+            adaptive_cap = min(delta_hours + interval_minutes/60.0, 24*90)  # cap 90d
+        adaptive_cap = int(adaptive_cap + 0.999)
         if async_ensure:
             for m in selected_merchants:
                 try:
-                    status = RISK.trigger_or_status(m, interval_key, submit_fn=TASKS.pool.submit, max_backfill_hours=168)
-                    # attach percent if possible
+                    status = RISK.trigger_or_status(m, interval, submit_fn=TASKS.pool.submit, max_backfill_hours=adaptive_cap, now_ts=now_ts)
                     planned = status.get("planned") or status.get("missing_planned") or 0
                     processed = status.get("processed") or 0
                     if planned:
                         status["percent"] = round(min(100.0, processed / planned * 100.0), 2)
+                    status["adaptive_backfill_hours"] = adaptive_cap
                     jobs_started.append(status)
                 except Exception as e:
                     log(f"dashboard_series async trigger error [{m}]: {e}")
         else:
             for m in selected_merchants:
                 try:
-                    RISK.ensure_evaluations(m, interval_key, since_ts, now_ts)
+                    RISK.ensure_evaluations(m, interval, since_ts, now_ts)
                 except Exception as e:
                     log(f"dashboard_series ensure_evaluations error [{m}]: {e}")
     # Fetch series per merchant
@@ -821,6 +1043,9 @@ def dashboard_series(
             limit=lookback,
         )
         rows = list(cur)
+        # Drop any windows that end after simulated now (if sim time is in the past)
+        if rows and now_ts:
+            rows = [r for r in rows if (r.get("window_end_ts") or 0) <= now_ts + 1e-6]
         rows.sort(key=lambda x: x.get("window_end_ts", 0))  # ascending for charting
         if not include_components:
             slim = []
@@ -838,18 +1063,37 @@ def dashboard_series(
             "activation_flag": merchant_docs.get(m, {}).get("activation_flag", True),
             "auto_action": merchant_docs.get(m, {}).get("auto_action", False)
         })
+    # Axis baseline metadata (global earliest baseline among selected merchants)
+    axis_baseline_ts = None
+    if include_axis:
+        try:
+            base_docs = list(db["merchants"].find({"merchant_name": {"$in": selected_merchants}}, projection={"_id":0, "merchant_name":1, "risk_eval_baseline_ts":1}))
+            for md in base_docs:
+                bts = md.get("risk_eval_baseline_ts")
+                if isinstance(bts, (int,float)):
+                    if axis_baseline_ts is None or bts < axis_baseline_ts:
+                        axis_baseline_ts = float(bts)
+        except Exception:
+            axis_baseline_ts = None
     resp = {
-        "generated_at": dt.datetime.now(dt.UTC).isoformat().replace("+00:00", "Z"),
+        "generated_at": dt.datetime.fromtimestamp(now_ts, tz=dt.UTC).isoformat().replace("+00:00", "Z"),
         "interval": interval_key,
+        "sim_now_ts": now_ts,
+        "simulated": is_sim,
+        "sim_source": sim_source,
         "top": len(selected_merchants),
         "lookback": lookback,
         "since_ts": since_ts,
         "until_ts": now_ts,
         "merchants": merchants_series,
     }
+    if include_axis:
+        resp["axis"] = {"baseline_ts": axis_baseline_ts, "until_ts": now_ts, "interval_seconds": interval_seconds}
     if jobs_started:
         # Only include active/queued/running jobs to limit payload size
         resp["jobs"] = [j for j in jobs_started if j.get("status") in {"queued","running"} or j.get("missing_planned")]
+    if force_ensure:
+        resp["ensure_forced"] = True
     return resp
 
 # ---------------- Risk Evaluation Endpoints (moved above __main__) ----------------
@@ -889,7 +1133,10 @@ def trigger_risk_eval(
     bootstrap_hours: int = 24,
     bootstrap_step: int = 60,
     since: float | None = None,
-    until: float | None = None
+    until: float | None = None,
+    priority: int = 5,
+    realtime: bool | None = None,
+    now: str | None = None,
 ):
     # Validate merchant
     if not SERVICE.get_merchant(merchant_name):
@@ -916,9 +1163,33 @@ def trigger_risk_eval(
         except Exception as ie:
             actions.append({"action":"autoseed_inspect","error": str(ie)})
             log(f"Autoseed inspection failed for {merchant_name}: {ie}")
+    # Parse 'now' which may be ISO8601, epoch seconds, or milliseconds
+    parsed_now_ts: float | None = None
+    parsed_now_source: str | None = None
+    if now is not None:
+        # Try datetime parse first
+        try:
+            ndt = parse_any_dt(now)
+            if ndt:
+                parsed_now_ts = ndt.timestamp()
+                parsed_now_source = "datetime"
+        except Exception:
+            ndt = None
+        if parsed_now_ts is None:
+            # Try numeric (seconds or ms)
+            try:
+                f = float(now)
+                # Heuristic: treat large values as ms
+                if f > 10_000_000_000:  # > year 2286 if seconds, so probably ms
+                    f = f / 1000.0
+                parsed_now_ts = f
+                parsed_now_source = parsed_now_source or "epoch"
+            except Exception:
+                parsed_now_ts = None
+                parsed_now_source = "invalid"
     try:
         cap = _parse_backfill_param(max_backfill_hours)
-        status = RISK.trigger_or_status(merchant_name, interval, submit_fn=TASKS.pool.submit, max_backfill_hours=cap)
+        status = RISK.trigger_or_status(merchant_name, interval, submit_fn=TASKS.pool.submit, max_backfill_hours=cap, priority=priority, realtime=realtime, now_ts=parsed_now_ts)
         # Optional explicit range backfill (only missing windows in [since, until])
         if since is not None and until is not None and until > since:
             from risk_eval import INTERVAL_MAP
@@ -945,11 +1216,11 @@ def trigger_risk_eval(
                 actions.append({"action":"bootstrap_seed","hours": bh, "step": bstp, "seeded": seed_res.get("seeded")})
                 # Retry trigger (cap backfill to bootstrap hours + small cushion)
                 retry_cap = bh + 2
-                status = RISK.trigger_or_status(merchant_name, interval, submit_fn=TASKS.pool.submit, max_backfill_hours=retry_cap)
+                status = RISK.trigger_or_status(merchant_name, interval, submit_fn=TASKS.pool.submit, max_backfill_hours=retry_cap, realtime=realtime, now_ts=parsed_now_ts)
                 actions.append({"action":"bootstrap_retry","windows": status.get("total_windows")})
             except Exception as be:
                 actions.append({"action":"bootstrap_seed","error": str(be)})
-        return {"job": status, "actions": actions, "autoseed_result": autoseed_result}
+        return {"job": status, "actions": actions, "autoseed_result": autoseed_result, "parsed_now_ts": parsed_now_ts, "parsed_now_source": parsed_now_source}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -957,8 +1228,8 @@ def trigger_risk_eval(
 
 # Convenience GET alias so users can paste the URL in a browser and still trigger the job.
 @app.get("/v1/{merchant_name}/risk-eval/trigger")
-def trigger_risk_eval_get(merchant_name: str, interval: str = "30m", autoseed: bool = False, max_backfill_hours: str | None = None):
-    return trigger_risk_eval(merchant_name=merchant_name, interval=interval, autoseed=autoseed, max_backfill_hours=max_backfill_hours)
+def trigger_risk_eval_get(merchant_name: str, interval: str = "30m", autoseed: bool = False, max_backfill_hours: str | None = None, priority: int = 5, realtime: bool | None = None, now: str | None = None):
+    return trigger_risk_eval(merchant_name=merchant_name, interval=interval, autoseed=autoseed, max_backfill_hours=max_backfill_hours, priority=priority, realtime=realtime, now=now)
 
 @app.get("/v1/{merchant_name}/risk-eval/job/{job_id}")
 def risk_eval_job_status(merchant_name: str, job_id: str):
@@ -994,7 +1265,8 @@ def get_risk_summary(
     until: float | None = None,
     now: float | None = None,
     window: str | None = None,
-    fake: bool = False
+    fake: bool = False,
+    include_axis: bool = True
 ):
     """Lightweight summary of recent risk scores for dashboard consumption.
     Parameters:
@@ -1078,7 +1350,19 @@ def get_risk_summary(
             }
             summary["_fake"] = True
 
-        return {"merchant": merchant_name, "interval_selected": chosen_interval, **summary, "range_used": {"since": rng_since, "until": rng_until}}
+        axis_meta = None
+        if include_axis:
+            try:
+                mdoc = db["merchants"].find_one({"merchant_name": merchant_name}, projection={"_id":0, "risk_eval_baseline_ts":1})
+                bts = mdoc.get("risk_eval_baseline_ts") if mdoc else None
+                if isinstance(bts, (int,float)):
+                    axis_meta = {"baseline_ts": float(bts), "until_ts": rng_until or dt.datetime.now(dt.UTC).timestamp()}
+            except Exception:
+                axis_meta = None
+        resp = {"merchant": merchant_name, "interval_selected": chosen_interval, **summary, "range_used": {"since": rng_since, "until": rng_until}}
+        if axis_meta:
+            resp["axis"] = axis_meta
+        return resp
     except HTTPException:
         raise
     except ValueError as e:
@@ -1378,25 +1662,30 @@ def risk_eval_probe(
 
 @app.get("/v1/risk-eval/jobs")
 def list_risk_jobs(active: bool = True):
-    """Return current risk evaluation jobs with progress.
-    active=true filters to queued/running; false returns all cached jobs.
-    """
-    jobs = []
-    for jid, rec in RISK.jobs.items():
-        if active:
-            if rec.get("status") in {"queued","running"}:
-                jobs.append({"job_id": jid, **rec})
-        else:
-            jobs.append({"job_id": jid, **rec})
-    # compute percentage
-    for j in jobs:
-        planned = j.get("planned") or j.get("missing_planned") or 0
-        processed = j.get("processed", 0)
-        if planned:
-            j["percent"] = round(min(100.0, processed / planned * 100.0), 2)
-        elif j.get("status") == "done":
-            j["percent"] = 100.0
+    """Return risk evaluation jobs (persistent). active=true => queued/running only."""
+    jobs = RISK.list_jobs(active=active)
     return {"jobs": jobs, "count": len(jobs)}
+
+@app.get("/v1/{merchant_name}/risk-eval/latest")
+def latest_risk_snapshot(merchant_name: str, interval: str = "30m", now: float | None = None):
+    """Return (and if necessary compute) the most recent completed window quickly.
+    Parameters:
+      - interval: window size label
+      - now: optional simulated 'now' epoch seconds for replay; if provided the window
+        aligned to (now - interval) is ensured instead of real current time.
+    """
+    if not SERVICE.get_merchant(merchant_name):
+        raise HTTPException(status_code=404, detail=f"Merchant not found: {merchant_name}")
+    try:
+        if now is not None:
+            snap = RISK.ensure_latest_window_at(merchant_name, interval, float(now))
+        else:
+            snap = RISK.ensure_latest_window(merchant_name, interval)
+        return {"snapshot": snap}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     # When running as a script, all routes (including risk eval) are now already registered above.
@@ -1418,114 +1707,155 @@ def get_merchant_evaluations(
     until: float | None = None,
     ensure: bool = True,
     now: str | None = None,
+    sim_filter_future: bool = True,
+    asyncEnsure: bool = True,
+    maxEnsureSeconds: float = 4.0,
 ):
     try:
-        base_now_dt = parse_any_dt(now) if now else None
-        now_ts = (base_now_dt or dt.datetime.now(dt.UTC)).timestamp()
+        log(f"[eval-endpoint] merchant={merchant_name} interval={interval} since={since} until={until} ensure={ensure} now={now}")
+        sim_dt, is_sim, sim_src = resolve_sim_now(now)
+        now_ts = sim_dt.timestamp()
+        # Derive ensure range (since/until provided as epoch seconds already)
         if since is None and until is None:
+            # default 24h lookback for merchant view
             since_calc = now_ts - 24*3600
             until_calc = now_ts
         else:
             since_calc = since if since is not None else (now_ts - 24*3600)
             until_calc = until if until is not None else now_ts
+        # Clamp if simulated time is in the FUTURE (previous logic only handled rewinds)
+        real_now_ts = dt.datetime.now(dt.UTC).timestamp()
+        if is_sim:
+            if now_ts < real_now_ts:
+                until_calc = min(until_calc, now_ts)
+            elif now_ts > real_now_ts:
+                # Disallow large forward simulation for this endpoint (avoid hanging on empty future)
+                forward_ahead = now_ts - real_now_ts
+                # Allow up to 5 minutes forward; clamp anything beyond
+                if forward_ahead > 300:
+                    until_calc = real_now_ts
+                    now_ts = real_now_ts
+                    log(f"[eval-endpoint] clamped future simulated now (ahead {forward_ahead:.1f}s) -> real now")
+        # Safety: never let until exceed real now by > 60s (stray clock drift)
+        if until_calc > real_now_ts + 60:
+            until_calc = real_now_ts
+        # Ensure since <= until after clamps
+        if since_calc > until_calc:
+            since_calc = max(0.0, until_calc - 24*3600)
+        # Expand backfill horizon automatically if rewinding far in the past (similar logic to dashboard_series)
+        backfill_started = False
+        backfill_duration_ms = None
+        missing_planned = 0
         if ensure:
             try:
-                RISK.ensure_evaluations(merchant_name, interval, since_calc, until_calc)
+                ilabel = interval.lower()
+                from risk_eval import INTERVAL_MAP
+                if ilabel in INTERVAL_MAP:
+                    iv = INTERVAL_MAP[ilabel]
+                    # Plan first (cheap) to avoid blocking if a large gap
+                    try:
+                        missing_list = RISK.plan_missing_windows_for_range(merchant_name, iv, since_calc, until_calc)
+                        missing_planned = len(missing_list)
+                    except Exception:
+                        missing_list = []
+                    if missing_list:
+                        if asyncEnsure:
+                            # Launch background thread so HTTP request does not hang
+                            def _bg():
+                                try:
+                                    RISK.ensure_windows(merchant_name, ilabel, since_calc, until_calc)
+                                except Exception as _e:
+                                    log(f"[eval-endpoint] background ensure error: {_e}")
+                            import threading
+                            threading.Thread(target=_bg, name=f"eval-ensure-{merchant_name}-{ilabel}", daemon=True).start()
+                            backfill_started = True
+                        else:
+                            t0 = time.time()
+                            RISK.ensure_windows(merchant_name, ilabel, since_calc, until_calc)
+                            backfill_duration_ms = int((time.time()-t0)*1000)
+                    else:
+                        # Nothing missing; no-op
+                        pass
             except Exception as e:
-                log(f"ensure_evaluations error: {e}")
+                log(f"ensure_evaluations (non-fatal) error: {e}")
+        # Fetch (respect original since/until filters if provided so UI table matches query)
         rows = RISK.fetch_evaluations(merchant_name, interval_label=interval, limit=limit, since=since, until=until)
-        return {"merchant": merchant_name, "interval": interval, "count": len(rows), "rows": rows}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/v1/evaluations/summary")
-def evaluations_summary(interval: str = "30m", limit_per: int = 5):
-    try:
-        coll = db["merchant_evaluations"]
-        merchants = list(coll.distinct("merchant"))[:100]
-        out = []
-        for m in merchants:
-            rows = list(coll.find({"merchant": m}, projection={"_id":0}).sort([("window_end_ts", -1)]).limit(limit_per))
-            if rows:
-                latest = rows[0]
-                out.append({
-                    "merchant": m,
-                    "latest_total": (latest.get("scores") or {}).get("total"),
-                    "latest_confidence": latest.get("confidence"),
-                    "rows": rows,
-                })
-        return {"interval": interval, "merchants": out}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# ---------------- New Merchant Evaluation Endpoints (for MerchantRisk.vue) --------------
-
-@app.get("/v1/{merchant_name}/evaluations")
-def get_merchant_evaluations(
-    merchant_name: str,
-    interval: str = "30m",
-    limit: int = 500,
-    since: float | None = None,
-    until: float | None = None,
-    ensure: bool = True,
-    now: str | None = None,
-):
-    """Return merchant evaluation timeline (merchant_evaluations collection).
-    If ensure=true, compute any missing windows first (cheap idempotent upserts).
-    """
-    try:
-        base_now_dt = parse_any_dt(now) if now else None
-        now_ts = (base_now_dt or dt.datetime.now(dt.UTC)).timestamp()
-        if since is None and until is None:
-            # default lookback 24h for ensure
-            since_calc = now_ts - 24*3600
-            until_calc = now_ts
-        else:
-            since_calc = since if since is not None else (now_ts - 24*3600)
-            until_calc = until if until is not None else now_ts
-        if ensure:
+        log(f"[eval-endpoint] fetched rows={len(rows)} (pre-fallback)")
+        # Fallback: if no evaluations but we are simulating and ensured windows should exist, widen a bit & retry once
+        if not rows and ensure and is_sim:
             try:
-                RISK.ensure_evaluations(merchant_name, interval, since_calc, until_calc)
-            except Exception as e:
-                log(f"ensure_evaluations error: {e}")
-        rows = RISK.fetch_evaluations(merchant_name, interval_label=interval, limit=limit, since=since, until=until)
-        return {"merchant": merchant_name, "interval": interval, "count": len(rows), "rows": rows}
+                from risk_eval import INTERVAL_MAP
+                iv = INTERVAL_MAP.get(interval.lower())
+                if iv:
+                    widen = iv * 3 * 60  # widen ensure by 3 extra windows backward
+                    back_since = max(0.0, since_calc - widen)
+                    RISK.ensure_evaluations(merchant_name, interval, back_since, until_calc)
+                    rows = RISK.fetch_evaluations(merchant_name, interval_label=interval, limit=limit, since=since, until=until)
+                    log(f"[eval-endpoint] post-fallback rows={len(rows)} widened_since={back_since}")
+            except Exception as fe:
+                log(f"merchant_evaluations fallback ensure failed: {fe}")
+        if is_sim and sim_filter_future:
+            rows = [r for r in rows if (r.get('window_end_ts') or 0) <= now_ts + 1e-6]
+        log(f"[eval-endpoint] returning rows={len(rows)} simulated={is_sim}")
+        return {
+            "merchant": merchant_name,
+            "interval": interval,
+            "count": len(rows),
+            "rows": rows,
+            "simulated": is_sim,
+            "sim_now_ts": now_ts,
+            "sim_source": sim_src,
+            "backfill_async": backfill_started,
+            "missing_planned": missing_planned,
+            "backfill_duration_ms": backfill_duration_ms,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/v1/evaluations/summary")
-def evaluations_summary(interval: str = "30m", limit_per: int = 5):
-    """Lightweight multi-merchant snapshot for dashboards.
-    Returns latest N evaluation windows per merchant (descending by end_ts).
-    """
+@app.get("/v1/risk-eval/queue-summary")
+def risk_eval_queue_summary():
+    """Aggregate queue stats for frontend (active jobs ordered by priority then FIFO)."""
     try:
-        coll = db["merchant_evaluations"]
-        # Distinct merchants (could be large; cap to 100 for safety)
-        merchants = list(coll.distinct("merchant"))[:100]
-        out = []
-        for m in merchants:
-            rows = list(
-                coll.find({"merchant": m}, projection={"_id":0})
-                .sort([("window_end_ts", -1)])
-                .limit(limit_per)
-            )
-            if rows:
-                latest = rows[0]
-                out.append({
-                    "merchant": m,
-                    "latest_total": ((latest.get("scores") or {}).get("total")),
-                    "latest_confidence": latest.get("confidence"),
-                    "rows": rows,
-                })
-        return {"interval": interval, "merchants": out}
+        jobs_active = RISK.list_jobs(active=True)
+        # Order: priority asc (None -> large), created_at_ts asc
+        def _prio(j):
+            p = j.get("priority")
+            if not isinstance(p, (int,float)):
+                return 999
+            return p
+        jobs_active.sort(key=lambda j: (_prio(j), j.get("created_at_ts", 0)))
+        total_active = len(jobs_active)
+        # Derive position map per merchant+interval (first occurrence)
+        positions = {}
+        for idx, j in enumerate(jobs_active, start=1):
+            key = f"{j.get('merchant')}:{j.get('interval')}"
+            if key not in positions:
+                positions[key] = idx
+        summary = {
+            "active_jobs": jobs_active,
+            "total_active": total_active,
+            "positions": positions,
+            "generated_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z')
+        }
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"queue summary error: {e}")
+
+@app.get("/v1/risk-eval/metrics")
+def risk_eval_metrics():
+    try:
+        return RISK.get_metrics()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# (Removed duplicate evaluation endpoints; kept single canonical versions above)
 
 @app.get("/v1/{merchant_name}/window-counts")
 def window_counts(
     merchant_name: str,
     interval: str = "30m",
-    lookback: int = 24
+    lookback: int = 24,
+    now: float | None = None,
 ):
     """Return raw per-window counts (no scoring) so we can see if volume/activity should exist.
     Useful when volume/activity charts are blank – verifies the counting strategy.
@@ -1535,7 +1865,7 @@ def window_counts(
     if ilabel not in INTERVAL_MAP:
         raise HTTPException(status_code=400, detail="Unsupported interval")
     iv = INTERVAL_MAP[ilabel]
-    now_ts = dt.datetime.now(dt.UTC).timestamp()
+    now_ts = float(now) if now is not None else dt.datetime.now(dt.UTC).timestamp()
     start_ts = now_ts - lookback * iv * 60
     # Ensure windows so counts are computed
     try:

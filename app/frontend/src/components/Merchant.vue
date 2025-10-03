@@ -62,7 +62,8 @@
           <div class="panel-section action-center-dropdown">
         <button @click="openPermanentBanModal">Permanent Ban</button>
         <button @click="openShadowBanModal">Shadow Ban</button>
-        <button @click="openRestrictModal">Restrict Merchant</button>
+  <button @click="openRestrictModal">Restrict Merchant</button>
+  <button @click="confirmDeleteMerchant" style="color: rgb(255 0 0);">Delete Merchant</button>
           </div>
 
           <!-- Save -->
@@ -1510,6 +1511,7 @@ export default {
     const loadFromRoute = async () => {
       loading.value = true;
       try {
+        console.debug('[Merchant] loadFromRoute start ident=', routeIdentifier.value);
         const ident = routeIdentifier.value;
         if (!ident) throw new Error("No merchant specified.");
         if (/^acc_[a-f0-9]+$/i.test(ident)) {
@@ -1517,6 +1519,7 @@ export default {
         } else {
           await fetchByName(ident);
         }
+        console.debug('[Merchant] base merchant loaded name=', merchant.name, 'id=', merchant.id);
         // If a simulated time session is active (persisted), we skip this immediate fetch
         // so that the panel's initial emit (which carries the simulated 'now') becomes the
         // first data load. Otherwise we'd fetch once with real time and then again with sim time,
@@ -1540,6 +1543,7 @@ export default {
         }
         loading.value = false;
       } catch (e) {
+        console.warn('[Merchant] loadFromRoute error', e);
         loading.value = false;
         originalDoc.value = null;
         toast.error(String(e?.message || e), { autoClose: 3000 });
@@ -1657,6 +1661,34 @@ export default {
         toast.error(String(e?.message || e), { autoClose: 4000 });
       } finally {
         saving.value = false;
+      }
+    }
+
+    // Merchant deletion (dashboard-level removal: merchant, preset, evaluations, risk scores)
+    const deleting = ref(false);
+    function confirmDeleteMerchant(){
+      if(!merchant.name) return;
+      if(confirm(`Delete merchant '${merchant.name}' from dashboard? This removes risk/eval data but keeps raw streams.`)){
+        deleteMerchant();
+      }
+    }
+    async function deleteMerchant(){
+      if(!merchant.name || deleting.value) return;
+      deleting.value = true;
+      try {
+        const resp = await fetch(`http://localhost:8000/v1/merchants/${encodeURIComponent(merchant.name)}`, { method:'DELETE' });
+        if(!resp.ok){
+          if(resp.status===404) throw new Error('Merchant already gone');
+          throw new Error('Delete failed '+resp.status);
+        }
+        const js = await resp.json();
+        toast.success(`Merchant '${merchant.name}' deleted`);
+        // Navigate back to dashboard after brief delay
+        setTimeout(()=>{ router.push('/dashboard'); }, 400);
+      } catch(e){
+        toast.error(String(e.message||e));
+      } finally {
+        deleting.value = false;
       }
     }
 
@@ -1785,6 +1817,32 @@ export default {
 async function fetchStreams() {
   try { console.log('[Merchant] fetchStreams start', { merchant: merchantKey.value, window: streamWindow.value, since: sinceStr.value, until: untilStr.value, unit: unit.value }); } catch {}
   if (!merchantKey.value) return;
+  // Lightweight 2s in-memory cache to avoid duplicate identical queries
+  const cacheKey = JSON.stringify({m:merchantKey.value,w:streamWindow.value,s:sinceStr.value,u:untilStr.value,o:streamOrder.value,l:streamLimit.value,f:allowFuture.value,now:(nowIso.value||'').trim()});
+  if(!fetchStreams._cache) fetchStreams._cache = new Map();
+  const nowMs = Date.now();
+  const hit = fetchStreams._cache.get(cacheKey);
+  if(hit && (nowMs - hit.ts) < 2000){
+    try { console.log('[Merchant] fetchStreams cache hit'); } catch {}
+    const json = hit.payload;
+    tweets.value = Array.isArray(json?.data?.tweets) ? json.data.tweets : [];
+    const redditArr = json?.data?.reddit_posts || json?.data?.reddit || json?.data?.redditPosts || [];
+    redditPosts.value = Array.isArray(redditArr) ? redditArr : [];
+    const wlArr = json?.data?.wl || json?.data?.wl_transactions || json?.data?.wlTxns || json?.data?.wl_transactions_raw || [];
+    wlTxns.value = Array.isArray(wlArr) ? wlArr : [];
+    const stockObj = json?.data?.stock || json?.data?.stock_data || null;
+    if (stockObj && typeof stockObj === 'object') {
+      stockPrices.value = Array.isArray(stockObj.prices) ? stockObj.prices : [];
+      stockEarnings.value = Array.isArray(stockObj.earnings) ? stockObj.earnings : [];
+      stockActions.value = Array.isArray(stockObj.corporate_actions || stockObj.actions) ? (stockObj.corporate_actions || stockObj.actions) : [];
+      stockMeta.value = (stockObj.meta && typeof stockObj.meta === 'object') ? stockObj.meta : {};
+    } else { stockPrices.value = []; stockEarnings.value = []; stockActions.value = []; stockMeta.value = {}; }
+    const revArr = json?.data?.reviews || json?.data?.customer_reviews || [];
+    reviewsData.value = Array.isArray(revArr) ? revArr : [];
+    const newsArr = json?.data?.news || json?.data?.news_items || json?.data?.newsData || [];
+    newsItems.value = Array.isArray(newsArr) ? newsArr : [];
+    return; // satisfied via cache
+  }
   if (streamsAbort) streamsAbort.abort();
   streamsAbort = new AbortController();
   streamsInFlight.value = true;
@@ -1813,9 +1871,37 @@ async function fetchStreams() {
     if ((untilStr.value || "").trim()) params.set("until", untilStr.value.trim());
     if (Number(streamLimit.value) > 0) params.set("limit", String(Number(streamLimit.value)));
     if (allowFuture.value) params.set("allow_future", "true");
-    if ((nowIso.value || "").trim()) params.set("now", nowIso.value.trim());
+    if ((nowIso.value || "").trim()) {
+      let acceptNow = true;
+      let normalizedNow = nowIso.value.trim();
+      try {
+        // Accept DD-MM-YYYY or DD/MM/YYYY quick entry by converting to ISO YYYY-MM-DD
+        const m = normalizedNow.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(.*)$/);
+        if(m){
+          const d = m[1].padStart(2,'0');
+          const M = m[2].padStart(2,'0');
+          const Y = m[3];
+          // if trailing time part present keep it, else set end-of-day 23:59:59
+            let tail = (m[4]||'').trim();
+            if(!tail){ tail = 'T23:59:59Z'; }
+            else if(!/[TZ]/i.test(tail)){ tail = 'T'+tail; }
+          normalizedNow = `${Y}-${M}-${d}${tail}`;
+        }
+        const parsed = Date.parse(normalizedNow);
+        if (!isNaN(parsed)) {
+          if (parsed > Date.now() + 5*60*1000 && !allowFuture.value) { // >5m future not allowed unless allowFuture
+            console.warn('[Merchant] Dropping future now param for raw streams (no future data)', normalizedNow);
+            acceptNow = false;
+          }
+        }
+      } catch {/* ignore */}
+      if (acceptNow) params.set("now", normalizedNow);
+    }
 
     const url = `/v1/${encodeURIComponent(merchantKey.value)}/data`;
+    // Enable backend parallel + caching
+    params.set('parallel','true');
+    params.set('cache_ttl','2');
     let json;
     try {
       json = await apiGet(url, Object.fromEntries(params), streamsAbort.signal);
@@ -1863,6 +1949,54 @@ async function fetchStreams() {
   // News list
   const newsArr = json?.data?.news || json?.data?.news_items || json?.data?.newsData || [];
   newsItems.value = Array.isArray(newsArr) ? newsArr : [];
+  // store in cache
+  fetchStreams._cache.set(cacheKey, { ts: nowMs, payload: json });
+
+    // --- Fallback: if ALL primary streams are empty, attempt lowercase merchant retry (case sensitivity guard) ---
+    try {
+      const totalPrimary = (tweets.value.length + redditPosts.value.length + wlTxns.value.length + stockPrices.value.length + reviewsData.value.length + newsItems.value.length);
+      if (totalPrimary === 0 && /[A-Z]/.test(merchantKey.value)) {
+        const altKey = merchantKey.value.toLowerCase();
+        if (altKey !== merchantKey.value) {
+          console.warn('[Merchant] Empty streams for mixed-case key, retrying with lowercase', altKey);
+          const retryParams = new URLSearchParams(params);
+          // reuse same range params
+          let retryJson;
+          try {
+            retryJson = await apiGet(`/v1/${encodeURIComponent(altKey)}/data`, Object.fromEntries(retryParams), streamsAbort.signal);
+          } catch (re) {
+            console.warn('[Merchant] Lowercase retry failed', re);
+            retryJson = null;
+          }
+          if (retryJson && retryJson.data) {
+            const rj = retryJson.data;
+            const rTweets = Array.isArray(rj.tweets) ? rj.tweets : [];
+            const rReddit = Array.isArray(rj.reddit) ? rj.reddit : Array.isArray(rj.reddit_posts) ? rj.reddit_posts : [];
+            const rWL = Array.isArray(rj.wl) ? rj.wl : Array.isArray(rj.wl_transactions) ? rj.wl_transactions : [];
+            const rStock = (rj.stock && Array.isArray(rj.stock.prices)) ? rj.stock.prices : [];
+            const rReviews = Array.isArray(rj.reviews) ? rj.reviews : [];
+            const rNews = Array.isArray(rj.news) ? rj.news : [];
+            const retryTotal = rTweets.length + rReddit.length + rWL.length + rStock.length + rReviews.length + rNews.length;
+            if (retryTotal > 0) {
+              console.warn('[Merchant] Using lowercase merchant streams after successful retry');
+              tweets.value = rTweets;
+              redditPosts.value = rReddit;
+              wlTxns.value = rWL;
+              if (rj.stock && typeof rj.stock === 'object') {
+                stockPrices.value = Array.isArray(rj.stock.prices) ? rj.stock.prices : [];
+                stockEarnings.value = Array.isArray(rj.stock.earnings) ? rj.stock.earnings : [];
+                stockActions.value = Array.isArray(rj.stock.corporate_actions || rj.stock.actions) ? (rj.stock.corporate_actions || rj.stock.actions) : [];
+                stockMeta.value = (rj.stock.meta && typeof rj.stock.meta === 'object') ? rj.stock.meta : {};
+              }
+              reviewsData.value = rReviews;
+              newsItems.value = rNews;
+            }
+          }
+        }
+      }
+    } catch (fallbackErr) {
+      console.debug('[Merchant] Lowercase retry logic error (non-fatal)', fallbackErr);
+    }
 
   } catch (e) {
     if (String(e?.name) !== "AbortError") {
@@ -1961,6 +2095,8 @@ async function fetchStreams() {
       removeCategoryCode,
       formatDate,
       saveUpdates,
+  deleting,
+  confirmDeleteMerchant,
       goBack,
       openEmailBox,
       openSocialUpdates,

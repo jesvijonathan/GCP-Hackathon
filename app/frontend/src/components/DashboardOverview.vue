@@ -38,7 +38,8 @@
     <div v-if="loading" class="loading">Loading...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
 
-    <table v-else class="overview-table">
+  <div v-else class="ranked-table-wrap">
+  <table class="overview-table">
       <thead>
         <tr>
           <th>#</th>
@@ -68,8 +69,11 @@
                 <div class="progress-label">
                   {{ jobs[m.merchant+':'+interval].status === 'queued' ? 'Queued' : 'Processing' }}
                   <span v-if="jobs[m.merchant+':'+interval].percent != null"> {{ jobs[m.merchant+':'+interval].percent }}%</span>
+                  <span v-if="jobs[m.merchant+':'+interval].queue_position" style="margin-left:4px;font-weight:500;">#{{ jobs[m.merchant+':'+interval].queue_position }}</span>
                 </div>
                 <div class="progress-bar"><span :style="{width: (jobs[m.merchant+':'+interval].percent||0)+'%'}"></span></div>
+                <div v-if="jobs[m.merchant+':'+interval].eta_seconds != null && jobs[m.merchant+':'+interval].status==='running'" class="eta-line">ETA ~ {{ Math.ceil(jobs[m.merchant+':'+interval].eta_seconds/60) }}m</div>
+                <div v-if="jobs[m.merchant+':'+interval].priority != null" class="priority-pill" :title="'Priority '+jobs[m.merchant+':'+interval].priority">P{{ jobs[m.merchant+':'+interval].priority }}</div>
               </div>
             </template>
             <template v-else>
@@ -84,9 +88,10 @@
           <td>{{ timeAgo(m.window_end) }}</td>
         </tr>
       </tbody>
-    </table>
+  </table>
+  </div>
 
-    <div class="big-chart-wrapper" v-if="series.length || isProcessing">
+    <div class="big-chart-wrapper" v-if="series.length || isProcessing || seriesLoading">
       <div class="chart-header">
         <h4>{{ currentMetricLabel }}</h4>
         <div v-if="isProcessing" class="processing-indicator">
@@ -100,7 +105,15 @@
         </div>
       </div>
       <canvas ref="seriesCanvas" height="260"></canvas>
-      <div v-if="seriesLoading && !isProcessing" class="overlay-loading">Loading series…</div>
+      <div v-if="seriesLoading && !isProcessing" class="overlay-loading">
+        <div style="text-align:center;">
+          <div style="font-weight:600;color:#065f5b;">Loading series data…</div>
+          <div v-if="fetchContext.ensureRequested" style="font-size:12px;margin-top:4px;color:#036d69;">
+            Ensuring recent windows for interval <strong>{{ interval }}</strong> (lookback {{ lookback }})
+          </div>
+          <div v-else style="font-size:12px;margin-top:4px;color:#036d69;">Fetching latest evaluation windows…</div>
+        </div>
+      </div>
       <div v-if="isProcessing && !series.length" class="overlay-progress">
         <div class="op-inner">
           <div style="font-weight:600;margin-bottom:6px;color:#065f5b;">Generating evaluation windows</div>
@@ -134,19 +147,22 @@ export default {
   emits: ['select-merchant-by-name','loaded','deselect-merchant'],
   data() {
     return {
-      interval: '30m',
+      interval: '30m', // will be overridden by persisted state if present
       loading: false,
       error: null,
       topMerchants: [],
       activeTab: 'risk',
-      lookback: 48,
+      lookback: 48, // persisted (number of windows)
       series: [],
       seriesLoading: false,
       jobs: {},
+      queuePositions: {}, // merchant:interval => position in active queue
       jobPollTimer: null,
       seriesRefreshTimer: null,
       lastSelected: null,
   ensuredIntervals: {}, // interval => true once we've ensured
+      scoreRefreshTimer: null,
+   fetchContext: { ensureRequested: false, startedAt: null },
       tabs: [
         { key:'risk', label:'Risk Total', metric:'scores.total' },
         { key:'wl', label:'WL', metric:'scores.wl' },
@@ -166,24 +182,90 @@ export default {
     }
   },
   methods: {
+    loadPersistedInterval(){
+      // Sync with DashboardDataControls localStorage key so interval/lookback persist across reloads
+      try {
+        const raw = localStorage.getItem('dashboardDataCtrlState_v2');
+        if(raw){
+          const st = JSON.parse(raw);
+          if(st && st.int){ this.interval = st.int; }
+          if(st && (st.lb||st.lb===0)){ const lbNum = Number(st.lb); if(!isNaN(lbNum) && lbNum>0) this.lookback = lbNum; }
+        }
+      } catch(_) { /* ignore */ }
+    },
+    persistInterval(){
+      try {
+        const KEY = 'dashboardDataCtrlState_v2';
+        const existing = (()=>{ try { return JSON.parse(localStorage.getItem(KEY)||'{}'); } catch { return {}; } })();
+        const merged = { ...existing, int: this.interval, lb: this.lookback, lastUpdated: Date.now() };
+        localStorage.setItem(KEY, JSON.stringify(merged));
+      } catch(_) { /* silent */ }
+    },
     async fetchData() {
       this.loading = true; this.error = null;
       try {
-  const r = await fetch(`${this.apiBase}/v1/dashboard/overview?interval=${this.interval}&top=${this.top}&include_inactive=false`);
+        const simNow = localStorage.getItem('simNow');
+        const nowParam = simNow ? `&now=${encodeURIComponent(simNow)}` : '';
+        const r = await fetch(`${this.apiBase}/v1/dashboard/overview?interval=${this.interval}&top=${this.top}&include_inactive=false${nowParam}`);
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const j = await r.json();
         this.topMerchants = j.top_merchants || [];
   // Safety: ensure no inactive merchants leak into visible top list
   this.topMerchants = this.topMerchants.filter(m => m.activation_flag !== false);
+        // Fallback: if simulation rewound before any evaluations exist, we may get zero top merchants.
+        // In that case, populate from all_merchants (risk_score may be null) so UI still shows merchant list.
+        if(!this.topMerchants.length && Array.isArray(j.all_merchants) && j.all_merchants.length){
+          const fallback = j.all_merchants.filter(m => m.activation_flag !== false);
+          // Sort by name to keep deterministic order
+          fallback.sort((a,b)=> (a.merchant||'').localeCompare(b.merchant||''));
+          this.topMerchants = fallback;
+          this._simulatedEmpty = !!simNow; // marker for template (optional future use)
+        }
+        // Secondary fallback: if still empty AND we were using simulated time, try one quick real-time fetch (no now param)
+        if(!this.topMerchants.length && simNow){
+          try {
+            const r2 = await fetch(`${this.apiBase}/v1/dashboard/overview?interval=${this.interval}&top=${this.top}&include_inactive=false`);
+            if(r2.ok){
+              const j2 = await r2.json();
+              this.topMerchants = (j2.top_merchants||[]).filter(m => m.activation_flag !== false);
+            }
+          } catch(_) { /* silent */ }
+        }
         this.$emit('loaded', this.topMerchants);
+        // Proactively trigger risk evaluation for merchants with no risk score yet so chart/table populate
+        this.autoEnsureMissingRisk();
         // After top list, refresh series
         this.fetchSeries();
-        this.fetchJobs();
+        this.fetchQueueSummary();
+        this.scheduleScoreRefresh();
       } catch (e) {
         this.error = 'Failed to load: ' + e.message;
       } finally {
         this.loading = false;
       }
+    },
+    autoEnsureMissingRisk(){
+      try {
+        if(!this.topMerchants || !this.topMerchants.length) return;
+        if(localStorage.getItem('disableAutoEnsure') === '1') return; // opt-out flag
+        const interval = this.interval || '30m';
+        const MAX_TRIGGERS = 5; // cap to avoid stampede
+        if(!this._riskTriggered) this._riskTriggered = new Set();
+        // Pick merchants lacking score or score null/undefined
+        const targets = this.topMerchants.filter(m => (m.risk_score == null) && !this._riskTriggered.has(m.merchant)).slice(0, MAX_TRIGGERS);
+        if(!targets.length) return;
+        targets.forEach((m, idx) => {
+          this._riskTriggered.add(m.merchant);
+          const delay = idx * 400; // stagger requests
+          setTimeout(()=>{
+            fetch(`${this.apiBase}/v1/${encodeURIComponent(m.merchant)}/risk-eval/trigger?interval=${interval}&autoseed=true&priority=5`) // autoseed helps empty merchants
+              .then(r=>{ /* ignore body; series refresh will pick it up */ })
+              .catch(()=>{});
+          }, delay);
+        });
+        // Schedule a series refetch a bit later to show progress as windows build
+        setTimeout(()=>{ if(!this.seriesLoading) this.fetchSeries(); }, 5000);
+      } catch(_) { /* non-fatal */ }
     },
     async fetchSeries(){
       this.seriesLoading = true;
@@ -197,10 +279,64 @@ export default {
         //  - we have not ensured this interval before
         //  - AND there are currently no active jobs (avoid duplicates)
         const ensureFlag = !alreadyEnsured && this.activeJobs.length === 0;
-        const r = await fetch(`${this.apiBase}/v1/dashboard/series?interval=${this.interval}&top=${this.top}&lookback=${this.lookback}&ensure=${ensureFlag}&async_ensure=true`);
+        this.fetchContext = { ensureRequested: ensureFlag, startedAt: Date.now() };
+  const simNow = localStorage.getItem('simNow');
+  let nowParam = '';
+  let rangeParams = '';
+  if(simNow){
+    nowParam = `&now=${encodeURIComponent(simNow)}`;
+    try {
+      const ts = Date.parse(simNow);
+      if(isFinite(ts)){
+        // Derive since based on lookback windows * interval minutes anchored at simulated now
+        const intervalMinutes = this.interval === '1h' ? 60 : (this.interval === '1d' ? 1440 : 30);
+        const intervalSeconds = intervalMinutes * 60;
+        const untilTs = Math.floor(ts/1000);
+        const sinceTs = untilTs - (this.lookback * intervalSeconds);
+        rangeParams = `&since_ts=${sinceTs}&until_ts=${untilTs}`; // backend not currently using these but reserved for future; helps debugging
+      }
+    } catch {}
+  }
+  const r = await fetch(`${this.apiBase}/v1/dashboard/series?interval=${this.interval}&top=${this.top}&lookback=${this.lookback}&ensure=${ensureFlag}&async_ensure=true${nowParam}${rangeParams}`);
         if(!r.ok) throw new Error('Series HTTP '+r.status);
         const j = await r.json();
         this.series = j.merchants || [];
+        // Filter out merchants that no longer exist in base merchant list (after deletions)
+        try {
+          const listResp = await fetch(`${this.apiBase}/v1/merchants`);
+          if(listResp.ok){
+            const lj = await listResp.json();
+            const currentSet = new Set(lj.merchants||[]);
+            const beforeCount = this.series.length;
+            this.series = this.series.filter(s => currentSet.has(s.merchant));
+            if(beforeCount !== this.series.length){
+              // Also prune from topMerchants so legend and table stay consistent
+              this.topMerchants = this.topMerchants.filter(tm => currentSet.has(tm.merchant));
+            }
+          }
+        } catch(_) { /* non-fatal */ }
+        // --- Dynamic risk score update from freshly returned series data ---
+        try {
+          const riskByMerchant = {};
+          this.series.forEach(s => {
+            const sr = s.series || [];
+            if(sr.length){
+              const last = sr[sr.length-1];
+              const total = (last.scores && typeof last.scores.total === 'number') ? last.scores.total : null;
+              if(total != null) riskByMerchant[s.merchant] = total;
+            }
+          });
+          if(Object.keys(riskByMerchant).length){
+            this.topMerchants = this.topMerchants.map(tm => {
+              if(riskByMerchant[tm.merchant] != null){
+                return { ...tm, risk_score: riskByMerchant[tm.merchant] };
+              }
+              return tm;
+            });
+          }
+        } catch(_e){ /* silent */ }
+        // If a merchant row was selected externally, emit updated list so parent can reconcile
+        this.$emit('loaded', this.topMerchants);
         if (Array.isArray(j.jobs) && j.jobs.length){
           this.integrateJobs(j.jobs);
         } else if(ensureFlag){
@@ -223,7 +359,7 @@ export default {
         this.$nextTick(()=> this.buildChart());
       } catch(e){
         console.warn('series error', e);
-      } finally { this.seriesLoading = false; }
+      } finally { this.seriesLoading = false; this.fetchContext.startedAt = this.fetchContext.startedAt || Date.now(); }
       // If processing, schedule another fetch to progressively fill chart
       this.setupSeriesAutoRefresh();
     },
@@ -250,7 +386,8 @@ export default {
       });
       this.jobs = map;
     },
-    async fetchJobs(){
+    async fetchJobsFallback(){
+      // Legacy fallback if new queue summary endpoint not available
       try {
         const r = await fetch(`${this.apiBase}/v1/risk-eval/jobs?active=true`);
         if(!r.ok) return;
@@ -258,13 +395,50 @@ export default {
         const map = {};
         (j.jobs||[]).forEach(job => { map[job.merchant+':'+job.interval] = job; });
         this.jobs = map;
-        // If any running, schedule next poll
         const running = Object.values(map).some(v => ['queued','running'].includes(v.status));
         if(running){
           if(this.jobPollTimer) clearTimeout(this.jobPollTimer);
-          this.jobPollTimer = setTimeout(()=> this.fetchJobs(), 4000);
+          this.jobPollTimer = setTimeout(()=> this.fetchQueueSummary(), 4500);
         }
       } catch(e){ /* silent */ }
+    },
+    async fetchQueueSummary(){
+      try {
+        const r = await fetch(`${this.apiBase}/v1/risk-eval/queue-summary`);
+        if(!r.ok){
+          // fall back silently to legacy endpoint
+            return this.fetchJobsFallback();
+        }
+        const j = await r.json();
+        const active = j.active_jobs || [];
+        const posMap = j.positions || {};
+        const map = { ...this.jobs };
+        active.forEach(job => {
+          const key = job.merchant+':'+job.interval;
+          map[key] = { ...map[key], ...job };
+          if(posMap[`${job.merchant}:${job.interval}`]){
+            map[key].queue_position = posMap[`${job.merchant}:${job.interval}`];
+          }
+        });
+        // Remove finished jobs no longer active but still marked running earlier
+        Object.keys(map).forEach(k => {
+          const jrec = map[k];
+          if(jrec && ['queued','running'].includes(jrec.status) && !active.find(a => a.job_id === jrec.job_id)){
+            // keep but mark as done if percent 100
+            if(jrec.percent === 100) jrec.status = 'done';
+          }
+        });
+        this.jobs = map;
+        this.queuePositions = posMap;
+        const hasActive = active.some(a => ['queued','running'].includes(a.status));
+        if(hasActive){
+          if(this.jobPollTimer) clearTimeout(this.jobPollTimer);
+          // adapt polling cadence: faster for queued heavy loads
+          const queuedCt = active.filter(a => a.status==='queued').length;
+          const delay = queuedCt > 3 ? 3000 : 5000;
+          this.jobPollTimer = setTimeout(()=> this.fetchQueueSummary(), delay);
+        }
+      } catch(e){ this.fetchJobsFallback(); }
     },
     reloadAll(){ this.fetchData(); },
     setupSeriesAutoRefresh(){
@@ -273,7 +447,28 @@ export default {
         // Back off slightly if no data yet, faster if empty
         const delay = this.series.length ? 10000 : 5000;
         this.seriesRefreshTimer = setTimeout(()=> this.fetchSeries(), delay);
+      } else {
+        // If no longer processing, ensure a near-term score refresh (in case last update happened mid-processing)
+        this.scheduleScoreRefresh();
       }
+    },
+    scheduleScoreRefresh(){
+      if(this.scoreRefreshTimer) clearTimeout(this.scoreRefreshTimer);
+      // Refresh risk scores every 45s if not actively loading
+      this.scoreRefreshTimer = setTimeout(()=> this.refreshScoresOnly(), 45000);
+    },
+    async refreshScoresOnly(){
+      try {
+  const simNow = localStorage.getItem('simNow');
+  const nowParam = simNow ? `&now=${encodeURIComponent(simNow)}` : '';
+  const r = await fetch(`${this.apiBase}/v1/dashboard/overview?interval=${this.interval}&top=${this.top}&include_inactive=false&include_all=false${nowParam}`);
+        if(!r.ok) throw new Error('mini refresh HTTP '+r.status);
+        const j = await r.json();
+        const map = {};
+        (j.top_merchants||[]).forEach(m => { map[m.merchant] = m; });
+        this.topMerchants = this.topMerchants.map(tm => map[tm.merchant] ? { ...tm, risk_score: map[tm.merchant].risk_score } : tm);
+      } catch(e){ /* silent mini refresh failure */ }
+      finally { this.scheduleScoreRefresh(); }
     },
     fmt(v) { return (v === null || v === undefined) ? '—' : Number(v).toFixed(0); },
     riskClass(v) {
@@ -339,7 +534,13 @@ export default {
       const tsSet = new Set();
       this.series.forEach(s => s.series.forEach(r => tsSet.add(r.window_end_ts)));
       const xs = Array.from(tsSet).sort((a,b)=> a-b);
-      const labels = xs.map(ts => new Date(ts*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+      // Full date+time labels for every point (Risk Total Time Series chart keeps full context)
+      const labels = xs.map(ts => {
+        const d = new Date(ts*1000);
+        const datePart = d.toLocaleDateString([], {month:'short', day:'2-digit'});
+        const timePart = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        return `${datePart} ${timePart}`;
+      });
 
       // Map counts per merchant per ts for tooltip enrichment
       const countsMap = {};
@@ -476,6 +677,12 @@ export default {
               borderColor:'#14b8a6', borderWidth:1, cornerRadius:10, padding:12,
               titleColor:'#f0fdfa', bodyColor:'#fff', displayColors:false,
               callbacks: {
+                title: (items) => {
+                  if(!items || !items.length) return '';
+                  const ts = xs[items[0].dataIndex];
+                  const d = new Date(ts*1000);
+                  return d.toLocaleString([], {year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+                },
                 label: (item) => `${item.dataset.label}: ${item.formattedValue}`,
                 afterBody: (items) => {
                   const isActivity = this.activeTab === 'activity';
@@ -539,16 +746,48 @@ export default {
   },
   mounted() { this.fetchData(); },
   watch: {
+    interval(){
+      // When user changes interval via overview controls, persist & reload
+      this.persistInterval();
+      try { window.dispatchEvent(new CustomEvent('dash-interval-updated', { detail:{ interval:this.interval, lookback:this.lookback, source:'overview' } })); } catch {}
+    },
+    lookback(){
+      // Persist when lookback selection changes
+      this.persistInterval();
+      try { window.dispatchEvent(new CustomEvent('dash-interval-updated', { detail:{ interval:this.interval, lookback:this.lookback, source:'overview' } })); } catch {}
+    },
     activeTab(){ this.buildChart(); },
     isProcessing(){
       // start/stop series auto refresh
       this.setupSeriesAutoRefresh();
     }
   },
+  created(){
+    // Load persisted interval/lookback before first fetch
+    this.loadPersistedInterval();
+    try {
+      this._simEvtHandler = (e)=>{
+        // Refetch overview & series when simulated now changes
+        if(!e || !e.detail) return;
+        const newNow = e.detail.simNow;
+        // Avoid spamming fetch if nothing changed materially (coarse 5s resolution) using cached last ts
+        if(newNow){
+          const sec = Math.floor(Date.parse(newNow)/5000); // 5s buckets
+          if(this._lastSimBucket !== sec){
+            this._lastSimBucket = sec;
+            this.fetchData();
+          }
+        }
+      };
+      window.addEventListener('sim-now-updated', this._simEvtHandler);
+    } catch {}
+  },
   beforeUnmount(){
     if(this._chart) this._chart.destroy();
     if(this.jobPollTimer) clearTimeout(this.jobPollTimer);
     if(this.seriesRefreshTimer) clearTimeout(this.seriesRefreshTimer);
+    if(this.scoreRefreshTimer) clearTimeout(this.scoreRefreshTimer);
+    try { if(this._simEvtHandler) window.removeEventListener('sim-now-updated', this._simEvtHandler); } catch {}
   }
 }
 </script>
@@ -565,14 +804,29 @@ export default {
 .loading, .error { padding: 15px; font-size:14px; }
 .error { color:#b91c1c; }
 .overview-table { width:100%; border-collapse: collapse; font-size:13px; }
+/* Make header fixed and body scrollable (max 3 rows visible) */
+.overview-table thead { background:#f8fafa; position:sticky; top:0; z-index:1; }
+.ranked-table-wrap { position:relative; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; background:#ffffff; }
+.ranked-table-inner { max-height: 3.2rem * 3; }
+/* Using explicit pixel height for consistent cross-browser row sizing */
+.overview-table tbody { display:block; max-height:140px; overflow-y:auto; overflow-x:hidden; }
+.overview-table thead tr { display:table; width:100%; table-layout:fixed; }
+.overview-table tbody tr { display:table; width:100%; table-layout:fixed; }
 .overview-table th, .overview-table td { padding:8px 10px; border-bottom:1px solid #e5e7eb; text-align:left; }
 .overview-table tbody tr.row-click { cursor:pointer; transition: background .15s; }
 .overview-table tbody tr.row-click:hover { background:#f0fdfa; }
+/* Custom scrollbar for tbody */
+.overview-table tbody::-webkit-scrollbar { width:8px; }
+.overview-table tbody::-webkit-scrollbar-track { background:#f1f5f9; }
+.overview-table tbody::-webkit-scrollbar-thumb { background:#14b8a6; border-radius:4px; }
+.overview-table tbody::-webkit-scrollbar-thumb:hover { background:#0d9488; }
 /* Progress bar styles */
 .progress-wrap { display:flex; flex-direction:column; gap:4px; }
 .progress-label { font-size:10px; font-weight:600; color:#065f5b; }
 .progress-bar { width:100%; height:6px; background:#e5e7eb; border-radius:4px; overflow:hidden; position:relative; }
 .progress-bar > span { display:block; height:100%; background:linear-gradient(90deg,#14b8a6,#0d9488); width:0; transition:width .4s ease; }
+.eta-line { font-size:9px; color:#036d69; font-weight:500; }
+.priority-pill { display:inline-block; background:#f0fdfa; border:1px solid #0d9488; color:#065f5b; font-size:9px; padding:2px 4px; border-radius:6px; margin-top:2px; width:max-content; }
 .score-pill { display:inline-block; padding:2px 8px; border-radius:12px; font-weight:600; font-size:12px; }
 .score-pill.high { background:#991b1b; color:#fff; }
 .score-pill.med { background:#f59e0b; color:#222; }

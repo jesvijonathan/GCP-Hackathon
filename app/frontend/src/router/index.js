@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
 import HomeView from "@/views/HomeView.vue";
 import NotFoundView from "@/views/NotFoundView.vue";
 import DashboardView from "@/views/DashboardView.vue"; // Corrected import path
@@ -40,6 +42,33 @@ const router = createRouter({
       path: "/merchant/:id",
       name: "MerchantDetails",
       component: MerchantView,
+      // Validate merchant existence before entering the route
+      beforeEnter: async (to, from, next) => {
+        const id = to.params.id;
+        if(!id || typeof id !== 'string'){
+          toast.error('Invalid merchant identifier');
+          return next('/dashboard');
+        }
+        // Simple in-memory cache to avoid repeated hits during session
+        if(!window.__KNOWN_MERCHANTS){ window.__KNOWN_MERCHANTS = new Set(); }
+        if(window.__KNOWN_MERCHANTS.has(id)) return next();
+        try {
+          const resp = await fetch(`http://localhost:8000/v1/merchants/${encodeURIComponent(id)}`);
+          if(resp.ok){
+            window.__KNOWN_MERCHANTS.add(id);
+            return next();
+          }
+          if(resp.status === 404){
+            toast.warning(`Merchant '${id}' not found`);
+            return next('/dashboard');
+          }
+          toast.error(`Merchant lookup failed (${resp.status})`);
+          return next('/dashboard');
+        } catch(e){
+          toast.error('Network error validating merchant');
+          return next('/dashboard');
+        }
+      }
     },
     // Optional: Redirect from /merchants to /dashboard if you want both paths
     {

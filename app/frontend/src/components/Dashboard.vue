@@ -7,6 +7,7 @@
       :filters="filters"
       @select-merchant="selectMerchant"
       @route-to-merchant="routeToMerchantPage"
+      @delete-merchant="deleteMerchantFromDashboard"
       @update:searchQuery="searchQuery = $event"
       @update:filters="filters = $event"
     />
@@ -129,20 +130,29 @@ export default {
     selectMerchant(m){ this.selectedMerchant = m; this.refreshSelectedDetails(); },
     exitFocus(){ this.selectedMerchant = null; },
     onSelectMerchantByName(name){ if(this.selectedMerchant && this.selectedMerchant.id===name){ this.selectedMerchant=null; return;} const m=this.merchants.find(mm=>mm.id===name); if(m) this.selectMerchant(m); },
+    // Defensive: if an external attempt tries to select a merchant not loaded, ignore gracefully
+    ensureValidSelection(){
+      if(this.selectedMerchant && !this.merchants.some(m=>m.id===this.selectedMerchant.id)){
+        this.selectedMerchant = null; // drop invalid selection
+      }
+    },
     routeToMerchantPage(id){ try { this.$router.push(`/merchant/${id}`);} catch(e){ toast.error('Navigation failed'); } },
     handleMerchantAction(actionType){ if(!this.selectedMerchant){ toast.error('No merchant selected'); return; } if(actionType==='permanent-ban'){ toast.error(`${this.selectedMerchant.name} permanently banned!`);} else if(actionType==='shadow-ban'){ toast.warning(`${this.selectedMerchant.name} shadow banned!`);} else if(actionType==='continue'){ toast.success(`${this.selectedMerchant.name} continues operating.`);} },
     async fetchOverviewAndEnrich(){
       this.loading=true; this.error=null;
       try {
+        // Load persisted dashboard interval if available (aligns with overview & merchant risk persistence)
+        let interval = '30m';
+        try { const raw = localStorage.getItem('dashboardDataCtrlState_v2'); if(raw){ const st = JSON.parse(raw); if(st && st.int) interval = st.int; } } catch {}
         const [listResp, overviewResp] = await Promise.all([
           fetch(`${this.apiBase}/v1/merchants`),
-          fetch(`${this.apiBase}/v1/dashboard/overview?interval=30m&top=30&include_all=true`)
+          fetch(`${this.apiBase}/v1/dashboard/overview?interval=${encodeURIComponent(interval)}&top=30&include_all=true`)
         ]);
         if(!listResp.ok) throw new Error('merchant list '+listResp.status);
         if(!overviewResp.ok) throw new Error('overview '+overviewResp.status);
         const listJson=await listResp.json();
         const overview=await overviewResp.json();
-        const names=listJson.merchants||[];
+  let names = listJson.merchants || [];
         const evalMap={}; (overview.all_merchants||[]).forEach(r=>{ evalMap[r.merchant]=r; });
         const coerceBool = (v, d=true)=>{
           if(v===true) return true; if(v===false) return false;
@@ -152,7 +162,15 @@ export default {
           if(['false','0','no','off','inactive','disabled'].includes(s)) return false;
           if(['true','1','yes','on','active','enabled'].includes(s)) return true;
           return d; };
-        this.merchants = names.filter(n=>n!=='MER001').map(n=>{
+        // Build merchant objects. Previously we excluded 'MER001' explicitly; removing that so it appears.
+        // If you need to exclude demo merchants, move that logic to a config flag instead of hardcoding.
+        if((!names || !names.length) && (overview.all_merchants && overview.all_merchants.length)){
+          // Fallback: derive names from overview payload if list endpoint returned empty.
+            console.warn('[Dashboard] /v1/merchants returned empty; deriving from overview.all_merchants');
+            names = overview.all_merchants.map(r=>r.merchant).filter(Boolean);
+        }
+        console.debug('[Dashboard] merchant names resolved:', names);
+        this.merchants = names.map(n=>{
           const e=evalMap[n]||{};
           let activationFlag = coerceBool(e.activation_flag, true);
           // Fallback: if details.status explicitly inactive, force inactive
@@ -181,8 +199,46 @@ export default {
           if(upd) this.selectedMerchant=upd;
         }
       } catch(err){ this.error=err.message; toast.error('Failed loading merchants: '+err.message);} finally { this.loading=false; }
+      // After refresh, ensure any pre-selected merchant still exists
+      this.ensureValidSelection();
     },
-    async refreshSelectedDetails(){ if(!this.selectedMerchant) return; try { try { const md=await fetch(`${this.apiBase}/v1/merchants/${encodeURIComponent(this.selectedMerchant.id)}`); if(md.ok){ const mj=await md.json(); const doc=mj.merchant||{}; this.selectedMerchant.activation_flag = doc.activation_flag !== false; this.selectedMerchant.auto_action = !!doc.auto_action; this.selectedMerchant.status = (doc.activation_flag===false?'inactive':(doc.status||'active')).toLowerCase(); this.selectedMerchant.updated_at=doc.updated_at; this.selectedMerchant.created_at=doc.created_at; this.selectedMerchant.restrictions = doc.restrictions || this.selectedMerchant.restrictions; this.selectedMerchant.has_restrictions = !!(doc.restrictions && Object.keys(doc.restrictions).length); } } catch {} const r=await fetch(`${this.apiBase}/v1/${this.selectedMerchant.id}/risk-eval/summary?interval=30m&window=6h`); if(r.ok){ const js=await r.json(); this.selectedMerchant.evaluationSummary=js; } } catch(e){ /* ignore */ } },
+    async refreshSelectedDetails(){
+      if(!this.selectedMerchant) return;
+      try {
+        // Merchant doc refresh
+        try {
+          const md = await fetch(`${this.apiBase}/v1/merchants/${encodeURIComponent(this.selectedMerchant.id)}`);
+          if(md.ok){
+            const mj = await md.json();
+            const doc = mj.merchant||{};
+            this.selectedMerchant.activation_flag = doc.activation_flag !== false;
+            this.selectedMerchant.auto_action = !!doc.auto_action;
+            this.selectedMerchant.status = (doc.activation_flag===false?'inactive':(doc.status||'active')).toLowerCase();
+            this.selectedMerchant.updated_at = doc.updated_at;
+            this.selectedMerchant.created_at = doc.created_at;
+            this.selectedMerchant.restrictions = doc.restrictions || this.selectedMerchant.restrictions;
+            this.selectedMerchant.has_restrictions = !!(doc.restrictions && Object.keys(doc.restrictions).length);
+          }
+        } catch {}
+        // Risk summary refresh (ensures panel reflects current merchant selection)
+  // Use persisted dashboard interval & derive window from merchant risk state if available
+  let interval = '30m';
+  try { const raw = localStorage.getItem('dashboardDataCtrlState_v2'); if(raw){ const st=JSON.parse(raw); if(st && st.int) interval = st.int; } } catch {}
+  let windowParam = '6h';
+  try { const mrRaw = localStorage.getItem('merchantRiskState_v1'); if(mrRaw){ const ms = JSON.parse(mrRaw); if(ms && ms.lookbackHours){ windowParam = ms.lookbackHours + 'h'; } } } catch {}
+  const r = await fetch(`${this.apiBase}/v1/${this.selectedMerchant.id}/risk-eval/summary?interval=${encodeURIComponent(interval)}&window=${encodeURIComponent(windowParam)}`);
+        if(r.ok){
+          const js = await r.json();
+            this.selectedMerchant.evaluationSummary = js;
+            // Sync quick riskMetrics for other child components (e.g., DashboardMerchantInfo / RiskMetrics)
+            const latestScore = js?.latest?.score ?? js?.latest?.risk_score ?? (js?.latest?.components?.total);
+            if(latestScore != null){
+              if(!this.selectedMerchant.riskMetrics) this.selectedMerchant.riskMetrics = {};
+              this.selectedMerchant.riskMetrics.riskScore = latestScore;
+            }
+        }
+      } catch(e){ /* silent */ }
+    },
     applyControls(p){ const ov=this.$refs.overviewRef; if(!ov) return; if(p.interval && ov.interval!==p.interval) ov.interval=p.interval; if(p.lookback && ov.lookback!==p.lookback) ov.lookback=p.lookback; ov.fetchData(); },
     applyControlsEnsure(p){ this.applyControls(p); const ov=this.$refs.overviewRef; if(ov) ov.fetchSeries(); },
     openRestrictModal(){ if(!this.selectedMerchant) return; const r=this.selectedMerchant.restrictions || this.selectedMerchant.evaluation?.restrictions || {}; this.restrictionForm = { dailyTransactionLimit: r.dailyTransactionLimit ?? null, monthlyTransactionLimit: r.monthlyTransactionLimit ?? null, maxTransactionAmount: r.maxTransactionAmount ?? null, restrictedCategoryCodes: Array.isArray(r.restrictedCategoryCodes)?[...r.restrictedCategoryCodes]:[], allowedCountries: r.allowedCountries||'', requireAdditionalVerification: !!r.requireAdditionalVerification, blockInternationalTransactions: !!r.blockInternationalTransactions, reason: r.reason||'', startDate: r.startDate || new Date().toISOString().split('T')[0], endDate: r.endDate||'' }; this.newCategoryCode=''; this.showRestrictModal=true; },
@@ -191,6 +247,15 @@ export default {
     removeCategoryCode(code){ const ix=this.restrictionForm.restrictedCategoryCodes.indexOf(code); if(ix>=0) this.restrictionForm.restrictedCategoryCodes.splice(ix,1); },
     async applyRestrictions(){ if(!this.selectedMerchant) return; if(!this.restrictionForm.reason.trim()) return; this.savingRestriction=true; try { const body={ restrictions:{ ...this.restrictionForm } }; const resp=await fetch(`${this.apiBase}/v1/merchants/${encodeURIComponent(this.selectedMerchant.id)}`, { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) }); if(!resp.ok) throw new Error('Restriction update failed '+resp.status); const js=await resp.json(); const doc=js.merchant||{}; this.selectedMerchant.restrictions=doc.restrictions||body.restrictions; this.selectedMerchant.has_restrictions=!!(this.selectedMerchant.restrictions && Object.keys(this.selectedMerchant.restrictions).length); this.showRestrictModal=false; toast.success('Restrictions applied'); this.fetchOverviewAndEnrich(); } catch(e){ toast.error(String(e.message||e)); } finally { this.savingRestriction=false; } },
     async clearRestrictions(){ if(!this.selectedMerchant) return; if(!confirm('Clear all restrictions for this merchant?')) return; this.savingRestriction=true; try { const body={ restrictions:{} }; const resp=await fetch(`${this.apiBase}/v1/merchants/${encodeURIComponent(this.selectedMerchant.id)}`, { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) }); if(!resp.ok) throw new Error('Failed to clear'); this.selectedMerchant.restrictions={}; this.selectedMerchant.has_restrictions=false; toast.success('Restrictions cleared'); this.fetchOverviewAndEnrich(); this.showRestrictModal=false; } catch(e){ toast.error(String(e.message||e)); } finally { this.savingRestriction=false; } }
+    ,async deleteMerchantFromDashboard(id){
+      if(!id) return; if(!confirm(`Delete merchant '${id}' from dashboard? This removes risk & evaluation data.`)) return;
+      try {
+        const resp = await fetch(`${this.apiBase}/v1/merchants/${encodeURIComponent(id)}`, { method:'DELETE' });
+        if(!resp.ok){ if(resp.status===404){ toast.warning('Merchant already removed'); } else { throw new Error('Delete failed '+resp.status); } }
+        else { toast.success(`Merchant '${id}' removed`); }
+      } catch(e){ toast.error(String(e.message||e)); }
+      finally { if(this.selectedMerchant && this.selectedMerchant.id===id) this.selectedMerchant=null; this.fetchOverviewAndEnrich(); }
+    }
   },
   mounted(){ this.fetchOverviewAndEnrich(); this._escHandler=(e)=>{ if(e.key==='Escape' && this.selectedMerchant) this.exitFocus(); }; window.addEventListener('keydown', this._escHandler); },
   beforeUnmount(){ if(this._escHandler) window.removeEventListener('keydown', this._escHandler); },

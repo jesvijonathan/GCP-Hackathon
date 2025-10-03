@@ -138,6 +138,7 @@ function useSim(){
   const simEnabled = ref(false); const simRunning = ref(false); const accel = ref(1.0);
   const simStartInput = ref(''); const simBaseIso = ref(''); const nowIso = ref(''); const jumpValue = ref(0);
   let wallStartMs = Date.now(); const simClock = ref(Date.now());
+  let lastSimDispatchMs = 0; // throttle event dispatch to consumers
   const simNow = computed(()=>{
     if(!simEnabled.value) return nowIso.value || new Date().toISOString();
     if(!simBaseIso.value) return new Date().toISOString();
@@ -155,6 +156,28 @@ function useSim(){
   function load(){ try{ const raw=localStorage.getItem(LS_SIM_KEY); if(!raw) return; const st=JSON.parse(raw); simEnabled.value=!!st.enabled; simRunning.value=!!st.running; accel.value=Number(st.accel)||1; simStartInput.value=st.simStartInput||''; simBaseIso.value=st.simBaseIso||st.lastSimNow||''; if(simEnabled.value) loop(); }catch{} }
   watch([simEnabled, simRunning, accel, simBaseIso, simStartInput], persist);
   watch(simEnabled, en=>{ if(en){ if(!simBaseIso.value) initBase(); loop(); } else { if(simTimer) clearInterval(simTimer); }});
+  // --- New: persist plain simulated now (or manual override) for other components (MerchantRisk, DashboardOverview) ---
+  // These components currently read localStorage key 'simNow' to anchor time range; previously we never set it so they fell back to real time.
+  function writeGlobalSimNow(v){
+    try {
+      if(v) localStorage.setItem('simNow', v); else localStorage.removeItem('simNow');
+      // Throttled custom event so dashboard/merchant charts can react
+      const now = Date.now();
+      const FORCE_INTERVAL_MS = 5000; // min spacing
+      if(now - lastSimDispatchMs > FORCE_INTERVAL_MS){
+        lastSimDispatchMs = now;
+        try { window.dispatchEvent(new CustomEvent('sim-now-updated', { detail:{ simNow: v, running: simRunning.value, accel: accel.value } })); } catch {}
+      }
+    } catch {}
+  }
+  // Persist every change (tick) while enabled; when disabled use manual override nowIso if present.
+  watch(simNow, v=>{ if(simEnabled.value) writeGlobalSimNow(v); });
+  watch([simEnabled, nowIso], ()=>{
+    if(simEnabled.value){ writeGlobalSimNow(simNow.value); }
+    else { writeGlobalSimNow(nowIso.value || ''); }
+  });
+  // On load, if simulation was previously enabled ensure global key is restored so views load correctly first fetch.
+  onMounted(()=>{ if(simEnabled.value){ writeGlobalSimNow(simNow.value); } else if(nowIso.value){ writeGlobalSimNow(nowIso.value); } });
   load();
   return { simEnabled, simRunning, accel, simStartInput, nowIso, simNow, jumpValue, toggleSimRun, resetSim, applyJump, syncRealNow };
 }
@@ -251,9 +274,22 @@ export default {
       }
     }
   onMounted(()=>{ loadPersisted(); if(autoRefresh.value){ scheduleAuto(); emitReload(); refreshCount.value++; } else { emitReload(); } nextTick(updateBottomReserve); window.addEventListener('resize', updateBottomReserve); window.addEventListener('storage', storageListener); setTimeout(()=>{ introVisible.value=false; },2000); });
+    // Listen for external overview or merchant-driven interval/lookback updates
+    function extListener(e){
+      try {
+        if(!e || !e.detail) return;
+        const { interval:extInt, lookback:extLb } = e.detail;
+        let changed = false;
+        if(extInt && extInt !== interval.value){ interval.value = extInt; changed = true; }
+        if(extLb && Number(extLb) !== lookback.value){ lookback.value = Number(extLb); changed = true; }
+        if(changed){ persist(); }
+      } catch {}
+    }
+    window.addEventListener('dash-interval-updated', extListener);
     watch(open, ()=> nextTick(updateBottomReserve));
     watch([autoRefresh, refreshSec], ()=> nextTick(updateBottomReserve));
   onBeforeUnmount(()=>{ if(refreshTimer) clearInterval(refreshTimer); if(countdownTimer) clearInterval(countdownTimer); document.documentElement.style.removeProperty('--panel-bottom-pad'); window.removeEventListener('resize', updateBottomReserve); window.removeEventListener('storage', storageListener); });
+    onBeforeUnmount(()=>{ window.removeEventListener('dash-interval-updated', extListener); });
 
     return { open, introVisible, toggle, rootEl, windowMode, windowVal, enableWindowMode, enableRangeMode, toggleMode, sinceStr, untilStr, unit, interval, lookback, limit, order, allowFuture, autoRefresh, refreshSec, nextRefreshIn, refreshCount, simEnabled, simRunning, accel, simStartInput, nowIso, simNow, jumpValue, toggleSimRun, resetSim, applyJump, syncRealNow, emitReload, emitEnsure, enterReload };
   }

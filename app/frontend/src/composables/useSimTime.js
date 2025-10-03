@@ -27,6 +27,9 @@ export function useSimTime(persistKey = 'merchantSimState') {
     simBaseIso.value = new Date(base).toISOString();
     wallStartMs = Date.now();
     simClock.value = Date.now();
+    // Keep a simple global key 'simNow' in sync for legacy components that just read localStorage.simNow
+    watch(simNow, v => { try { if (simEnabled.value) localStorage.setItem('simNow', v); } catch {} });
+    watch(simEnabled, v => { try { if (!v) { localStorage.removeItem('simNow'); } else { localStorage.setItem('simNow', simNow.value); } } catch {} });
   }
 
   const simNow = computed(() => {
@@ -119,6 +122,7 @@ export function useSimTime(persistKey = 'merchantSimState') {
       liveSimUpdate.value = st.live !== false;
       if (typeof st.liveInterval === 'number') liveSimIntervalSec.value = st.liveInterval;
       if (simEnabled.value) startLoop();
+      if (simEnabled.value) { try { localStorage.setItem('simNow', simNow.value); } catch {} }
     } catch {}
   };
 

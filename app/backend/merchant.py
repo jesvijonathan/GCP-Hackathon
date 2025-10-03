@@ -337,6 +337,20 @@ class MerchantService:
             # Optional range on merchant doc
             merged["start_date"] = start_date
             merged["end_date"] = end_date
+            # Preserve existing baseline if present, else set from start_date (00:00:00Z)
+            if "risk_eval_baseline_ts" in existing:
+                merged["risk_eval_baseline_ts"] = existing["risk_eval_baseline_ts"]
+                merged["risk_eval_baseline_iso"] = existing.get("risk_eval_baseline_iso")
+            else:
+                try:
+                    sdt = dt.datetime.fromisoformat(start_date)
+                except Exception:
+                    sdt = dt.datetime.now(dt.UTC)
+                if sdt.tzinfo is None:
+                    sdt = sdt.replace(tzinfo=dt.UTC)
+                baseline_ts = sdt.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+                merged["risk_eval_baseline_ts"] = baseline_ts
+                merged["risk_eval_baseline_iso"] = dt_to_iso(dt.datetime.fromtimestamp(baseline_ts, tz=dt.UTC))
             self.db["merchants"].update_one({"merchant_name": merchant_name}, {"$set": merged}, upsert=True)
             merchant_doc = self.get_merchant(merchant_name)
         else:
@@ -344,6 +358,16 @@ class MerchantService:
             auto_doc["start_date"] = start_date
             auto_doc["end_date"] = end_date
             doc = self._merge_details(auto_doc, details)
+            # Set risk evaluation baseline aligned to provided start_date midnight UTC
+            try:
+                sdt = dt.datetime.fromisoformat(start_date)
+            except Exception:
+                sdt = dt.datetime.now(dt.UTC)
+            if sdt.tzinfo is None:
+                sdt = sdt.replace(tzinfo=dt.UTC)
+            baseline_ts = sdt.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+            doc["risk_eval_baseline_ts"] = baseline_ts
+            doc["risk_eval_baseline_iso"] = dt_to_iso(dt.datetime.fromtimestamp(baseline_ts, tz=dt.UTC))
             self.db["merchants"].update_one({"merchant_name": merchant_name}, {"$set": doc}, upsert=True)
             merchant_doc = self.get_merchant(merchant_name)
 

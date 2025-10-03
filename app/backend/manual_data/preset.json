@@ -1,178 +1,429 @@
 {
   "global": {
     "start_date": "2025-01-01",
-    "end_date": "2026-12-31",
+    "end_date": "2026-01-01",
     "output_dir": ".",
-    "defaults": {
-      "wl": {
-        "n_transactions": 50000
-      }
-    }
+    "defaults": { "wl": { "n_transactions": 50000 } }
   },
   "merchants": [
     {
-      "merchant_name": "HomeGear",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
-      "seed": 6604045,
+      "merchant_name": "RiskSupply",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 9255101,
+      "description": "Mid-sized omni-channel home improvement supplier with elevated 2025 fraud & operational risk from platform migration, security incident, organized fraud ring, and seasonal holiday pressure.",
       "tweets": {
         "enabled": true,
-        "n_tweets": 7753,
+        "n_tweets": 9100,
         "trend_plan": [
-          {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage"
-          },
-          {
-            "month": "2022-05",
-            "intensity": 0.59,
-            "label": "seasonal buzz",
-            "posts": "13%"
-          },
-          {
-            "month": "2023-01",
-            "intensity": 0.68,
-            "label": "normal"
-          }
+          { "month": "2025-01", "intensity": 0.42, "label": "baseline" },
+          { "month": "2025-03", "intensity": 0.58, "label": "spring DIY marketing", "posts": "11%" },
+            { "month": "2025-04", "intensity": 0.91, "label": "security incident disclosed", "posts": "18%" },
+          { "month": "2025-06", "intensity": 0.73, "label": "fraud chatter spike", "posts": "14%" },
+          { "month": "2025-09", "intensity": 0.62, "label": "platform migration issues" },
+          { "month": "2025-10", "intensity": 0.88, "label": "fraud ring takedown", "posts": "16%" },
+          { "month": "2025-12", "intensity": 0.69, "label": "holiday surge" }
         ]
       },
       "reddit": {
         "enabled": true,
-        "n_posts": 3178,
+        "n_posts": 4800,
         "trend_plan": [
-          {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage"
-          },
-          {
-            "month": "2022-05",
-            "intensity": 0.59,
-            "label": "seasonal buzz"
-          },
-          {
-            "month": "2023-01",
-            "intensity": 0.68,
-            "label": "normal",
-            "posts": "6%"
-          }
+          { "month": "2025-01", "intensity": 0.44, "label": "baseline" },
+          { "month": "2025-04", "intensity": 0.89, "label": "security incident discussion", "posts": "17%" },
+          { "month": "2025-05", "intensity": 0.61, "label": "remediation updates" },
+          { "month": "2025-06", "intensity": 0.74, "label": "fraud reports rise", "posts": "12%" },
+          { "month": "2025-09", "intensity": 0.59, "label": "migration complaints" },
+          { "month": "2025-10", "intensity": 0.82, "label": "fraud ring news", "posts": "15%" },
+          { "month": "2025-12", "intensity": 0.56, "label": "holiday Q&A" }
         ]
       },
       "news": {
         "enabled": true,
-        "n_articles": 6597,
+        "n_articles": 6400,
         "trend_plan": [
-          {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage",
-            "posts": "9%",
-            "articles": "3%"
-          },
-          {
-            "month": "2022-05",
-            "intensity": 0.59,
-            "label": "seasonal buzz"
-          },
-          {
-            "month": "2023-01",
-            "intensity": 0.68,
-            "label": "normal"
-          }
+          { "month": "2025-02", "intensity": 0.41, "label": "baseline coverage" },
+          { "month": "2025-04", "intensity": 0.94, "label": "data exposure disclosure", "articles": "19%" },
+          { "month": "2025-05", "intensity": 0.66, "label": "security remediation", "articles": "11%" },
+          { "month": "2025-07", "intensity": 0.57, "label": "chargeback spike commentary" },
+          { "month": "2025-10", "intensity": 0.88, "label": "fraud ring dismantled", "articles": "14%" },
+          { "month": "2025-12", "intensity": 0.63, "label": "holiday performance" }
         ]
       },
       "reviews": {
         "enabled": true,
-        "n_products": 8,
-        "merchant_score": 4.23,
-        "n_reviews": 20404,
+        "n_products": 10,
+        "merchant_score": 3.72,
+        "n_reviews": 26500,
         "trend_plan": [
-          {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage",
-            "posts": "9%",
-            "reviews": "6%"
-          },
-          {
-            "month": "2022-05",
-            "intensity": 0.59,
-            "label": "seasonal buzz"
-          },
-          {
-            "month": "2023-01",
-            "intensity": 0.68,
-            "label": "normal"
-          }
+          { "month": "2025-01", "intensity": 0.45, "label": "baseline", "reviews": "7%" },
+          { "month": "2025-03", "intensity": 0.54, "label": "spring assortment", "reviews": "10%" },
+          { "month": "2025-04", "intensity": 0.86, "label": "security incident frustration", "reviews": "13%" },
+          { "month": "2025-06", "intensity": 0.69, "label": "shipping delays", "reviews": "9%" },
+          { "month": "2025-09", "intensity": 0.57, "label": "platform bugs", "reviews": "8%" },
+          { "month": "2025-11", "intensity": 0.63, "label": "pre-holiday promo", "reviews": "11%" },
+          { "month": "2025-12", "intensity": 0.71, "label": "holiday volume peak", "reviews": "14%" }
         ]
       },
       "stock": {
         "enabled": true,
-        "ticker": "HOM",
-        "base_price": 154.54,
-        "sigma_annual": 0.36,
-        "avg_daily_volume": 8867000,
-        "shares_outstanding": 4354370000,
-        "target_total_return": 0.384,
+        "ticker": "RSK",
+        "base_price": 48.25,
+        "sigma_annual": 0.52,
+        "avg_daily_volume": 5200000,
+        "shares_outstanding": 780000000,
+        "target_total_return": -0.042,
         "trend_plan": [
-          {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage",
-            "return": -0.054,
-            "volatility": "1.4x",
-            "volume": "x1.6"
-          },
-          {
-            "month": "2022-05",
-            "intensity": 0.59,
-            "label": "seasonal buzz",
-            "return": 0.006,
-            "volatility": "1.0x",
-            "volume": "x1.0"
-          },
-          {
-            "month": "2023-01",
-            "intensity": 0.68,
-            "label": "normal",
-            "return": -0.001,
-            "volatility": "1.0x",
-            "volume": "110%"
-          }
+          { "month": "2025-01", "intensity": 0.42, "label": "quiet start", "return": 0.004, "volatility": "1.0x", "volume": "100%" },
+          { "month": "2025-04", "intensity": 0.94, "label": "breach disclosed", "return": -0.118, "volatility": "1.9x", "volume": "x2.2" },
+          { "month": "2025-05", "intensity": 0.65, "label": "remediation", "return": 0.021, "volatility": "1.4x", "volume": "x1.5" },
+          { "month": "2025-06", "intensity": 0.78, "label": "fraud loss concerns", "return": -0.041, "volatility": "1.6x", "volume": "x1.8" },
+          { "month": "2025-09", "intensity": 0.61, "label": "migration delays", "return": -0.017, "volatility": "1.3x", "volume": "x1.2" },
+          { "month": "2025-10", "intensity": 0.89, "label": "fraud ring takedown", "return": 0.053, "volatility": "1.5x", "volume": "x1.7" },
+          { "month": "2025-12", "intensity": 0.68, "label": "holiday stabilization", "return": 0.009, "volatility": "1.2x", "volume": "x1.3" }
         ]
       },
       "wl": {
         "enabled": true,
-        "n_transactions": 160560,
+        "n_transactions": 128400,
         "trend_plan": [
-          {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage",
-            "transactions": "3%",
-            "high_risk_intensity": 0.671,
-            "decline_rate": 0.34,
-            "gambling_share": 0.121
-          },
-          {
-            "month": "2022-05",
-            "intensity": 0.59,
-            "label": "seasonal buzz",
-            "transactions": "19%",
-            "high_risk_intensity": 0.124,
-            "decline_rate": null,
-            "gambling_share": 0.104
-          },
-          {
-            "month": "2023-01",
-            "intensity": 0.68,
-            "label": "normal",
-            "high_risk_intensity": 0.095,
-            "decline_rate": 0.114
-          }
+          { "month": "2025-01", "intensity": 0.43, "label": "baseline", "transactions": "6%", "high_risk_intensity": 0.118, "decline_rate": 0.041 },
+          { "month": "2025-03", "intensity": 0.55, "label": "marketing uplift", "transactions": "12%", "high_risk_intensity": 0.134, "decline_rate": 0.047, "gambling_share": 0.031 },
+          { "month": "2025-04", "intensity": 0.95, "label": "credential stuffing spike", "transactions": "9%", "high_risk_intensity": 0.522, "decline_rate": 0.221, "gambling_share": 0.055 },
+          { "month": "2025-06", "intensity": 0.79, "label": "organized fraud escalation", "transactions": "11%", "high_risk_intensity": 0.601, "decline_rate": 0.247, "gambling_share": 0.063 },
+          { "month": "2025-07", "intensity": 0.66, "label": "chargeback wave", "transactions": "7%", "high_risk_intensity": 0.455, "decline_rate": 0.238 },
+          { "month": "2025-09", "intensity": 0.58, "label": "migration friction", "transactions": "8%", "high_risk_intensity": 0.301, "decline_rate": 0.167 },
+          { "month": "2025-10", "intensity": 0.91, "label": "fraud ring detected", "transactions": "10%", "high_risk_intensity": 0.648, "decline_rate": 0.312, "gambling_share": 0.071 },
+          { "month": "2025-11", "intensity": 0.64, "label": "post-takedown tuning", "transactions": "9%", "high_risk_intensity": 0.352, "decline_rate": 0.181 },
+          { "month": "2025-12", "intensity": 0.72, "label": "holiday high volume", "transactions": "14%", "high_risk_intensity": 0.289, "decline_rate": 0.129, "gambling_share": 0.048 }
         ]
       }
+    },
+    {
+      "merchant_name": "HomeHaven",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2211001,
+      "description": "General home goods retailer with stable operations and mild seasonal marketing spikes.",
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 5400,
+        "trend_plan": [
+          { "month": "2025-01", "intensity": 0.35, "label": "baseline" },
+          { "month": "2025-03", "intensity": 0.48, "label": "spring refresh", "posts": "9%" },
+          { "month": "2025-05", "intensity": 0.52, "label": "early summer promo" },
+          { "month": "2025-09", "intensity": 0.44, "label": "back-to-routine" },
+          { "month": "2025-11", "intensity": 0.57, "label": "holiday prep", "posts": "11%" },
+          { "month": "2025-12", "intensity": 0.63, "label": "holiday peak" }
+        ]
+      },
+      "reddit": { "enabled": true, "n_posts": 2100, "trend_plan": [
+        { "month": "2025-01", "intensity": 0.33, "label": "baseline" },
+        { "month": "2025-03", "intensity": 0.46, "label": "seasonal decor" },
+        { "month": "2025-05", "intensity": 0.5, "label": "organization tips" },
+        { "month": "2025-11", "intensity": 0.55, "label": "gift planning" },
+        { "month": "2025-12", "intensity": 0.6, "label": "holiday sharing" }
+      ]},
+      "news": { "enabled": true, "n_articles": 2500, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.34, "label": "baseline" },
+        { "month": "2025-05", "intensity": 0.47, "label": "product line update" },
+        { "month": "2025-11", "intensity": 0.53, "label": "holiday outlook" }
+      ]},
+      "reviews": { "enabled": true, "n_products": 12, "merchant_score": 4.18, "n_reviews": 18800, "trend_plan": [
+        { "month": "2025-01", "intensity": 0.38, "label": "baseline", "reviews": "7%" },
+        { "month": "2025-03", "intensity": 0.49, "label": "spring purchases", "reviews": "9%" },
+        { "month": "2025-05", "intensity": 0.51, "label": "organization focus" },
+        { "month": "2025-11", "intensity": 0.6, "label": "holiday prep", "reviews": "12%" },
+        { "month": "2025-12", "intensity": 0.64, "label": "holiday peak", "reviews": "15%" }
+      ]},
+      "stock": { "enabled": true, "ticker": "HHV", "base_price": 32.4, "sigma_annual": 0.29, "avg_daily_volume": 1800000, "shares_outstanding": 560000000, "target_total_return": 0.031, "trend_plan": [
+        { "month": "2025-01", "intensity": 0.35, "label": "stable", "return": 0.006, "volatility": "1.0x", "volume": "100%" },
+        { "month": "2025-05", "intensity": 0.5, "label": "product update", "return": 0.012, "volatility": "1.1x", "volume": "x1.1" },
+        { "month": "2025-11", "intensity": 0.56, "label": "holiday guidance", "return": 0.009, "volatility": "1.1x", "volume": "x1.2" },
+        { "month": "2025-12", "intensity": 0.6, "label": "year end", "return": 0.004, "volatility": "1.0x", "volume": "110%" }
+      ]},
+      "wl": { "enabled": true, "n_transactions": 90200, "trend_plan": [
+        { "month": "2025-01", "intensity": 0.36, "label": "baseline", "transactions": "7%", "high_risk_intensity": 0.071, "decline_rate": 0.032 },
+        { "month": "2025-03", "intensity": 0.47, "label": "spring uplift", "transactions": "10%", "high_risk_intensity": 0.079, "decline_rate": 0.035 },
+        { "month": "2025-05", "intensity": 0.5, "label": "seasonal peak", "transactions": "11%", "high_risk_intensity": 0.081, "decline_rate": 0.038 },
+        { "month": "2025-11", "intensity": 0.58, "label": "holiday ramp", "transactions": "12%", "high_risk_intensity": 0.086, "decline_rate": 0.041 },
+        { "month": "2025-12", "intensity": 0.63, "label": "holiday peak", "transactions": "15%", "high_risk_intensity": 0.089, "decline_rate": 0.043 }
+      ]}
+    },
+    {
+      "merchant_name": "GardenCore",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2211002,
+      "description": "Gardening and outdoor supplies with strong spring/summer seasonality.",
+      "tweets": { "enabled": true, "n_tweets": 4300, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.38, "label": "pre-season" },
+        { "month": "2025-04", "intensity": 0.62, "label": "spring peak", "posts": "14%" },
+        { "month": "2025-05", "intensity": 0.65, "label": "late spring" },
+        { "month": "2025-07", "intensity": 0.5, "label": "mid-summer" },
+        { "month": "2025-10", "intensity": 0.4, "label": "off-season" }
+      ]},
+      "reddit": { "enabled": true, "n_posts": 1800, "trend_plan": [
+        { "month": "2025-03", "intensity": 0.55, "label": "planting discussions" },
+        { "month": "2025-04", "intensity": 0.63, "label": "gardening peak" },
+        { "month": "2025-06", "intensity": 0.52, "label": "maintenance" },
+        { "month": "2025-09", "intensity": 0.41, "label": "winding down" }
+      ]},
+      "news": { "enabled": true, "n_articles": 1400, "trend_plan": [
+        { "month": "2025-04", "intensity": 0.59, "label": "seasonal coverage" },
+        { "month": "2025-05", "intensity": 0.57, "label": "eco features" }
+      ]},
+      "reviews": { "enabled": true, "n_products": 15, "merchant_score": 4.24, "n_reviews": 17200, "trend_plan": [
+        { "month": "2025-03", "intensity": 0.58, "label": "planting season", "reviews": "12%" },
+        { "month": "2025-04", "intensity": 0.64, "label": "peak demand", "reviews": "14%" },
+        { "month": "2025-07", "intensity": 0.5, "label": "mid-season" },
+        { "month": "2025-10", "intensity": 0.39, "label": "off season" }
+      ]},
+      "stock": { "enabled": true, "ticker": "GRD", "base_price": 21.8, "sigma_annual": 0.31, "avg_daily_volume": 950000, "shares_outstanding": 320000000, "target_total_return": 0.044, "trend_plan": [
+        { "month": "2025-03", "intensity": 0.55, "label": "season anticipation", "return": 0.018, "volatility": "1.1x", "volume": "x1.2" },
+        { "month": "2025-04", "intensity": 0.63, "label": "peak sales", "return": 0.011, "volatility": "1.1x", "volume": "x1.3" },
+        { "month": "2025-07", "intensity": 0.5, "label": "normalized", "return": -0.004 },
+        { "month": "2025-10", "intensity": 0.4, "label": "off-season", "return": -0.006 }
+      ]},
+      "wl": { "enabled": true, "n_transactions": 64000, "trend_plan": [
+        { "month": "2025-03", "intensity": 0.57, "label": "spring build", "transactions": "13%", "high_risk_intensity": 0.072, "decline_rate": 0.029 },
+        { "month": "2025-04", "intensity": 0.63, "label": "peak", "transactions": "15%", "high_risk_intensity": 0.076, "decline_rate": 0.031 },
+        { "month": "2025-07", "intensity": 0.49, "label": "mid-season", "transactions": "9%", "high_risk_intensity": 0.071, "decline_rate": 0.028 },
+        { "month": "2025-10", "intensity": 0.38, "label": "off-season", "transactions": "6%", "high_risk_intensity": 0.069, "decline_rate": 0.027 }
+      ]}
+    },
+    {
+      "merchant_name": "FixItCo",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2211003,
+      "description": "Tool and repair supplies brand with steady demand and mild DIY spikes.",
+      "tweets": { "enabled": true, "n_tweets": 3900, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.37, "label": "baseline" },
+        { "month": "2025-05", "intensity": 0.55, "label": "DIY push", "posts": "10%" },
+        { "month": "2025-09", "intensity": 0.46, "label": "workshop series" }
+      ]},
+      "reddit": { "enabled": true, "n_posts": 1600, "trend_plan": [
+        { "month": "2025-05", "intensity": 0.53, "label": "project sharing" },
+        { "month": "2025-06", "intensity": 0.49, "label": "tool advice" }
+      ]},
+      "news": { "enabled": true, "n_articles": 900, "trend_plan": [
+        { "month": "2025-05", "intensity": 0.5, "label": "summer prep" }
+      ]},
+      "reviews": { "enabled": true, "n_products": 18, "merchant_score": 4.05, "n_reviews": 21100, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.39, "label": "baseline" },
+        { "month": "2025-05", "intensity": 0.56, "label": "DIY peak", "reviews": "12%" },
+        { "month": "2025-09", "intensity": 0.44, "label": "late season" }
+      ]},
+      "stock": { "enabled": true, "ticker": "FIX", "base_price": 61.9, "sigma_annual": 0.33, "avg_daily_volume": 1500000, "shares_outstanding": 410000000, "target_total_return": 0.012, "trend_plan": [
+        { "month": "2025-05", "intensity": 0.54, "label": "DIY cycle", "return": 0.01, "volatility": "1.1x", "volume": "x1.1" },
+        { "month": "2025-09", "intensity": 0.45, "label": "stabilizing", "return": -0.003 }
+      ]},
+      "wl": { "enabled": true, "n_transactions": 72000, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.4, "label": "baseline", "transactions": "7%", "high_risk_intensity": 0.074, "decline_rate": 0.03 },
+        { "month": "2025-05", "intensity": 0.55, "label": "DIY peak", "transactions": "12%", "high_risk_intensity": 0.079, "decline_rate": 0.032 },
+        { "month": "2025-09", "intensity": 0.46, "label": "late season", "transactions": "8%", "high_risk_intensity": 0.076, "decline_rate": 0.031 }
+      ]}
+    },
+    {
+      "merchant_name": "PrimeHome",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2211004,
+      "description": "Appliance and smart home retailer with holiday and mid-year promo cycles.",
+      "tweets": { "enabled": true, "n_tweets": 6200, "trend_plan": [
+        { "month": "2025-01", "intensity": 0.39, "label": "baseline" },
+        { "month": "2025-05", "intensity": 0.57, "label": "summer energy campaign" },
+        { "month": "2025-08", "intensity": 0.52, "label": "back-to-college" },
+        { "month": "2025-11", "intensity": 0.63, "label": "holiday preview", "posts": "13%" },
+        { "month": "2025-12", "intensity": 0.7, "label": "holiday peak" }
+      ]},
+      "reddit": { "enabled": true, "n_posts": 2500, "trend_plan": [
+        { "month": "2025-05", "intensity": 0.55, "label": "energy efficiency" },
+        { "month": "2025-08", "intensity": 0.5, "label": "dorm setups" },
+        { "month": "2025-11", "intensity": 0.61, "label": "deal research" }
+      ]},
+      "news": { "enabled": true, "n_articles": 3100, "trend_plan": [
+        { "month": "2025-05", "intensity": 0.56, "label": "sustainability angle" },
+        { "month": "2025-11", "intensity": 0.64, "label": "holiday forecast" }
+      ]},
+      "reviews": { "enabled": true, "n_products": 22, "merchant_score": 4.02, "n_reviews": 30100, "trend_plan": [
+        { "month": "2025-01", "intensity": 0.4, "label": "baseline" },
+        { "month": "2025-05", "intensity": 0.58, "label": "upgrade cycle", "reviews": "11%" },
+        { "month": "2025-08", "intensity": 0.53, "label": "college setups" },
+        { "month": "2025-12", "intensity": 0.69, "label": "holiday installs", "reviews": "16%" }
+      ]},
+      "stock": { "enabled": true, "ticker": "PRH", "base_price": 73.2, "sigma_annual": 0.34, "avg_daily_volume": 2700000, "shares_outstanding": 640000000, "target_total_return": 0.027, "trend_plan": [
+        { "month": "2025-05", "intensity": 0.57, "label": "promo cycle", "return": 0.012 },
+        { "month": "2025-11", "intensity": 0.64, "label": "holiday expectations", "return": 0.014 }
+      ]},
+      "wl": { "enabled": true, "n_transactions": 110500, "trend_plan": [
+        { "month": "2025-01", "intensity": 0.41, "label": "baseline", "transactions": "7%", "high_risk_intensity": 0.081, "decline_rate": 0.035 },
+        { "month": "2025-05", "intensity": 0.59, "label": "upgrade season", "transactions": "12%", "high_risk_intensity": 0.088, "decline_rate": 0.037 },
+        { "month": "2025-08", "intensity": 0.52, "label": "back-to-college", "transactions": "9%", "high_risk_intensity": 0.084, "decline_rate": 0.036 },
+        { "month": "2025-12", "intensity": 0.7, "label": "holiday peak", "transactions": "16%", "high_risk_intensity": 0.091, "decline_rate": 0.039 }
+      ]}
+    },
+    {
+      "merchant_name": "CraftWorks",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2211005,
+      "description": "Craft and hobby supplies with a Q4 gifting spike.",
+      "tweets": { "enabled": true, "n_tweets": 3700, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.36, "label": "baseline" },
+        { "month": "2025-04", "intensity": 0.48, "label": "spring creativity" },
+        { "month": "2025-10", "intensity": 0.54, "label": "holiday crafting" },
+        { "month": "2025-12", "intensity": 0.61, "label": "gift projects" }
+      ]},
+      "reddit": { "enabled": true, "n_posts": 1500, "trend_plan": [
+        { "month": "2025-04", "intensity": 0.5, "label": "project sharing" },
+        { "month": "2025-11", "intensity": 0.56, "label": "gift prep" }
+      ]},
+      "news": { "enabled": true, "n_articles": 800, "trend_plan": [
+        { "month": "2025-10", "intensity": 0.52, "label": "holiday features" }
+      ]},
+      "reviews": { "enabled": true, "n_products": 25, "merchant_score": 4.31, "n_reviews": 21500, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.38, "label": "baseline" },
+        { "month": "2025-10", "intensity": 0.55, "label": "holiday crafting", "reviews": "11%" },
+        { "month": "2025-12", "intensity": 0.63, "label": "gift completion", "reviews": "15%" }
+      ]},
+      "stock": { "enabled": true, "ticker": "CRF", "base_price": 18.6, "sigma_annual": 0.36, "avg_daily_volume": 820000, "shares_outstanding": 290000000, "target_total_return": 0.018, "trend_plan": [
+        { "month": "2025-10", "intensity": 0.53, "label": "holiday anticipation", "return": 0.009 },
+        { "month": "2025-12", "intensity": 0.6, "label": "execution", "return": 0.006 }
+      ]},
+      "wl": { "enabled": true, "n_transactions": 58000, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.37, "label": "baseline", "transactions": "6%", "high_risk_intensity": 0.069, "decline_rate": 0.028 },
+        { "month": "2025-10", "intensity": 0.53, "label": "holiday build", "transactions": "11%", "high_risk_intensity": 0.073, "decline_rate": 0.03 },
+        { "month": "2025-12", "intensity": 0.61, "label": "holiday peak", "transactions": "15%", "high_risk_intensity": 0.078, "decline_rate": 0.031 }
+      ]}
+    },
+    {
+      "merchant_name": "HandyMart",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2211006,
+      "description": "Neighborhood hardware & convenience DIY hybrid with steady baseline.",
+      "tweets": { "enabled": true, "n_tweets": 4100, "trend_plan": [
+        { "month": "2025-01", "intensity": 0.34, "label": "baseline" },
+        { "month": "2025-04", "intensity": 0.49, "label": "spring prep" },
+        { "month": "2025-07", "intensity": 0.46, "label": "summer upkeep" },
+        { "month": "2025-11", "intensity": 0.52, "label": "winter readiness" }
+      ]},
+      "reddit": { "enabled": true, "n_posts": 1300, "trend_plan": [
+        { "month": "2025-04", "intensity": 0.5, "label": "seasonal questions" },
+        { "month": "2025-11", "intensity": 0.53, "label": "winterizing" }
+      ]},
+      "news": { "enabled": true, "n_articles": 700, "trend_plan": [
+        { "month": "2025-11", "intensity": 0.51, "label": "local preparedness" }
+      ]},
+      "reviews": { "enabled": true, "n_products": 14, "merchant_score": 4.09, "n_reviews": 15400, "trend_plan": [
+        { "month": "2025-04", "intensity": 0.52, "label": "spring projects" },
+        { "month": "2025-11", "intensity": 0.56, "label": "winterization" }
+      ]},
+      "stock": { "enabled": true, "ticker": "HYM", "base_price": 26.7, "sigma_annual": 0.28, "avg_daily_volume": 640000, "shares_outstanding": 250000000, "target_total_return": 0.01, "trend_plan": [
+        { "month": "2025-04", "intensity": 0.49, "label": "seasonal", "return": 0.007 },
+        { "month": "2025-11", "intensity": 0.53, "label": "winterization", "return": 0.005 }
+      ]},
+      "wl": { "enabled": true, "n_transactions": 50500, "trend_plan": [
+        { "month": "2025-01", "intensity": 0.35, "label": "baseline", "transactions": "6%", "high_risk_intensity": 0.067, "decline_rate": 0.027 },
+        { "month": "2025-04", "intensity": 0.5, "label": "spring", "transactions": "10%", "high_risk_intensity": 0.07, "decline_rate": 0.028 },
+        { "month": "2025-11", "intensity": 0.55, "label": "winterizing", "transactions": "11%", "high_risk_intensity": 0.073, "decline_rate": 0.029 }
+      ]}
+    },
+    {
+      "merchant_name": "ToolNest",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2211007,
+      "description": "Specialized power tools e-commerce with modest innovation announcements.",
+      "tweets": { "enabled": true, "n_tweets": 3600, "trend_plan": [
+        { "month": "2025-03", "intensity": 0.45, "label": "new model teaser" },
+        { "month": "2025-06", "intensity": 0.5, "label": "launch window", "posts": "12%" },
+        { "month": "2025-09", "intensity": 0.47, "label": "pro tips" }
+      ]},
+      "reddit": { "enabled": true, "n_posts": 1450, "trend_plan": [
+        { "month": "2025-06", "intensity": 0.52, "label": "launch discussion" },
+        { "month": "2025-09", "intensity": 0.48, "label": "usage feedback" }
+      ]},
+      "news": { "enabled": true, "n_articles": 950, "trend_plan": [
+        { "month": "2025-06", "intensity": 0.54, "label": "product launch" }
+      ]},
+      "reviews": { "enabled": true, "n_products": 30, "merchant_score": 4.26, "n_reviews": 24100, "trend_plan": [
+        { "month": "2025-06", "intensity": 0.57, "label": "launch uptake", "reviews": "13%" },
+        { "month": "2025-09", "intensity": 0.5, "label": "post-launch" }
+      ]},
+      "stock": { "enabled": true, "ticker": "TLN", "base_price": 41.5, "sigma_annual": 0.35, "avg_daily_volume": 1200000, "shares_outstanding": 370000000, "target_total_return": 0.022, "trend_plan": [
+        { "month": "2025-06", "intensity": 0.55, "label": "launch", "return": 0.013 },
+        { "month": "2025-09", "intensity": 0.49, "label": "post-launch", "return": -0.002 }
+      ]},
+      "wl": { "enabled": true, "n_transactions": 68000, "trend_plan": [
+        { "month": "2025-03", "intensity": 0.44, "label": "teaser", "transactions": "8%", "high_risk_intensity": 0.071, "decline_rate": 0.028 },
+        { "month": "2025-06", "intensity": 0.55, "label": "launch", "transactions": "12%", "high_risk_intensity": 0.077, "decline_rate": 0.03 },
+        { "month": "2025-09", "intensity": 0.49, "label": "post-launch", "transactions": "9%", "high_risk_intensity": 0.074, "decline_rate": 0.029 }
+      ]}
+    },
+    {
+      "merchant_name": "BuildPro",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2211008,
+      "description": "B2B contractor supply platform with stable professional demand.",
+      "tweets": { "enabled": true, "n_tweets": 3000, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.4, "label": "baseline" },
+        { "month": "2025-06", "intensity": 0.46, "label": "project season" },
+        { "month": "2025-09", "intensity": 0.43, "label": "pipeline updates" }
+      ]},
+      "reddit": { "enabled": true, "n_posts": 900, "trend_plan": [
+        { "month": "2025-06", "intensity": 0.47, "label": "site logistics" }
+      ]},
+      "news": { "enabled": true, "n_articles": 1200, "trend_plan": [
+        { "month": "2025-06", "intensity": 0.48, "label": "infrastructure mentions" }
+      ]},
+      "reviews": { "enabled": true, "n_products": 40, "merchant_score": 4.12, "n_reviews": 19900, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.41, "label": "baseline" },
+        { "month": "2025-06", "intensity": 0.5, "label": "project cycle", "reviews": "10%" }
+      ]},
+      "stock": { "enabled": true, "ticker": "BLD", "base_price": 84.7, "sigma_annual": 0.32, "avg_daily_volume": 1600000, "shares_outstanding": 520000000, "target_total_return": 0.016, "trend_plan": [
+        { "month": "2025-06", "intensity": 0.49, "label": "seasonal", "return": 0.01 }
+      ]},
+      "wl": { "enabled": true, "n_transactions": 134000, "trend_plan": [
+        { "month": "2025-02", "intensity": 0.42, "label": "baseline", "transactions": "8%", "high_risk_intensity": 0.068, "decline_rate": 0.027 },
+        { "month": "2025-06", "intensity": 0.5, "label": "project peak", "transactions": "12%", "high_risk_intensity": 0.071, "decline_rate": 0.028 }
+      ]}
+    },
+    {
+      "merchant_name": "BrightLite",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2211009,
+      "description": "Lighting solutions retailer with modest innovation and holiday decor spike.",
+      "tweets": { "enabled": true, "n_tweets": 2800, "trend_plan": [
+        { "month": "2025-03", "intensity": 0.41, "label": "LED promo" },
+        { "month": "2025-09", "intensity": 0.45, "label": "smart home push" },
+        { "month": "2025-12", "intensity": 0.58, "label": "holiday displays" }
+      ]},
+      "reddit": { "enabled": true, "n_posts": 800, "trend_plan": [
+        { "month": "2025-09", "intensity": 0.46, "label": "automation setups" },
+        { "month": "2025-12", "intensity": 0.55, "label": "decor inspiration" }
+      ]},
+      "news": { "enabled": true, "n_articles": 600, "trend_plan": [
+        { "month": "2025-09", "intensity": 0.47, "label": "smart integration" }
+      ]},
+      "reviews": { "enabled": true, "n_products": 28, "merchant_score": 4.22, "n_reviews": 16700, "trend_plan": [
+        { "month": "2025-03", "intensity": 0.43, "label": "baseline" },
+        { "month": "2025-09", "intensity": 0.49, "label": "smart installs" },
+        { "month": "2025-12", "intensity": 0.6, "label": "holiday setups", "reviews": "14%" }
+      ]},
+      "stock": { "enabled": true, "ticker": "BLT", "base_price": 27.9, "sigma_annual": 0.3, "avg_daily_volume": 500000, "shares_outstanding": 200000000, "target_total_return": 0.019, "trend_plan": [
+        { "month": "2025-09", "intensity": 0.48, "label": "smart push", "return": 0.011 },
+        { "month": "2025-12", "intensity": 0.59, "label": "holiday uplift", "return": 0.009 }
+      ]},
+      "wl": { "enabled": true, "n_transactions": 45500, "trend_plan": [
+        { "month": "2025-03", "intensity": 0.42, "label": "baseline", "transactions": "7%", "high_risk_intensity": 0.07, "decline_rate": 0.027 },
+        { "month": "2025-09", "intensity": 0.48, "label": "automation interest", "transactions": "9%", "high_risk_intensity": 0.072, "decline_rate": 0.028 },
+        { "month": "2025-12", "intensity": 0.6, "label": "holiday spike", "transactions": "14%", "high_risk_intensity": 0.077, "decline_rate": 0.029 }
+      ]}
     }
   ]
 }

@@ -78,8 +78,8 @@
             </div>
           </div>
           <div class="merchant-details-div">
-            <div class="merchant-risk" v-if="m.riskMetrics">
-              Risk: {{ m.riskMetrics.riskScore ?? "—" }}
+            <div class="merchant-status-chip" :class="statusClass(m)">
+              {{ statusLabel(m) }}
             </div>
             <button
               @click.stop="$emit('route-to-merchant', m.id)"
@@ -163,7 +163,26 @@ export default {
       return list;
     },
   },
-  emits: ['select-merchant', 'route-to-merchant', 'update:searchQuery', 'update:filters'],
+  methods: {
+    statusLabel(m){
+      if(m.activation_flag === false || m.status === 'inactive') return 'Inactive';
+      if(m.has_restrictions || (m.restrictions && Object.keys(m.restrictions||{}).length)) return 'Restricted';
+      return 'Active';
+    },
+    statusClass(m){
+      if(m.activation_flag === false || m.status === 'inactive') return 'inactive';
+      if(m.has_restrictions || (m.restrictions && Object.keys(m.restrictions||{}).length)) return 'restricted';
+      return 'active';
+    },
+    
+    confirmDelete(m){
+      if(!m || !m.id) return;
+      if(confirm(`Remove merchant '${m.name}' from dashboard? This deletes only profile & risk data.`)){
+        this.$emit('delete-merchant', m.id);
+      }
+    }
+  },
+  emits: ['select-merchant', 'route-to-merchant', 'delete-merchant', 'update:searchQuery', 'update:filters'],
 };
 </script>
 
@@ -294,55 +313,83 @@ export default {
   transform: translate(-50%, -50%);
 }
 
+/* Merchant list & improved scrollbar */
 .merchant-list {
   flex: 1;
-  max-height: 500px;
+  max-height: calc(100vh - 330px); /* dynamic height so it uses viewport space */
   overflow-y: auto;
   overflow-x: hidden;
+  position: relative;
+  padding-right: 4px; /* keep content from touching scrollbar */
+  scrollbar-width: thin;            /* Firefox */
+  scrollbar-color: #14b8a6 #f1f5f9; /* Firefox */
+  -webkit-overflow-scrolling: touch;
+  background: linear-gradient(#ffffff, #ffffff) padding-box;
 }
 
-.merchant-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.merchant-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
+/* WebKit scrollbars */
+.merchant-list::-webkit-scrollbar { width: 10px; }
+.merchant-list::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
 .merchant-list::-webkit-scrollbar-thumb {
-  background: #14b8a6;
-  border-radius: 3px;
+  background: linear-gradient(180deg,#14b8a6,#0f9a92);
+  border-radius: 10px;
+  border: 2px solid #f1f5f9; /* creates padding effect */
+}
+.merchant-list::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg,#0f9a92,#0b7f7b); }
+
+/* Subtle top/bottom fade indicators (static, low opacity so acceptable if always visible) */
+.merchant-list::before,
+.merchant-list::after {
+  content: '';
+  position: sticky;
+  left: 0; right: 0;
+  height: 18px;
+  pointer-events: none;
+  z-index: 2;
+}
+.merchant-list::before { top: 0; background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0)); }
+.merchant-list::after { bottom: 0; background: linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0)); }
+
+/* Merchant card styles */
+.merchant-item { margin-bottom: 10px; cursor: pointer; border-radius: 10px; position: relative; }
+.merchant-item:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; }
+
+.merchant-summary {
+  background: #ffffff;
+  border: 1px solid #d1e7e5;
+  border-radius: 10px;
+  color: #065f5b;
+  padding: 12px 14px 10px;
+  box-shadow: 0 2px 4px rgba(14,116,144,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  backdrop-filter: blur(2px);
 }
 
-.merchant-item {
-  margin-bottom: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-radius: 8px;
-}
-
-.merchant-item:hover {
-  transform: translateX(2px);
-}
-
-.merchant-item.selected {
-  transform: translateX(4px);
+.merchant-item:hover .merchant-summary {
+  border-color: #14b8a6;
+  box-shadow: 0 4px 10px rgba(20,184,166,0.18);
+  transform: translateY(-2px);
 }
 
 .merchant-item.selected .merchant-summary {
-  background: linear-gradient(135deg, #008080, #14b8a6);
-  box-shadow: 0 4px 12px rgba(0, 128, 128, 0.25);
-  border-left: 4px solid #0d9488;
+  border: 2px solid #0d9488;
+  box-shadow: 0 6px 16px rgba(13,148,136,0.25);
+  background: linear-gradient(135deg,#f0fdfa,#ecfeff);
 }
 
-.merchant-summary {
-  background: linear-gradient(135deg, #008080, #0f9a92);
-  border-radius: 8px;
-  color: white;
-  padding: 14px;
-  box-shadow: 0 2px 8px rgba(0, 128, 128, 0.2);
-  transition: all 0.2s ease;
+/* Subtle accent bar (left) for selected */
+.merchant-item.selected .merchant-summary::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 0;
+  border-radius: 10px;
+  padding-left: 4px;
+  background: linear-gradient(90deg, rgba(13,148,136,0.5), rgba(13,148,136,0) 55%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .merchant-header {
@@ -397,34 +444,60 @@ export default {
   gap: 10px;
 }
 
-.merchant-risk {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.15);
-  padding: 4px 8px;
-  border-radius: 10px;
-  font-weight: 500;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+.merchant-row-actions { display:flex; align-items:center; gap:6px; }
+.merchant-delete-button {
+  background:#fff5f5;
+  color:#b91c1c;
+  border:1px solid #fecaca;
+  width:30px; height:30px; border-radius:6px;
+  cursor:pointer; font-size:14px; font-weight:700; line-height:1;
+  display:flex; align-items:center; justify-content:center;
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.merchant-delete-button:hover { background:#dc2626; color:#ffffff; box-shadow:0 2px 6px rgba(220,38,38,0.35); }
+.merchant-delete-button:active { transform:translateY(1px); }
+
+.merchant-status-chip {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  padding: 4px 10px 3px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  position: relative;
+  line-height: 1.1;
+}
+.merchant-status-chip.active { background:#e6fbf8; color:#065f5b; border-color:#14b8a6; }
+.merchant-status-chip.restricted { background:#fff7ed; color:#9a5b05; border-color:#f59e0b; }
+.merchant-status-chip.inactive { background:#fef2f2; color:#991b1b; border-color:#dc2626; }
+.merchant-status-chip.inactive::before, .merchant-status-chip.restricted::before, .merchant-status-chip.active::before {
+  content:''; width:6px; height:6px; border-radius:50%;
+  background: currentColor; opacity:.85; box-shadow:0 0 0 2px rgba(255,255,255,0.7);
 }
 
 .merchant-summary-button {
-  background: #ffffff;
-  color: #008080;
+  background: #0d9488;
+  color: #ffffff;
   border: none;
   border-radius: 6px;
-  padding: 7px 12px;
+  padding: 6px 11px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  border: 1px solid rgba(0, 128, 128, 0.1);
+  font-size: 11px;
+  line-height: 1.1;
+  transition: background .18s ease, box-shadow .18s ease, transform .18s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
+.merchant-summary-button:hover { background:#0b7f7b; box-shadow:0 3px 8px rgba(0,0,0,0.25); transform:translateY(-1px); }
+.merchant-summary-button:active { transform:translateY(0); box-shadow:0 2px 4px rgba(0,0,0,0.18); }
 
-.merchant-summary-button:hover {
-  background: #f0fdfa;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 128, 128, 0.2);
-}
+/* Status dots adjust for light card */
+.inactive-dot { background:#dc2626; box-shadow:0 0 0 2px #fee2e2; }
+.restriction-dot { background:#f59e0b; box-shadow:0 0 0 2px #fef3c7; }
 
 .results-footer {
   margin-top: 15px;

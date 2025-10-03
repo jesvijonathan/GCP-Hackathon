@@ -1,92 +1,25 @@
 #!/usr/bin/env python3
 """Risk evaluation + merchant evaluation timeline builder.
 
-This module is based on the previously provided `risk_eval_old.py` but adds a
-lightweight secondary persistence layer (`merchant_evaluations` collection)
-designed for the unified frontend component `MerchantRisk.vue` and the
-`manual_data/view_score.py` explorer.
-
-Two related but distinct document schemas are produced:
-
-1. risk_scores (window/component oriented; internal / legacy endpoints)
-   { merchant, interval_minutes, window_start_ts, window_end_ts, score, confidence,
-     components:{...}, weights_used:{...}, raw_counts:{...}, synthetic:bool }
-
-2. merchant_evaluations (UI friendly; mirrors view_score expectations)
-   { merchant, window_start, window_end, window_start_ts, window_end_ts,
-     created_at, algo_version, is_backfill, scores:{ total, wl, market, sentiment,
-     volume, incident_bump }, counts:{ tweets, reddit, news, reviews, wl, stock_prices },
-     confidence, drivers:[...]}.
-
-The evaluation logic reuses the same component extraction helpers. New derived
-components are mapped into the simplified keys expected by the UI:
- - wl            -> wl_flag_ratio (0..1) * 100
- - market        -> stock_volatility normalized (0..1) * 100
- - sentiment     -> average of (tweet, reddit, news, reviews) risk-normalized * 100
- - volume        -> heuristic activity risk from aggregate counts (scaled 0..100)
- - incident_bump -> discrete additive bump (0..100) when anomaly/flag patterns appear
- - total         -> (weighted blend of the above primary components + incident bump) capped 0..100
-
-All numeric components are kept inside [0,100]. Confidence is shared between
-schemas (0..1). The module avoids external ML libs for portability.
+This module builds per-window risk scores and UI-oriented merchant evaluation
+documents. It supports both historical backfill jobs and a realtime mode that
+only keeps the latest windows fresh. See `RiskEvaluator` for orchestration.
 """
+
 from __future__ import annotations
-
-import datetime as dt
-import os
-import random
-import statistics
-import json
+import os, json, time, datetime as dt, statistics, random, threading, bisect
 from typing import Any, Dict, List, Optional, Tuple
-
 from pymongo import ASCENDING, ReturnDocument
 
-# Stream collections consulted for scoring
-STREAM_COLLECTIONS = [
-    "tweets", "reddit", "news", "reviews", "wl_transactions", "stocks_prices"
-]
-
-INTERVAL_MAP = {
-    "30m": 30,
-    "1h": 60,
-    "1d": 60 * 24,
-    "30min": 30,
-    "1hour": 60,
-    "1day": 60 * 24,
-}
-
-# Base weights for internal risk_scores (kept for compatibility)
-COMPONENT_WEIGHTS = {
-    "tweet_sentiment": 1.0,
-    "reddit_sentiment": 1.0,
-    "news_sentiment": 1.0,
-    "reviews_rating": 1.0,
-    "wl_flag_ratio": 1.5,
-    "stock_volatility": 1.0,
-}
-
-ALT_SENTIMENT_FIELDS = [
-    "sentiment", "compound", "polarity", "score", "sentiment_score", "vader_compound"
-]
-ALT_REVIEW_FIELDS = ["rating", "stars", "score"]
-ALT_PRICE_FIELDS = ["price", "close", "adj_close", "value"]
-ALT_STATUS_FIELDS = ["status", "state"]
-
-# ---------------- Configuration -----------------
-# Central configuration for risk evaluation allowing runtime tuning without code edits.
-# Override mechanisms (merged in order):
-#   1. Defaults below
-#   2. JSON file 'risk_eval_config.json' in same directory (optional)
-#   3. Env var RISK_EVAL_CONFIG_JSON containing JSON string
-# Deep merge strategy (dict values merged recursively, scalars replaced).
+# ---------------- Configuration (restored) -----------------
 DEFAULT_RISK_EVAL_CONFIG: Dict[str, Any] = {
-    "weights": {  # high-level component weights (merchant evaluation blend)
+    "weights": {
         "wl": 1.2,
-        "market": 0.4,        # reduced market influence
+        "market": 0.4,
         "sentiment": 1.0,
-        "volume": 1.1,        # emphasize transactional/activity signal
+        "volume": 1.1,
     },
-    "internal_component_weights": {  # legacy COMPONENT_WEIGHTS override (optional)
+    "internal_component_weights": {
         "tweet_sentiment": 1.0,
         "reddit_sentiment": 1.0,
         "news_sentiment": 1.0,
@@ -95,7 +28,7 @@ DEFAULT_RISK_EVAL_CONFIG: Dict[str, Any] = {
         "stock_volatility": 1.0,
     },
     "volume": {
-        "activity_divisor": 200.0,   # higher -> lowers volume contribution
+        "activity_divisor": 200.0,
         "min_activity_for_nonzero": 1,
     },
     "incident": {
@@ -104,46 +37,73 @@ DEFAULT_RISK_EVAL_CONFIG: Dict[str, Any] = {
         "wl_multiplier": 0.4,
         "market_threshold": 0.6,
         "market_delta_scale": 1.5,
-        "market_delta_cap": 0.6,   # cap on (market - threshold) * scale before multiplier
+        "market_delta_cap": 0.6,
         "market_multiplier": 0.3,
         "max_total": 1.0,
     },
-    "dampen": {  # compress & scale blended score (encourages lower baseline)
+    "dampen": {
         "enabled": True,
-        "blend_power": 0.5,      # exponent applied to blended (sqrt when 0.5)
+        "blend_power": 0.5,
         "blend_scale": 0.85,
         "incident_scale": 0.35,
     },
-    "stability": {  # smoothing + hysteresis to reduce noisy threshold crossings
+    "stability": {
         "ema_enabled": True,
-        # Separate alpha for rising vs falling scores (0..1). Lower = smoother.
-        # Tuned for a bit more responsiveness (previously 0.4 / 0.25)
         "ema_alpha_rise": 0.6,
         "ema_alpha_fall": 0.45,
-        # Ignore very tiny movements (in percentage points 0..100) after smoothing
-        # Reduced so smaller movements show up (was 0.3)
         "min_delta_pct": 0.15,
-        # Hysteresis high-risk state control (optional; frontend may ignore)
         "hysteresis": {
-            "high_threshold": 0.80,      # 80% expressed 0..1
-            "release_delta": 0.05,       # must fall below 0.75 to release
-            "consecutive_required": 2,   # need 2 consecutive windows above threshold
+            "high_threshold": 0.80,
+            "release_delta": 0.05,
+            "consecutive_required": 2,
         },
-        # If true, "scores.total" becomes smoothed value; raw stored as total_raw
         "replace_total_with_smoothed": True,
-        # Hard caps on per-window movement AFTER EMA + min-delta filter (percentage points)
-        # Slightly relaxed to allow more visible motion (was 5 / 7)
         "max_rise_per_window_pct": 8.0,
         "max_drop_per_window_pct": 12.0,
-        # When approaching high threshold, dampen alpha further to avoid abrupt crossing
         "soft_near_high": {
-            # Disabled to avoid over-dampening near threshold so color transitions feel responsive
             "enabled": False,
-            "buffer": 0.10,       # retained for potential re-enable
-            "alpha_scale": 0.7    # was 0.5
+            "buffer": 0.10,
+            "alpha_scale": 0.7,
         },
     },
 }
+
+# Interval label mapping (minutes)
+INTERVAL_MAP: Dict[str, int] = {
+    "30m": 30,
+    "30min": 30,
+    "1h": 60,
+    "1hour": 60,
+    "1d": 60 * 24,
+    "1day": 60 * 24,
+}
+
+# ---- Missing constant definitions (restored) ----
+# Component weights used inside compute_window (normalized blending of available components)
+COMPONENT_WEIGHTS: Dict[str, float] = {
+    "tweet_sentiment": 1.0,
+    "reddit_sentiment": 1.0,
+    "news_sentiment": 1.0,
+    "reviews_rating": 1.0,
+    "wl_flag_ratio": 1.5,
+    "stock_volatility": 1.0,
+}
+
+# Alternate field name candidates for flexible ingestion
+ALT_SENTIMENT_FIELDS = ["sentiment", "score", "polarity", "senti", "sent"]
+ALT_REVIEW_FIELDS = ["rating", "stars", "score", "review_rating"]
+ALT_STATUS_FIELDS = ["status", "state", "flag", "flag_status"]
+ALT_PRICE_FIELDS = ["price", "close", "adj_close", "close_price", "last"]
+
+# Stream collection canonical names (used for range discovery & diagnostics)
+STREAM_COLLECTIONS = [
+    "tweets",
+    "reddit",
+    "news",
+    "reviews",
+    "wl_transactions",
+    "stocks_prices",
+]
 
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
@@ -189,6 +149,12 @@ class RiskEvaluator:
         self.db = db
         self.col = db["risk_scores"]
         self.eval_col = db["merchant_evaluations"]
+        # Persistent jobs collection (new)
+        self.jobs_col = db["risk_eval_jobs"]
+        # Dispatcher state
+        self.max_concurrent_jobs = int(os.getenv("RISK_MAX_CONCURRENT", "3"))  # configurable
+        self.dispatch_poll_seconds = float(os.getenv("RISK_DISPATCH_POLL", "1.2"))
+        self._dispatch_initialized = False
         self._ts_scale_cache: Dict[tuple, str] = {}
         self._ts_field_cache: Dict[tuple, Dict[str, Any]] = {}  # (coll, merchant) -> {field, scale, detected_at}
         self._positive_words = {
@@ -238,6 +204,15 @@ class RiskEvaluator:
             "disappointed",
         }
         self.jobs: Dict[str, Dict[str, Any]] = {}
+        # Prefetch cache (per merchant + interval) built per backfill batch
+        # Structure: {(merchant, interval_minutes): { 'range': (start_ts, end_ts), 'streams': {stream: [docs_sorted_by_ts]}, 'ts_field': 'ts' }}
+        self._prefetch: Dict[tuple, Dict[str, Any]] = {}
+        # Metrics / diagnostics counters
+        self.metrics: Dict[str, int] = {
+            "windows_computed": 0,
+            "prefetch_hits": 0,
+            "fast_path_hits": 0,
+        }
 
     # ---------------- Indexes -----------------
     def ensure_indexes(self):
@@ -264,6 +239,314 @@ class RiskEvaluator:
         self.eval_col.create_index(
             [("merchant", ASCENDING), ("window_start_ts", ASCENDING)], name="eval_start"
         )
+        # Jobs indexes
+        try:
+            self.jobs_col.create_index([
+                ("merchant", ASCENDING),
+                ("interval", ASCENDING),
+                ("status", ASCENDING),
+            ], name="job_lookup")
+            self.jobs_col.create_index([("created_at_ts", ASCENDING)], name="job_created")
+            self.jobs_col.create_index([("priority", ASCENDING), ("created_at_ts", ASCENDING)], name="job_priority_fifo")
+        except Exception:
+            pass
+        # Optional performance indexes on underlying stream collections (merchant, ts)
+        for cname in ["tweets","reddit","news","reviews","wl_transactions","stocks_prices"]:
+            try:
+                self.db[cname].create_index([("merchant", ASCENDING), ("ts", ASCENDING)], name="merchant_ts")
+            except Exception:
+                pass
+
+        # On startup, mark any stale running/queued jobs as recovered (non-fatal) so UI doesn't show phantom progress
+        try:
+            self.jobs_col.update_many({"status": {"$in": ["queued", "running"]}}, {"$set": {"status": "error", "error": "stale_after_restart"}})
+        except Exception:
+            pass
+        # Realtime autostart (corrected indentation): proactively ensure latest window(s) for each merchant
+        try:
+            if os.getenv("RISK_REALTIME_MODE", "0").lower() in ("1","true","yes","on"):
+                intervals_env = os.getenv("RISK_AUTOSTART_INTERVALS", "30m")
+                intervals = [s.strip() for s in intervals_env.split(',') if s.strip()]
+                intervals = [i for i in intervals if i in INTERVAL_MAP]
+                merchants = list(self.db["merchants"].find({}, projection={"merchant_name":1, "_id":0}).limit(1000))
+                for m in merchants:
+                    name = m.get("merchant_name")
+                    if not name:
+                        continue
+                    for ilabel in intervals:
+                        try:
+                            interval_minutes = INTERVAL_MAP[ilabel]
+                            size = interval_minutes * 60
+                            now_ts = dt.datetime.now(dt.UTC).timestamp()
+                            last_start = self._floor_window(now_ts - size, interval_minutes)
+                            existing = self.col.find_one({
+                                "merchant": name, "interval_minutes": interval_minutes, "window_start_ts": last_start
+                            }, projection={"computed_at_ts":1, "window_end_ts":1, "_id":0})
+                            needs = True
+                            if existing:
+                                comp_ts = existing.get("computed_at_ts") or 0
+                                if (now_ts - comp_ts) < (size * 0.5):
+                                    needs = False
+                            if needs:
+                                self.ensure_latest_window(name, ilabel)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+        if not self._dispatch_initialized:
+            try:
+                import threading, time
+                def dispatcher_loop():
+                    while True:
+                        try:
+                            self._dispatch_cycle()
+                        except Exception:
+                            pass
+                        time.sleep(self.dispatch_poll_seconds)
+                t = threading.Thread(target=dispatcher_loop, name="risk-dispatch", daemon=True)
+                t.start()
+                self._dispatch_initialized = True
+            except Exception:
+                pass
+
+    def _dispatch_cycle(self):
+        """Promote queued jobs to running respecting max concurrency and priority FIFO ordering."""
+        now = dt.datetime.now(dt.UTC)
+        running_count = self.jobs_col.count_documents({"status": "running"})
+        realtime: bool | None = None  # (fixed trailing comma bug)
+        if running_count >= self.max_concurrent_jobs:
+            return
+        slots = self.max_concurrent_jobs - running_count
+        # Find highest priority (lowest number) queued jobs ordered by priority then created_at_ts
+        queued = list(self.jobs_col.find({"status": "queued"}, projection={"_id":0, "job_id":1, "priority":1, "created_at_ts":1}).sort([
+            ("priority", 1), ("created_at_ts", 1)
+        ]).limit(slots))
+        if not queued:
+            return
+        for q in queued:
+            job_id = q.get("job_id")
+            if not job_id:
+                continue
+            if realtime is None:
+                realtime = os.getenv("RISK_REALTIME_MODE", "0").lower() in ("1","true","yes","on")
+            # Atomically promote queued->running; a race safe check
+            res = self.jobs_col.update_one({"job_id": job_id, "status": "queued"}, {"$set": {"status": "running", "started_at": now.isoformat().replace('+00:00','Z')}})
+            if res.modified_count == 1:
+                # Start execution inline (window computation) using thread
+                self._start_job_execution(job_id)
+
+    def _start_job_execution(self, job_id: str):
+        """Execute a queued/running job by computing its missing windows in batches.
+
+        Relies on job doc fields:
+          - _missing_windows (planned list of window_start_ts)
+          - planned (count)
+          - processed (progress)
+        Updates: processed, throughput_wpm, eta_seconds, status=done.
+        """
+        rec = self.jobs_col.find_one({"job_id": job_id})
+        if not rec:
+            return
+        merchant = rec.get("merchant")
+        interval_label = rec.get("interval")
+        interval_minutes = INTERVAL_MAP.get(interval_label)
+        if interval_minutes is None:
+            return
+        planned = int(rec.get("planned") or 0)
+        win_list = rec.get("_missing_windows") or []
+        if not isinstance(win_list, list):
+            win_list = []
+        missing_windows: List[float] = [float(w) for w in win_list][:planned] if planned else []
+        if not missing_windows:
+            # Nothing to do -> mark done immediately
+            try:
+                self.jobs_col.update_one({"job_id": job_id}, {"$set": {"status": "done", "completed_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z')}})
+            except Exception:
+                pass
+            return
+        per_job_threads = max(1, min(int(os.getenv("RISK_PER_JOB_THREADS", "4")), 16))
+        batch_size = max(1, int(os.getenv("RISK_PER_JOB_BATCH", "16")))
+        adaptive_batches = os.getenv("RISK_BATCH_ADAPT", "1").lower() in ("1","true","yes","on")
+        target_wpm = float(os.getenv("RISK_TARGET_WPM", "30"))  # heuristic target windows/min
+        import threading
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        # Mark execution start explicitly (helps UI when prefetch is large and no windows processed yet)
+        try:
+            self.jobs_col.update_one({"job_id": job_id}, {"$set": {
+                "exec_started_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z'),
+                "stage": "starting",
+            }})
+        except Exception:
+            pass
+
+        def run_job():
+            nonlocal batch_size  # allow adaptive adjustments without UnboundLocalError
+            try:
+                start_ts = dt.datetime.now(dt.UTC).timestamp()
+                processed = 0
+                idx = 0
+                # Optional bulk prefetch to amortize DB calls across many windows
+                try:
+                    enable_prefetch = os.getenv("RISK_PREFETCH", "1").lower() in ("1","true","yes","on")
+                    prefetch_threshold = int(os.getenv("RISK_PREFETCH_MIN_WINDOWS", "12"))
+                    if enable_prefetch and len(missing_windows) >= prefetch_threshold:
+                        # Update stage so UI doesn't appear frozen during potentially heavy prefetch
+                        try:
+                            self.jobs_col.update_one({"job_id": job_id}, {"$set": {"stage": "prefetch_building"}})
+                        except Exception:
+                            pass
+                        self._build_prefetch_cache(merchant, interval_minutes, missing_windows)
+                        try:
+                            self.jobs_col.update_one({"job_id": job_id}, {"$set": {"stage": "prefetch_ready"}})
+                        except Exception:
+                            pass
+                except Exception:
+                    # Non-fatal: fall back silently
+                    try:
+                        self.jobs_col.update_one({"job_id": job_id}, {"$set": {"stage": "prefetch_failed"}})
+                    except Exception:
+                        pass
+                last_adapt_check = 0
+                # Set compute stage before entering while loop
+                try:
+                    self.jobs_col.update_one({"job_id": job_id}, {"$set": {"stage": "computing"}})
+                except Exception:
+                    pass
+                while idx < len(missing_windows) and processed < planned:
+                    batch = missing_windows[idx: idx + batch_size]
+                    idx += batch_size
+                    remaining = planned - processed
+                    if len(batch) > remaining:
+                        batch = batch[:remaining]
+                    if per_job_threads == 1 or len(batch) == 1:
+                        for w in batch:
+                            try:
+                                self.compute_window(merchant, interval_minutes, w)
+                            except Exception as e:
+                                try:
+                                    self.jobs_col.update_one({"job_id": job_id}, {"$push": {"errors": str(e)}})
+                                except Exception:
+                                    pass
+                            processed += 1
+                            now_m = dt.datetime.now(dt.UTC).timestamp()
+                            elapsed = max(0.001, now_m - start_ts)
+                            wpm = (processed / elapsed) * 60.0
+                            eta = None if wpm <= 0 else (planned - processed) / (wpm / 60.0)
+                            percent = round(min(100.0, (processed / planned) * 100.0), 4) if planned else 100.0
+                            upd = {"processed": processed, "percent": percent, "updated_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z'), "throughput_wpm": round(wpm,2)}
+                            if eta is not None:
+                                upd["eta_seconds"] = round(max(0.0, eta), 2)
+                            try:
+                                self.jobs_col.update_one({"job_id": job_id}, {"$set": upd})
+                            except Exception:
+                                pass
+                        # Adaptive batch sizing (single-thread mode only) every few seconds
+                        if adaptive_batches:
+                            now_chk = time.time()
+                            if now_chk - last_adapt_check > 5:
+                                last_adapt_check = now_chk
+                                if wpm < target_wpm and batch_size < 128:
+                                    batch_size = min(128, batch_size * 2)
+                                elif wpm > target_wpm * 2 and batch_size > 4:
+                                    batch_size = max(4, batch_size // 2)
+                    else:
+                        with ThreadPoolExecutor(max_workers=per_job_threads, thread_name_prefix=f"riskwin-{merchant}") as pool:
+                            futures = {pool.submit(self.compute_window, merchant, interval_minutes, w): w for w in batch}
+                            for fut in as_completed(futures):
+                                try:
+                                    _ = fut.result()
+                                except Exception as e:
+                                    try:
+                                        self.jobs_col.update_one({"job_id": job_id}, {"$push": {"errors": str(e)}})
+                                    except Exception:
+                                        pass
+                                processed += 1
+                                now_m = dt.datetime.now(dt.UTC).timestamp()
+                                elapsed = max(0.001, now_m - start_ts)
+                                wpm = (processed / elapsed) * 60.0
+                                eta = None if wpm <= 0 else (planned - processed) / (wpm / 60.0)
+                                percent = round(min(100.0, (processed / planned) * 100.0), 4) if planned else 100.0
+                                upd = {"processed": processed, "percent": percent, "updated_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z'), "throughput_wpm": round(wpm,2)}
+                                if eta is not None:
+                                    upd["eta_seconds"] = round(max(0.0, eta), 2)
+                                try:
+                                    self.jobs_col.update_one({"job_id": job_id}, {"$set": upd})
+                                except Exception:
+                                    pass
+                        if adaptive_batches:
+                            now_chk = time.time()
+                            if now_chk - last_adapt_check > 5:
+                                last_adapt_check = now_chk
+                                if wpm < target_wpm and batch_size < 128:
+                                    batch_size = min(128, batch_size * 2)
+                                elif wpm > target_wpm * 2 and batch_size > 4:
+                                    batch_size = max(4, batch_size // 2)
+                # completion
+                try:
+                    self.jobs_col.update_one({"job_id": job_id}, {"$set": {"status": "done", "stage": "done", "percent": 100.0, "completed_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z')}})
+                except Exception:
+                    pass
+            except Exception as e:
+                # Top-level failure; mark job error so UI stops showing 0%
+                try:
+                    self.jobs_col.update_one({"job_id": job_id}, {"$set": {"status": "error", "stage": "error", "error": str(e), "updated_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z')}})
+                except Exception:
+                    pass
+        threading.Thread(target=run_job, name=f"risk-job-{job_id}", daemon=True).start()
+
+    # ----- Fast latest window helper (real-time tick) -----
+    def ensure_latest_window(self, merchant: str, interval_label: str) -> Dict[str, Any]:
+        ilabel = interval_label.lower()
+        if ilabel not in INTERVAL_MAP:
+            raise ValueError("Unsupported interval")
+        interval_minutes = INTERVAL_MAP[ilabel]
+        now_ts = dt.datetime.now(dt.UTC).timestamp()
+        size = interval_minutes * 60
+        last_start = self._floor_window(now_ts - size, interval_minutes)
+        doc = self.col.find_one({
+            "merchant": merchant,
+            "interval_minutes": interval_minutes,
+            "window_start_ts": last_start
+        })
+        if not doc:
+            doc = self.compute_window(merchant, interval_minutes, last_start)
+        # Return simplified payload for quick display
+        return {
+            "merchant": merchant,
+            "interval": ilabel,
+            "window_start_ts": doc.get("window_start_ts"),
+            "window_end_ts": doc.get("window_end_ts"),
+            "score": doc.get("score"),
+            "confidence": doc.get("confidence"),
+        }
+
+    def ensure_latest_window_at(self, merchant: str, interval_label: str, now_ts: float) -> Dict[str, Any]:
+        """Variant of ensure_latest_window that allows a simulated 'now' timestamp (epoch seconds).
+        Useful for replay / simulation modes where the caller advances time.
+        """
+        ilabel = interval_label.lower()
+        if ilabel not in INTERVAL_MAP:
+            raise ValueError("Unsupported interval")
+        interval_minutes = INTERVAL_MAP[ilabel]
+        size = interval_minutes * 60
+        last_start = self._floor_window(now_ts - size, interval_minutes)
+        doc = self.col.find_one({
+            "merchant": merchant,
+            "interval_minutes": interval_minutes,
+            "window_start_ts": last_start
+        })
+        if not doc:
+            doc = self.compute_window(merchant, interval_minutes, last_start)
+        return {
+            "merchant": merchant,
+            "interval": ilabel,
+            "window_start_ts": doc.get("window_start_ts"),
+            "window_end_ts": doc.get("window_end_ts"),
+            "score": doc.get("score"),
+            "confidence": doc.get("confidence"),
+            "simulated_now_ts": now_ts,
+        }
 
     # ---------------- Utilities -----------------
     @staticmethod
@@ -420,12 +703,55 @@ class RiskEvaluator:
     # ---------------- Core risk_scores window -----------------
     def compute_window(self, merchant: str, interval_minutes: int, start_ts: float) -> Dict[str, Any]:
         end_ts = start_ts + interval_minutes * 60
-        tweet_avg = self._avg_sentiment("tweets", merchant, start_ts, end_ts)
-        reddit_avg = self._avg_sentiment("reddit", merchant, start_ts, end_ts)
-        news_avg = self._avg_sentiment("news", merchant, start_ts, end_ts)
-        review_avg = self._avg_reviews(merchant, start_ts, end_ts)
-        wl_ratio = self._wl_flag_ratio(merchant, start_ts, end_ts)
-        std_ret = self._stock_volatility(merchant, start_ts, end_ts)
+        pf_key = (merchant, interval_minutes)
+        tweet_avg = reddit_avg = news_avg = review_avg = wl_ratio = std_ret = None
+        used_prefetch = False
+        counts: Optional[Dict[str, int]] = None
+        cache = self._prefetch.get(pf_key)
+        fast_mode = os.getenv("RISK_FAST_MODE", "0").lower() in ("1","true","yes","on")
+        if fast_mode and cache and cache.get('range') and cache['range'][0] <= start_ts and cache['range'][1] >= end_ts and cache.get('prefix_metrics'):
+            try:
+                used_prefetch = True
+                pm = cache['prefix_metrics']
+                tweet_avg = self._prefix_avg(pm.get('tweets'), start_ts, end_ts)
+                reddit_avg = self._prefix_avg(pm.get('reddit'), start_ts, end_ts)
+                news_avg = self._prefix_avg(pm.get('news'), start_ts, end_ts)
+                review_avg = self._prefix_avg(pm.get('reviews'), start_ts, end_ts)
+                wl_ratio = self._prefix_ratio(pm.get('wl_transactions'), start_ts, end_ts)
+                # For volatility still slice (prefix variance not implemented yet)
+                streams = cache.get('streams', {})
+                std_ret = self._stock_volatility_prefetch(streams.get('stocks_prices'), start_ts, end_ts)
+                counts = self._counts_prefetch_fast(cache, start_ts, end_ts)
+                self.metrics["fast_path_hits"] += 1
+            except Exception:
+                used_prefetch = False
+        if not used_prefetch:
+            cache = self._prefetch.get(pf_key)
+            if cache and cache.get('range') and cache['range'][0] <= start_ts and cache['range'][1] >= end_ts:
+                try:
+                    used_prefetch = True
+                    streams = cache.get('streams', {})
+                    tweet_avg = self._avg_sentiment_prefetch(streams.get('tweets'), start_ts, end_ts)
+                    reddit_avg = self._avg_sentiment_prefetch(streams.get('reddit'), start_ts, end_ts)
+                    news_avg = self._avg_sentiment_prefetch(streams.get('news'), start_ts, end_ts)
+                    review_avg = self._avg_reviews_prefetch(streams.get('reviews'), start_ts, end_ts)
+                    wl_ratio = self._wl_flag_ratio_prefetch(streams.get('wl_transactions'), start_ts, end_ts)
+                    std_ret = self._stock_volatility_prefetch(streams.get('stocks_prices'), start_ts, end_ts)
+                    if counts is None:
+                        counts = self._counts_prefetch_fast(cache, start_ts, end_ts)
+                    self.metrics["prefetch_hits"] += 1
+                except Exception:
+                    used_prefetch = False
+        if not used_prefetch:
+            tweet_avg = self._avg_sentiment("tweets", merchant, start_ts, end_ts)
+            reddit_avg = self._avg_sentiment("reddit", merchant, start_ts, end_ts)
+            news_avg = self._avg_sentiment("news", merchant, start_ts, end_ts)
+            review_avg = self._avg_reviews(merchant, start_ts, end_ts)
+            wl_ratio = self._wl_flag_ratio(merchant, start_ts, end_ts)
+            std_ret = self._stock_volatility(merchant, start_ts, end_ts)
+            counts = self._counts_bundle(merchant, start_ts, end_ts)
+        if counts is None:
+            counts = self._counts_bundle(merchant, start_ts, end_ts)
         comp = {
             "tweet_sentiment": self._normalize_sentiment(tweet_avg),
             "reddit_sentiment": self._normalize_sentiment(reddit_avg),
@@ -501,22 +827,173 @@ class RiskEvaluator:
         )
         # Also write evaluation format
         self._upsert_evaluation_doc(merchant, interval_minutes, start_ts, end_ts, doc)
+        # Metrics
+        try:
+            self.metrics["windows_computed"] += 1
+        except Exception:
+            pass
         return doc
+
+    # ---------------- Prefetch Support -----------------
+    def _build_prefetch_cache(self, merchant: str, interval_minutes: int, window_starts: List[float]):
+        if not window_starts:
+            return
+        # Determine overall span to cover (pad by one window to simplify boundary logic)
+        first = min(window_starts)
+        last = max(window_starts) + interval_minutes * 60
+        span_key = (merchant, interval_minutes)
+        coll_map = [
+            ("tweets", "tweets"),
+            ("reddit", "reddit"),
+            ("news", "news"),
+            ("reviews", "reviews"),
+            ("wl_transactions", "wl_transactions"),
+            ("stocks_prices", "stocks_prices"),
+        ]
+        streams: Dict[str, List[Dict[str, Any]]] = {}
+        for logical, cname in coll_map:
+            try:
+                # Query both merchant & merchant_name (case-insensitive) once
+                cursor = self.db[cname].find({
+                    "$or": [
+                        {"merchant": merchant}, {"merchant_name": merchant},
+                        {"merchant": {"$regex": f"^{merchant}$", "$options": "i"}},
+                        {"merchant_name": {"$regex": f"^{merchant}$", "$options": "i"}},
+                    ],
+                    "ts": {"$gte": first - 1, "$lt": last + 1}
+                }, projection={"_id":0}).sort([("ts", 1)])
+                docs = list(cursor)
+                # Build auxiliary ts list for bisect
+                ts_index = [d.get('ts') for d in docs if isinstance(d.get('ts'), (int,float))]
+                streams[cname] = {"docs": docs, "ts_index": ts_index}
+            except Exception:
+                streams[cname] = {"docs": [], "ts_index": []}
+        prefix_metrics = {}
+        if os.getenv("RISK_FAST_MODE", "0").lower() in ("1","true","yes","on"):
+            try:
+                prefix_metrics = self._build_prefix_metrics(streams)
+            except Exception:
+                prefix_metrics = {}
+        self._prefetch[span_key] = {"range": (first - 1, last + 1), "streams": streams, "prefix_metrics": prefix_metrics, "built_at": time.time()}
+        # Optionally prune old caches
+        if len(self._prefetch) > 64:
+            # Remove oldest by built_at
+            ordered = sorted(self._prefetch.items(), key=lambda kv: kv[1].get('built_at', 0))
+            for k,_ in ordered[: len(self._prefetch)//4 or 1]:
+                self._prefetch.pop(k, None)
+
+    # ---- Prefetch adaptation helpers ----
+    def _slice_prefetch(self, bundle: Optional[Dict[str, Any]], start: float, end: float) -> List[Dict[str, Any]]:
+        if not bundle:
+            return []
+        docs = bundle.get('docs') or []
+        ts_index = bundle.get('ts_index') or []
+        if not ts_index:
+            return [d for d in docs if isinstance(d.get('ts'), (int,float)) and start <= d['ts'] < end]
+        lo = bisect.bisect_left(ts_index, start)
+        hi = bisect.bisect_left(ts_index, end)
+        return docs[lo:hi]
+
+    def _avg_sentiment_prefetch(self, bundle: Optional[Dict[str, Any]], start: float, end: float) -> Optional[float]:
+        docs = self._slice_prefetch(bundle, start, end)
+        if not docs:
+            return None
+        vals: List[float] = []
+        for d in docs:
+            ts = d.get('ts')
+            if not isinstance(ts, (int,float)):
+                continue
+            val = None
+            for f in ALT_SENTIMENT_FIELDS:
+                if f in d:
+                    try:
+                        vf = float(d.get(f));
+                        if -10 <= vf <= 10:
+                            val = vf; break
+                    except Exception:
+                        continue
+            if val is None:
+                for k,v in d.items():
+                    if k == 'ts': continue
+                    try: fv=float(v)
+                    except Exception: continue
+                    if -1 <= fv <= 1:
+                        val=fv; break
+            if val is not None:
+                vals.append(max(-1.0, min(1.0, val)))
+        if not vals:
+            return None
+        return sum(vals)/len(vals)
+
+    def _avg_reviews_prefetch(self, bundle: Optional[Dict[str, Any]], start: float, end: float) -> Optional[float]:
+        docs = self._slice_prefetch(bundle, start, end)
+        if not docs:
+            return None
+        vals: List[float] = []
+        for d in docs:
+            for f in ALT_REVIEW_FIELDS:
+                if f in d:
+                    try:
+                        fv = float(d.get(f))
+                        if -1 <= fv <= 10:
+                            vals.append(max(0.0, min(5.0, fv)))
+                            break
+                    except Exception:
+                        continue
+        if not vals:
+            return None
+        return sum(vals)/len(vals)
+
+    def _wl_flag_ratio_prefetch(self, bundle: Optional[Dict[str, Any]], start: float, end: float) -> Optional[float]:
+        docs = self._slice_prefetch(bundle, start, end)
+        if not docs:
+            return None
+        total = 0; flagged = 0
+        for d in docs:
+            status_val = None
+            for f in ALT_STATUS_FIELDS:
+                if f in d:
+                    status_val = str(d.get(f,'')).lower(); break
+            if not status_val: continue
+            total += 1
+            if any(k in status_val for k in ["flag","fraud","chargeback","blocked","suspicious"]):
+                flagged += 1
+        if total <= 0:
+            return None
+        return flagged / total
+
+    def _stock_volatility_prefetch(self, bundle: Optional[Dict[str, Any]], start: float, end: float) -> Optional[float]:
+        docs = self._slice_prefetch(bundle, start, end)
+        if not docs:
+            return None
+        prices: List[float] = []
+        for d in docs:
+            for f in ALT_PRICE_FIELDS:
+                if f in d:
+                    try:
+                        fv = float(d.get(f));
+                        if fv > 0: prices.append(fv); break
+                    except Exception:
+                        continue
+        if len(prices) < 3:
+            return None
+        rets=[]
+        for i in range(1,len(prices)):
+            if prices[i-1] > 0:
+                rets.append((prices[i]-prices[i-1])/prices[i-1])
+        if len(rets) < 2:
+            return None
+        try:
+            return statistics.pstdev(rets)
+        except Exception:
+            return None
 
     # ---------------- Counts helper -----------------
     def _counts_bundle(self, merchant: str, start_ts: float, end_ts: float) -> Dict[str, int]:
-        """Return per-stream document counts for the window using multi-strategy detection.
-
-        Many ingestion scripts inconsistently store:
-          - merchant vs merchant_name
-          - timestamps in seconds vs milliseconds
-
-        The earlier implementation only queried (merchant, seconds). That caused all counts
-        (and thus volume/activity metrics) to appear as 0 when data used other variants.
-
-        Strategy: attempt a sequence of queries; first non-zero wins. This is cheap because
-        we cap counts with Mongo's 'limit' (approx) and collections are moderate in size.
-        """
+        """Return per-stream document counts (tweets/reddit/news/reviews/wl/prices) using
+        multiple query strategies to handle schema variation (merchant vs merchant_name,
+        seconds vs milliseconds). First non-zero query wins; otherwise fallback to
+        manual scan + dynamic timestamp field detection."""
 
         def detect_timestamp_field(coll_name: str) -> Dict[str, Any]:
             """Detect timestamp field + scale (seconds / ms) for a merchant in a collection.
@@ -886,6 +1363,8 @@ class RiskEvaluator:
                 "reviews": counts.get("reviews", 0),
                 "wl": counts.get("wl", 0),
                 "stock_prices": counts.get("prices", 0),
+                # Alias for UI expecting 'prices'
+                "prices": counts.get("prices", 0),
             },
             "raw_activity_total": activity_total,
             "confidence": base_doc.get("confidence"),
@@ -1015,9 +1494,12 @@ class RiskEvaluator:
         interval_minutes = INTERVAL_MAP[interval_label]
         size = interval_minutes * 60
         start_aligned = self._floor_window(since_ts, interval_minutes)
-        end_aligned = self._floor_window(until_ts, interval_minutes)
+        # Always include the window that contains 'until_ts' by extending one full interval
+        # (previous logic excluded the partially-complete latest window, causing empty/"loading" states)
+        end_aligned = self._floor_window(until_ts, interval_minutes) + size
+        # Safeguard: if range collapses (since in same bucket as until), force exactly one window
         if end_aligned <= start_aligned:
-            return []
+            end_aligned = start_aligned + size
         existing = {
             d["window_start_ts"]: d
             for d in self.col.find(
@@ -1047,7 +1529,16 @@ class RiskEvaluator:
         since: Optional[float] = None,
         until: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
+        # Ensure interval scoping so mixed-interval evaluation docs don't interfere
+        interval_label_l = (interval_label or "30m").lower()
+        interval_minutes = None
+        try:
+            interval_minutes = INTERVAL_MAP.get(interval_label_l)
+        except Exception:
+            interval_minutes = None
         q: Dict[str, Any] = {"merchant": merchant}
+        if interval_minutes is not None:
+            q["interval_minutes"] = interval_minutes
         if since is not None or until is not None:
             ts_q: Dict[str, Any] = {}
             if since is not None:
@@ -1319,108 +1810,350 @@ class RiskEvaluator:
         interval_label: str,
         submit_fn=None,
         max_backfill_hours: int | None = 168,
+        priority: int = 5,
+        realtime: bool | None = None,
+        now_ts: float | None = None,
     ) -> Dict[str, Any]:
-        """Simple synchronous/backfill trigger.
-        If submit_fn provided (ThreadPoolExecutor.submit), we dispatch a background job; else run inline.
-        Returns status summary with total windows.
+        """Trigger (or fetch status of) a risk evaluation backfill job for a merchant+interval.
+
+        Enhancements vs previous implementation:
+          - Persistent job record in Mongo (risk_eval_jobs) with progress + ETA
+          - Deduplicates active jobs across process restarts
+          - In-memory cache retained for fast status but source of truth is Mongo
         """
         ilabel = interval_label.lower()
         if ilabel not in INTERVAL_MAP:
             raise ValueError("Unsupported interval")
         interval_minutes = INTERVAL_MAP[ilabel]
-        now_ts = dt.datetime.now(dt.UTC).timestamp()
-        # If a job for this merchant+interval is already queued/running, just return its status (avoid spawning duplicates)
-        existing_job_id = None
-        for jid, rec in self.jobs.items():
-            if rec.get("merchant") == merchant and rec.get("interval") == ilabel and rec.get("status") in {"queued","running"}:
-                existing_job_id = jid
-                break
-        if existing_job_id:
-            total_existing = self.col.count_documents({"merchant": merchant, "interval_minutes": interval_minutes})
-            status = {
+        # Allow simulated time override for planning (replay / historical focus)
+        now_ts = float(now_ts) if now_ts is not None else dt.datetime.now(dt.UTC).timestamp()
+        # Resolve realtime mode (explicit param overrides env)
+        realtime_mode = (
+            realtime
+            if realtime is not None
+            else os.getenv("RISK_REALTIME_MODE", "0").lower() in ("1", "true", "yes", "on")
+        )
+        # Lookup existing active job in persistent store
+        existing = None
+        try:
+            existing = self.jobs_col.find_one({
                 "merchant": merchant,
                 "interval": ilabel,
-                "job_id": existing_job_id,
-                "total_windows": total_existing,
-            }
-            status.update(self.jobs.get(existing_job_id, {}))
-            return status
-        # Determine earliest existing window
-        doc = self.col.find_one(
+                "status": {"$in": ["queued", "running"]}
+            })
+        except Exception:
+            existing = None
+        if existing:
+            total_existing = self.col.count_documents({"merchant": merchant, "interval_minutes": interval_minutes})
+            out = {k: existing.get(k) for k in existing.keys() if k != "_id"}
+            out.update({"merchant": merchant, "interval": ilabel, "total_windows": total_existing})
+            # Compute percent if missing
+            planned = out.get("planned") or out.get("missing_planned")
+            processed = out.get("processed")
+            if planned:
+                out["percent"] = round(min(100.0, (processed or 0)/planned * 100.0), 2)
+            return out
+        # Determine earliest existing window (use merchant baseline if present for consistent alignment)
+        baseline_ts = None
+        try:
+            mdoc = self.db["merchants"].find_one({"merchant_name": merchant}, projection={"risk_eval_baseline_ts":1, "_id":0})
+            if mdoc and isinstance(mdoc.get("risk_eval_baseline_ts"), (int,float)):
+                baseline_ts = float(mdoc["risk_eval_baseline_ts"])
+        except Exception:
+            baseline_ts = None
+        first_doc = self.col.find_one(
             {"merchant": merchant, "interval_minutes": interval_minutes},
             sort=[("window_start_ts", 1)],
-            projection={"window_start_ts": 1, "_id": 0},
+            projection={"window_start_ts":1, "_id":0}
         )
-        if doc and isinstance(doc.get("window_start_ts"), (int, float)):
-            earliest = float(doc["window_start_ts"])
+        if first_doc and isinstance(first_doc.get("window_start_ts"), (int,float)):
+            earliest = float(first_doc["window_start_ts"])
         else:
-            # default cap hours before now
             cap_hours = max_backfill_hours if max_backfill_hours is not None else 168
-            earliest = now_ts - cap_hours * 3600
-        # Compute missing windows up to now
-        missing = self.plan_missing_windows_for_range(merchant, interval_minutes, earliest, now_ts)
+            earliest = baseline_ts if baseline_ts is not None else (now_ts - cap_hours * 3600)
+        if baseline_ts is not None and earliest > baseline_ts:
+            earliest = baseline_ts
+        # Rewind simulation support: if simulated now is earlier than earliest existing window,
+        # we need to generate historical windows up to now_ts (instead of returning nothing)
+        if now_ts < earliest:
+            cap_hours = max_backfill_hours if max_backfill_hours is not None else 168
+            # Backfill horizon anchored at simulated now
+            rewind_start = now_ts - cap_hours * 3600
+            if baseline_ts is not None and rewind_start < baseline_ts:
+                rewind_start = baseline_ts
+            earliest = self._floor_window(rewind_start, interval_minutes)
+        # Realtime trimming: focus only on the most recent N windows (skip deep historical)
+        if realtime_mode:
+            recent_n = int(os.getenv("RISK_REALTIME_RECENT_WINDOWS", "6") or 6)
+            recent_n = max(1, min(recent_n, 500))
+            # Earliest allowed timestamp boundary
+            earliest_realtime = now_ts - recent_n * interval_minutes * 60
+            if earliest < earliest_realtime:
+                earliest = self._floor_window(earliest_realtime, interval_minutes)
+        # Horizon clamp for simulated time: limit analysis to last RISK_SIM_LOOKBACK_DAYS (default 10d)
+        # Applies only when caller provided a simulated now (now_ts explicitly) to speed up rewinds.
+        if now_ts is not None:
+            try:
+                lookback_days = int(os.getenv("RISK_SIM_LOOKBACK_DAYS", "10") or 10)
+            except Exception:
+                lookback_days = 10
+            lookback_days = max(1, min(lookback_days, 120))  # safety bounds 1..120 days
+            horizon_start = now_ts - lookback_days * 86400
+            if earliest < horizon_start:
+                earliest = self._floor_window(horizon_start, interval_minutes)
+        # Forward-only simulation mode: do NOT backfill historical beyond limited backtrack windows.
+        # Instead only compute windows strictly after the last existing window up to simulated now.
+        # Enabled by default (RISK_SIM_FORWARD_ONLY=1) when a simulated now is provided.
+        if now_ts is not None and os.getenv("RISK_SIM_FORWARD_ONLY", "1").lower() in ("1","true","yes","on"):
+            backtrack_windows = 1
+            try:
+                backtrack_windows = int(os.getenv("RISK_SIM_FORWARD_BACKTRACK_WINDOWS", "1") or 1)
+            except Exception:
+                backtrack_windows = 1
+            backtrack_windows = max(0, min(backtrack_windows, 12))  # allow small context if desired
+            # Find last existing window strictly before now_ts
+            last_existing = self.col.find_one(
+                {"merchant": merchant, "interval_minutes": interval_minutes, "window_start_ts": {"$lt": now_ts}},
+                sort=[("window_start_ts", -1)],
+                projection={"window_start_ts": 1, "_id": 0}
+            )
+            if last_existing and isinstance(last_existing.get("window_start_ts"), (int, float)):
+                last_start = float(last_existing["window_start_ts"])
+                # Earliest allowed = last_start + interval OR simulated now backtrack
+                earliest_candidate = last_start + interval_minutes * 60
+            else:
+                # No prior window: start at simulated now minus one interval (or zero if backtrack_windows=0)
+                earliest_candidate = now_ts - (backtrack_windows * interval_minutes * 60)
+            min_allowed = now_ts - (backtrack_windows * interval_minutes * 60)
+            if earliest_candidate < min_allowed:
+                earliest_candidate = min_allowed
+            # Align to interval grid
+            earliest_forward = self._floor_window(earliest_candidate, interval_minutes)
+            if earliest_forward < earliest:
+                # We only raise earliest (move it forward), never move earlier
+                earliest = earliest_forward
+        missing_windows = self.plan_missing_windows_for_range(merchant, interval_minutes, earliest, now_ts)
+        if realtime_mode and missing_windows:
+            # Keep only the most recent windows if we still have more than needed
+            recent_n = int(os.getenv("RISK_REALTIME_RECENT_WINDOWS", "6") or 6)
+            recent_n = max(1, min(recent_n, 500))
+            if len(missing_windows) > recent_n:
+                missing_windows = missing_windows[-recent_n:]
         job_id = f"{merchant}:{ilabel}:{int(now_ts)}"
-        def runner():
-            total = len(missing)
-            # initialize running record
-            self.jobs[job_id] = {
+        if not missing_windows:
+            # Nothing to do; return synthetic done job
+            total_windows = self.col.count_documents({"merchant": merchant, "interval_minutes": interval_minutes})
+            return {
                 "merchant": merchant,
                 "interval": ilabel,
-                "planned": total,
+                "job_id": job_id,
+                "planned": 0,
                 "processed": 0,
-                "status": "running",
-                "started_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z'),
-                "throughput_wpm": None,  # windows per minute
-                "eta_seconds": None,
+                "status": "done",
+                "baseline_ts": baseline_ts,
+                "created_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z'),
+                "created_at_ts": now_ts,
+                "priority": int(priority),
+                "total_windows": total_windows,
+                "percent": 100.0,
+                "realtime": realtime_mode,
             }
-            start_monotonic = dt.datetime.now(dt.UTC).timestamp()
-            for i, w in enumerate(missing, start=1):
-                try:
-                    self.compute_window(merchant, interval_minutes, w)
-                except Exception as e:
-                    # mark error but continue
-                    self.jobs[job_id].setdefault("errors", []).append(str(e))
-                self.jobs[job_id]["processed"] = i
-                now_mono = dt.datetime.now(dt.UTC).timestamp()
-                elapsed = max(0.001, now_mono - start_monotonic)
-                wpm = (i / elapsed) * 60.0
-                self.jobs[job_id]["throughput_wpm"] = round(wpm, 2)
-                remaining = total - i
-                eta_sec = remaining / (wpm / 60.0) if wpm > 0 else None
-                if eta_sec is not None:
-                    self.jobs[job_id]["eta_seconds"] = round(max(0.0, eta_sec), 2)
-                self.jobs[job_id]["updated_at"] = dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z')
-            self.jobs[job_id]["status"] = "done"
-            self.jobs[job_id]["completed_at"] = dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z')
-            self.jobs[job_id]["missing_computed"] = len(missing)
-        if missing:
-            if submit_fn:
-                submit_fn(runner)
-                self.jobs[job_id] = {
-                    "merchant": merchant,
-                    "interval": ilabel,
-                    "submitted": True,
-                    "planned": len(missing),
-                    "processed": 0,
-                    "status": "queued",
-                    "queued_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z')
-                }
-            else:
-                runner()
-        # Summarize after (or during) job submission
-        total = self.col.count_documents({"merchant": merchant, "interval_minutes": interval_minutes})
-        status = {
+        # Concurrency decision
+        running_count = 0
+        try:
+            running_count = self.jobs_col.count_documents({"status": "running"})
+        except Exception:
+            running_count = 0
+        initial_status = "running" if running_count < self.max_concurrent_jobs else "queued"
+        job_doc = {
+            "job_id": job_id,
             "merchant": merchant,
             "interval": ilabel,
-            "job_id": job_id,
-            "total_windows": total,
-            "missing_planned": len(missing),
+            "planned": len(missing_windows),
+            "processed": 0,
+            "status": initial_status,
+            "created_at": dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z'),
+            "created_at_ts": now_ts,
+            "max_backfill_hours": max_backfill_hours,
+            "priority": int(priority),
+            "baseline_ts": baseline_ts,
+            "_missing_windows": missing_windows,
+            "realtime": realtime_mode,
         }
-        status.update(self.jobs.get(job_id, {}))
-        return status
+        try:
+            self.jobs_col.insert_one(job_doc)
+        except Exception:
+            pass
+        # Start immediately if running
+        if initial_status == "running":
+            self._start_job_execution(job_id)
+        total_windows = self.col.count_documents({"merchant": merchant, "interval_minutes": interval_minutes})
+        # Prepare status response
+        out = {k: v for k, v in job_doc.items() if k != "_id"}
+        out["job_id"] = job_id
+        out["total_windows"] = total_windows
+        if out.get("planned"):
+            out["percent"] = round(min(100.0, (out.get("processed") or 0)/ out["planned"] * 100.0), 2)
+        return out
 
     def job_status(self, job_id: str) -> Dict[str, Any] | None:
-        return self.jobs.get(job_id)
+        # Prefer persistent record
+        try:
+            rec = self.jobs_col.find_one({"job_id": job_id})
+            if rec:
+                out = {k: rec.get(k) for k in rec.keys() if k != "_id"}
+                planned = out.get("planned") or out.get("missing_planned")
+                processed = out.get("processed")
+                if planned:
+                    out["percent"] = round(min(100.0, (processed or 0)/planned * 100.0), 2)
+                return out
+        except Exception:
+            pass
+        # Fallback to in-memory
+        rec2 = self.jobs.get(job_id)
+        if rec2:
+            planned = rec2.get("planned") or rec2.get("missing_planned")
+            processed = rec2.get("processed")
+            if planned:
+                rec2["percent"] = round(min(100.0, (processed or 0)/planned * 100.0), 2)
+        return rec2
+
+# -------- Prefix-metric helpers (fast mode) appended outside class if mis-indented fallback --------
+    def _build_prefix_metrics(self, streams: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        metrics: Dict[str, Any] = {}
+        for sname in ["tweets","reddit","news"]:
+            bundle = streams.get(sname) or {}
+            docs = bundle.get('docs') or []
+            ts_index = bundle.get('ts_index') or []
+            ps=[0.0]; pc=[0]
+            for d in docs:
+                ts = d.get('ts')
+                if not isinstance(ts,(int,float)):
+                    ps.append(ps[-1]); pc.append(pc[-1]); continue
+                val=None
+                for f in ALT_SENTIMENT_FIELDS:
+                    if f in d:
+                        try:
+                            vf=float(d.get(f));
+                            if -10 <= vf <= 10: val=max(-1.0,min(1.0,vf)); break
+                        except Exception: continue
+                if val is None:
+                    for k,v in d.items():
+                        if k=='ts': continue
+                        try: fv=float(v)
+                        except Exception: continue
+                        if -1 <= fv <= 1: val=fv; break
+                if val is None:
+                    ps.append(ps[-1]); pc.append(pc[-1]); continue
+                ps.append(ps[-1]+float(val)); pc.append(pc[-1]+1)
+            metrics[sname]={"ts_index": ts_index, "psum": ps, "pcount": pc}
+        # Reviews
+        bundle = streams.get('reviews') or {}
+        docs = bundle.get('docs') or []
+        ts_index = bundle.get('ts_index') or []
+        ps=[0.0]; pc=[0]
+        for d in docs:
+            val=None
+            for f in ALT_REVIEW_FIELDS:
+                if f in d:
+                    try:
+                        fv=float(d.get(f));
+                        if -1 <= fv <= 10: val=max(0.0,min(5.0,fv)); break
+                    except Exception: continue
+            if val is None: ps.append(ps[-1]); pc.append(pc[-1]); continue
+            ps.append(ps[-1]+float(val)); pc.append(pc[-1]+1)
+        metrics['reviews']={"ts_index": ts_index, "psum": ps, "pcount": pc}
+        # WL
+        wl_bundle = streams.get('wl_transactions') or {}
+        wl_docs = wl_bundle.get('docs') or []
+        wl_ts = wl_bundle.get('ts_index') or []
+        total_p=[0]; flagged_p=[0]
+        for d in wl_docs:
+            status_val=None
+            for f in ALT_STATUS_FIELDS:
+                if f in d: status_val=str(d.get(f,'')).lower(); break
+            tot=0; flg=0
+            if status_val:
+                tot=1
+                if any(k in status_val for k in ["flag","fraud","chargeback","blocked","suspicious"]): flg=1
+            total_p.append(total_p[-1]+tot); flagged_p.append(flagged_p[-1]+flg)
+        metrics['wl_transactions']={"ts_index": wl_ts, "total_p": total_p, "flagged_p": flagged_p}
+        # Prices just ts_index copy
+        price_bundle = streams.get('stocks_prices') or {}
+        metrics['stocks_prices']={"ts_index": price_bundle.get('ts_index') or []}
+        return metrics
+
+    def _prefix_avg(self, metric: Optional[Dict[str, Any]], start: float, end: float) -> Optional[float]:
+        if not metric: return None
+        ts_index = metric.get('ts_index') or []
+        if not ts_index: return None
+        psum = metric.get('psum'); pcount = metric.get('pcount')
+        if not (isinstance(psum,list) and isinstance(pcount,list)): return None
+        lo = bisect.bisect_left(ts_index, start); hi = bisect.bisect_left(ts_index, end)
+        if hi>=len(psum) or lo>=len(psum): return None
+        total = psum[hi]-psum[lo]; cnt = pcount[hi]-pcount[lo]
+        if cnt<=0: return None
+        return total/cnt
+
+    def _prefix_ratio(self, metric: Optional[Dict[str, Any]], start: float, end: float) -> Optional[float]:
+        if not metric: return None
+        ts_index = metric.get('ts_index') or []
+        if not ts_index: return None
+        total_p = metric.get('total_p'); flagged_p = metric.get('flagged_p')
+        if not (isinstance(total_p,list) and isinstance(flagged_p,list)): return None
+        lo = bisect.bisect_left(ts_index, start); hi = bisect.bisect_left(ts_index, end)
+        if hi>=len(total_p) or lo>=len(total_p): return None
+        tot = total_p[hi]-total_p[lo]
+        if tot<=0: return None
+        flg = flagged_p[hi]-flagged_p[lo] if hi < len(flagged_p) and lo < len(flagged_p) else 0
+        return flg/tot if tot>0 else None
+
+    def _counts_prefetch_fast(self, cache: Dict[str, Any], start: float, end: float) -> Dict[str, int]:
+        pm = cache.get('prefix_metrics') or {}
+        out = {"tweets":0,"reddit":0,"news":0,"reviews":0,"wl":0,"prices":0}
+        def span(metric):
+            if not metric: return 0
+            ts_index = metric.get('ts_index') or []
+            if not ts_index: return 0
+            lo = bisect.bisect_left(ts_index, start); hi = bisect.bisect_left(ts_index, end)
+            return max(0, hi-lo)
+        out['tweets']=span(pm.get('tweets'))
+        out['reddit']=span(pm.get('reddit'))
+        out['news']=span(pm.get('news'))
+        out['reviews']=span(pm.get('reviews'))
+        wl_metric = pm.get('wl_transactions')
+        if wl_metric:
+            ts_index = wl_metric.get('ts_index') or []
+            lo = bisect.bisect_left(ts_index, start); hi = bisect.bisect_left(ts_index, end)
+            tot = wl_metric.get('total_p') or []
+            if hi < len(tot) and lo < len(tot): out['wl'] = max(0,(tot[hi]-tot[lo]))
+        prices_metric = pm.get('stocks_prices') or {}
+        out['prices']=span(prices_metric)
+        return out
+
+    def list_jobs(self, active: bool = True) -> List[Dict[str, Any]]:
+        query: Dict[str, Any] = {}
+        if active:
+            query["status"] = {"$in": ["queued", "running"]}
+        try:
+            cursor = self.jobs_col.find(query, projection={"_id": 0}).sort([("created_at_ts", -1)]).limit(500)
+            jobs = list(cursor)
+        except Exception:
+            # fallback to in-memory
+            jobs = []
+            for jid, rec in self.jobs.items():
+                if active and rec.get("status") not in {"queued","running"}:
+                    continue
+                jobs.append({"job_id": jid, **rec})
+        # Compute percent for each
+        for j in jobs:
+            planned = j.get("planned") or j.get("missing_planned") or 0
+            processed = j.get("processed") or 0
+            if planned:
+                j["percent"] = round(min(100.0, processed / planned * 100.0), 2)
+            elif j.get("status") == "done":
+                j["percent"] = 100.0
+        return jobs
 
     # ---------------- Sentiment heuristic -----------------
     def _infer_sentiment_from_text(self, text: str) -> Optional[float]:
@@ -1444,3 +2177,9 @@ class RiskEvaluator:
             return max(-1.0, min(1.0, (pos_hits - neg_hits) / total))
         except Exception:
             return None
+
+    def get_metrics(self) -> Dict[str, Any]:
+        out = dict(self.metrics)
+        out["prefetch_cache_entries"] = len(self._prefetch)
+        out["generated_at"] = dt.datetime.now(dt.UTC).isoformat().replace('+00:00','Z')
+        return out
