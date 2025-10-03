@@ -1,6 +1,6 @@
 <div align="center">
 
-# MerchantPulse360
+# GCP-Hackathon : AI Powered Fintech Risk Engine
 
 An explainable merchant intelligence & dynamic risk scoring platform for payments fintechs.
 
@@ -11,7 +11,7 @@ _Multi‑source ingestion → feature engineering → composite + smoothed risk 
 ---
 
 ## TL;DR
-MerchantPulse360 continuously ingests public & contextual merchant signals (news, Reddit, X/Twitter, reviews, watchlist / transactional heuristics, synthetic stock proxies), normalizes and enriches them, computes explainable rolling window risk scores, and exposes both raw timelines and interpreted summaries via a FastAPI backend and a Vue 3 dashboard.
+This Project continuously ingests public & contextual merchant signals (news, Reddit, X/Twitter, reviews, watchlist / transactional heuristics, synthetic stock proxies), normalizes and enriches them, computes explainable rolling window risk scores, and exposes both raw timelines and interpreted summaries via a FastAPI backend and a Vue 3 dashboard.
 
 ## Solution Overview (4 Pillars)
 1. Unified Signal Ingestion – Pluggable adapters consolidate heterogeneous external + synthetic feeds into consistent time‑series collections.
@@ -28,24 +28,6 @@ MerchantPulse360 continuously ingests public & contextual merchant signals (news
 - Preset generator to rapidly stand up realistic merchant universes & stream volume distributions.
 - Diagnostics endpoints (probe, stream counts, evaluation windows, queue summary, metrics) for fast triage.
 - Vue 3 dashboard (MerchantRisk view) for score gauge, factor deltas, timelines & alerts (extensible).
-
-## Repository Structure (Condensed)
-```
-app/
-   backend/
-      main.py              # FastAPI service (merchants, streams, risk eval, diagnostics)
-      merchant.py          # Merchant onboarding & preset integration
-      risk_eval.py         # Core windowed risk scoring + evaluation documents + job manager
-      preset.py            # Preset & synthetic stream generation CLI
-      data_pipeline/       # Source adapters (news, reddit, reviews, tweets, stock, wl)
-      manual_data/         # One-off scripts & backfill outputs (manifests)
-      common.env           # Local environment sample
-      requirements.txt     # Python deps
-   frontend/
-      src/                 # Vue 3 + Vite SPA (MerchantRisk.vue et al.)
-      package.json         # Frontend deps & scripts
-README.md               # (this file)
-```
 
 ## High-Level Architecture
 ```
@@ -82,7 +64,7 @@ README.md               # (this file)
 
 ### Logical Component Tree
 ```
-MerchantPulse360
+This Project
 ├─ User Interaction
 │  ├─ Web Frontend (Vue SPA)
 │  └─ Future: Admin / Policy UI
@@ -104,54 +86,6 @@ MerchantPulse360
 │  └─ Job queue (risk_eval_jobs)
 └─ Observability (planned): metrics, tracing, alerts
 ```
-
-## Getting Started
-
-### Prerequisites
-- Python 3.12+ (tested with 3.13 locally)
-- Node 18+ (for Vite / Vue)
-- MongoDB (local or remote) – default URI: `mongodb://127.0.0.1:27017`
-
-### 1. Backend Setup
-```powershell
-cd app/backend
-python -m venv .venv
-./.venv/Scripts/Activate.ps1
-pip install -r requirements.txt
-
-# (Optional) Export / adjust environment overrides
-$env:MONGO_URI="mongodb://127.0.0.1:27017"
-$env:DB_NAME="merchant_analytics"
-
-# Run API (FastAPI + Uvicorn)
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-Visit: http://localhost:8000/ for root metadata; /docs for OpenAPI UI.
-
-### 2. Generate Synthetic Merchants & Streams
-```powershell
-cd app/backend
-python preset.py generate --num 5 --out preset.json --seed 123 --no-confirm
-python preset.py ingest --preset preset.json --with-streams --scale 0.2 --max-workers 4
-```
-This creates merchants, generates stream data (scaled down for speed) and enables immediate scoring.
-
-### 3. Trigger Risk Evaluation Backfill
-```powershell
-curl "http://localhost:8000/v1/Merchant_0_*/risk-eval/trigger?interval=30m&autoseed=false" | jq
-```
-Check progress:
-```powershell
-curl http://localhost:8000/v1/risk-eval/jobs | jq
-```
-
-### 4. Frontend (Dashboard)
-```powershell
-cd app/frontend
-npm install
-npm run dev
-```
-Visit: http://localhost:5173 (default Vite port). Ensure CORS open (backend sets `allow_origins=["*"]`).
 
 ## Core API Surface (Selected)
 | Endpoint | Purpose |
@@ -202,11 +136,6 @@ Pipeline Steps:
 
 Confidence = ratio of components with data to all available components weighted by stream counts.
 
-## Synthetic / Demo Modes
-Environment toggles allow fully air‑gapped demos:
-- `RISK_FAKE_MODE=1` – Inject fabricated timeline if no real windows exist.
-- Synthetic seeds (`/v1/{merchant}/risk-eval/seed`) – backfill a realistic 48h / n‑minute sampling.
-
 ## Configuration (Key Env Vars)
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -223,13 +152,208 @@ Environment toggles allow fully air‑gapped demos:
 
 Additional tuning keys exist inside `risk_eval.py` (dampen, stability, hysteresis) and external JSON override (`risk_eval_config.json` if created).
 
-## Development Workflow
+## Quick Setup & Deployment
+
+### Prerequisites
+- **Linux/WSL Environment**: The setup script is designed for Ubuntu/Debian systems
+- **Git**: For cloning and version control
+- **Bash Shell**: Required to run the setup script
+
+### 🚀 One-Command Setup Options
+
+#### Option 1: Local Development Environment (Recommended for Testing)
+```bash
+# 1. Install development tools (gcloud, Docker, Terraform)
+./setup.sh --dev
+
+# 2. Deploy locally with Docker containers
+./setup.sh --deploy-local
+```
+
+#### Option 2: Google Cloud Deployment (Production-Ready)
+```bash
+# 1. Install development tools
+./setup.sh --dev
+
+# 2. Deploy to Google Cloud Platform
+./setup.sh --deploy-cloud
+```
+
+### 📋 Detailed Setup Instructions
+
+#### For Local Development:
+
+1. **Clone the Repository**
+   ```bash
+   git clone <repository-url>
+   cd GCP-Hackathon
+   ```
+
+2. **Install Required Tools**
+   ```bash
+   ./setup.sh --dev
+   ```
+   This installs:
+   - Google Cloud SDK (gcloud)
+   - Docker & Docker Compose
+   - Terraform
+   
+   **Note**: Log out and log back in after installation for Docker group changes to take effect.
+
+3. **Deploy Locally**
+   ```bash
+   ./setup.sh --deploy-local
+   ```
+   
+   On first run, you'll be prompted for:
+   - MongoDB Root Username
+   - MongoDB Root Password
+   
+   The script will:
+   - Create local configuration in `./app/deployment/terraform.tfvars`
+   - Build Docker images for frontend and backend
+   - Start MongoDB, backend API, and frontend services
+   - Display access URLs
+
+4. **Access Your Application**
+   - Frontend: `http://localhost:8080`
+   - Backend API: `http://localhost:8000`
+   - API Documentation: `http://localhost:8000/docs`
+   - MongoDB: `mongodb://localhost:27017`
+
+#### For Google Cloud Deployment:
+
+1. **Prerequisites**
+   - GCP Account with billing enabled
+   - Project with necessary APIs enabled (Cloud Run, Artifact Registry, etc.)
+
+2. **Install Tools & Authenticate**
+   ```bash
+   ./setup.sh --dev
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
+   ```
+
+3. **Deploy to Cloud**
+   ```bash
+   ./setup.sh --deploy-cloud
+   ```
+   
+   The script will:
+   - Build container images using Cloud Build
+   - Deploy backend to Google Cloud Run
+   - Deploy frontend with proper API endpoints
+   - Configure networking and load balancing
+   - Display deployment URLs
+
+4. **Skip Image Rebuild (Faster Deployment)**
+   ```bash
+   ./setup.sh --deploy-cloud --skip-cloudbuild
+   ```
+
+### 🛠️ Additional Commands
+
+| Command | Purpose |
+|---------|---------|
+| `./setup.sh --build-local` | Rebuild local Docker images only |
+| `./setup.sh --undo-local` | Destroy local Docker environment |
+| `./setup.sh --undo-cloud` | Destroy cloud infrastructure |
+| `./setup.sh --help` | Display help menu |
+
+### 🔧 Configuration
+
+#### Environment Variables (Local Development)
+Configuration is managed via `./app/deployment/terraform.tfvars`:
+
+```hcl
+project_id    = "your-gcp-project-id"  # Required for cloud deployment
+region        = "us-central1"           # GCP region
+deploy_target = "local"                 # "local" or "cloud"
+
+# MongoDB credentials (local only)
+mongo_root_user     = "admin"
+mongo_root_password = "your-password"
+```
+
+#### Application Configuration
+The backend uses these key environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MONGO_URI` | mongodb://127.0.0.1:27017 | MongoDB connection string |
+| `DB_NAME` | merchant_analytics | Database name |
+| `RISK_MAX_CONCURRENT` | 3 | Max concurrent risk evaluation jobs |
+| `RISK_FAKE_MODE` | 1 | Enable synthetic data generation |
+
+### 🐛 Troubleshooting
+
+#### Common Issues:
+
+1. **Docker Permission Denied**
+   ```bash
+   # Log out and back in, or run:
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+2. **Terraform State Issues**
+   ```bash
+   # Reset local state if needed:
+   cd ./app/deployment
+   rm -rf .terraform terraform.tfstate*
+   terraform init
+   ```
+
+3. **Port Already in Use**
+   ```bash
+   # Check what's using the ports:
+   sudo netstat -tulpn | grep :8080
+   sudo netstat -tulpn | grep :8000
+   
+   # Kill processes or change ports in terraform.tfvars
+   ```
+
+4. **Cloud Build Failures**
+   - Ensure billing is enabled on your GCP project
+   - Check that required APIs are enabled:
+     ```bash
+     gcloud services enable cloudbuild.googleapis.com
+     gcloud services enable run.googleapis.com
+     gcloud services enable artifactregistry.googleapis.com
+     ```
+
+#### Windows Users:
+- Use WSL (Windows Subsystem for Linux) for the best experience
+- Alternatively, adapt the PowerShell commands manually:
+  ```powershell
+  # Install Docker Desktop for Windows
+  # Install Terraform manually
+  # Use docker-compose up instead of the setup script
+  ```
+
+### 🔄 Development Workflow
 1. Write / adjust adapter in `data_pipeline/` for new source.
 2. Generate merchants (`preset.py generate`) and ingest streams (`preset.py streams`).
 3. Trigger risk evaluation job.
 4. View progress (`/v1/risk-eval/jobs`) & metrics (`/v1/risk-eval/metrics`).
 5. Iterate model weights via config override (env or file) → re-trigger windows.
 6. Frontend queries summary & series endpoints; refine UI components.
+
+### 🏗️ Manual Development Setup (Alternative)
+If you prefer manual setup or encounter issues with the automated script:
+
+```bash
+# Backend setup
+cd app/backend
+pip install -r requirements.txt
+# Start MongoDB locally
+python main.py
+
+# Frontend setup (separate terminal)
+cd app/frontend
+npm install
+npm run dev
+```
 
 ## Diagnostics & Troubleshooting
 - Blank chart? Use `/v1/{merchant}/risk-eval/stream-counts` then `/diagnostics` to confirm timestamp scales (seconds vs ms) & missing fields.
