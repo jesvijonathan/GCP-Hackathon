@@ -10,6 +10,8 @@
     "server": "json-server --watch src/jobs.json --port 8000"
   },
   "dependencies": {
+    "@google-cloud/aiplatform": "^5.7.0",
+    "@google/generative-ai": "^0.24.1",
     "axios": "^1.7.2",
     "chart.js": "^4.5.0",
     "gsap": "^3.13.0",
