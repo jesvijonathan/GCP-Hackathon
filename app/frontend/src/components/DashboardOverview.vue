@@ -141,7 +141,7 @@ const palette = ['#0d9488','#2563eb','#7c3aed','#dc2626','#d97706','#059669','#4
 export default {
   name: 'DashboardOverview',
   props: {
-    apiBase: { type: String, default: 'http://localhost:8000' },
+    apiBase: { type: String, default: import.meta.env.VITE_API_BASE || 'http://localhost:8000' },
     top: { type: Number, default: 5 }
   },
   emits: ['select-merchant-by-name','loaded','deselect-merchant'],

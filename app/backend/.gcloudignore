@@ -1,0 +1,12 @@
+# .gcloudignore
+
+# Ignore Python's cached files
+__pycache__/
+
+# Ignore the directory with generated data files
+manual_data/output/
+
+# It's also good practice to ignore these
+.git/
+.dockerignore
+node_modules/

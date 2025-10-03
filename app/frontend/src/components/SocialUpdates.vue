@@ -620,7 +620,7 @@ export default {
     const simNow = this.$route.query.simNow || new Date().toISOString();
 
     // Construct the backend endpoint using the merchant name
-    this.backendEndpoint = `http://localhost:8000/v1/${this.merchantName}/data?streams=all&order=desc&limit=5000&window=90d&allow_future=false&now=${simNow}&include_stock_meta=true`;
+    this.backendEndpoint = `${import.meta.env.VITE_API_BASE || 'http://localhost:8000'}/v1/${this.merchantName}/data?streams=all&order=desc&limit=5000&window=90d&allow_future=false&now=${simNow}&include_stock_meta=true`;
 
     console.log("Current path:", currentPath);
     console.log("Path segments:", pathSegments);

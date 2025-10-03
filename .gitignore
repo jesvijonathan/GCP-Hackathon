@@ -5,3 +5,7 @@ app/backend/__pycache__/*
 app/backend/manual_data/__pycache__/*
 app/backend/manual_data/*/*json
 app/backend/manual_data/output/*
+app/deployment/*.tfstate
+app/deployment/*.tfstate.backup
+app/deployment/.terraform/
+app/deployment/*.hcl
