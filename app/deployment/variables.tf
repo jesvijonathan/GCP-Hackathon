@@ -1,48 +1,93 @@
-# --- Environment Toggle ---
 variable "deploy_target" {
-  description = "The deployment target: 'cloud' for Google Cloud Run or 'local' for Docker."
+  description = "The deployment target: 'cloud' or 'local'."
   type        = string
   default     = "cloud"
-  validation {
-    condition     = contains(["cloud", "local"], var.deploy_target)
-    error_message = "The deploy_target must be either 'cloud' or 'local'."
-  }
 }
 
-# --- Shared Variables ---
-variable "image_name" {
-  description = "The name of the Docker image to build or deploy."
-  type        = string
-}
-
-# --- Google Cloud Run Variables ---
 variable "project_id" {
-  description = "The GCP project ID. Required if deploy_target is 'cloud'."
+  description = "The GCP project ID."
   type        = string
-  default     = null
 }
 
 variable "region" {
-  description = "The GCP region for the Cloud Run service."
+  description = "The GCP region for resources."
   type        = string
-  default     = "us-central1"
 }
 
-variable "service_name" {
-  description = "The name of the Cloud Run service."
+variable "gce_instance_name" {
+  description = "Name for the GCE instance hosting the backend and DB."
   type        = string
-  default     = "frontend"
+  default     = "backend-vm"
 }
 
-# --- Local Docker Variables ---
-variable "local_container_name" {
-  description = "The name for the local Docker container."
+variable "machine_type" {
+  description = "Machine type for the GCE instance."
   type        = string
-  default     = "local-frontend-tf"
+  default     = "e2-medium"
 }
 
-variable "local_external_port" {
-  description = "The external port to map to the container's internal port."
+variable "artifact_repo_id" {
+  description = "ID for the Artifact Registry repository."
+  type        = string
+  default     = "app-images"
+}
+
+variable "frontend_service_name" {
+  description = "Name for the frontend service."
+  type        = string
+  default     = "frontend-service"
+}
+
+variable "frontend_image_name" {
+  description = "Name for the frontend image."
+  type        = string
+  default     = "my-app/frontend:latest"
+}
+
+variable "backend_image_name" {
+  description = "Name for the backend image."
+  type        = string
+  default     = "my-app/backend:latest"
+}
+
+variable "mongo_image" {
+  description = "Name of the mongoDB image to use."
+  type        = string
+  default     = "mongo:latest"
+}
+
+variable "backend_local_container_name" {
+  description = "Name for the local backend Docker container."
+  type        = string
+  default     = "backend-app-local"
+}
+
+variable "frontend_local_container_name" {
+  description = "Name for the local frontend Docker container."
+  type        = string
+  default     = "frontend-app-local"
+}
+
+variable "mongo_local_container_name" {
+  description = "Name for the local MongoDB Docker container."
+  type        = string
+  default     = "mongo-db-local"
+}
+
+variable "frontend_local_external_port" {
+  description = "External port for the local frontend container."
   type        = number
   default     = 8080
+}
+
+variable "backend_local_external_port" {
+  description = "External port for the local backend container."
+  type        = number
+  default     = 8000
+}
+
+variable "mongo_local_external_port" {
+  description = "External port for the local MongoDB container."
+  type        = number
+  default     = 27017
 }

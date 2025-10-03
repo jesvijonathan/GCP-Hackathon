@@ -1,7 +1,7 @@
 {
   "global": {
     "start_date": "2025-01-01",
-    "end_date": "2026-12-31",
+    "end_date": "2026-01-01",
     "output_dir": ".",
     "defaults": {
       "wl": {
@@ -11,27 +11,27 @@
   },
   "merchants": [
     {
-      "merchant_name": "HomeGear",
-      "start_date": "2020-01-01",
-      "end_date": "2024-12-31",
+      "merchant_name": "diddy",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
       "seed": 6604045,
       "tweets": {
         "enabled": true,
         "n_tweets": 7753,
         "trend_plan": [
           {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage"
+            "month": "2025-06",
+            "intensity": 0.74,
+            "label": "award"
           },
           {
-            "month": "2022-05",
+            "month": "2025-08",
             "intensity": 0.59,
             "label": "seasonal buzz",
             "posts": "13%"
           },
           {
-            "month": "2023-01",
+            "month": "2026-01",
             "intensity": 0.68,
             "label": "normal"
           }
@@ -42,17 +42,17 @@
         "n_posts": 3178,
         "trend_plan": [
           {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage"
+            "month": "2025-06",
+            "intensity": 0.74,
+            "label": "award"
           },
           {
-            "month": "2022-05",
+            "month": "2025-08",
             "intensity": 0.59,
             "label": "seasonal buzz"
           },
           {
-            "month": "2023-01",
+            "month": "2026-01",
             "intensity": 0.68,
             "label": "normal",
             "posts": "6%"
@@ -64,19 +64,19 @@
         "n_articles": 6597,
         "trend_plan": [
           {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage",
+            "month": "2025-06",
+            "intensity": 0.74,
+            "label": "award",
             "posts": "9%",
             "articles": "3%"
           },
           {
-            "month": "2022-05",
+            "month": "2025-08",
             "intensity": 0.59,
             "label": "seasonal buzz"
           },
           {
-            "month": "2023-01",
+            "month": "2026-01",
             "intensity": 0.68,
             "label": "normal"
           }
@@ -89,19 +89,19 @@
         "n_reviews": 20404,
         "trend_plan": [
           {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage",
+            "month": "2025-06",
+            "intensity": 0.74,
+            "label": "award",
             "posts": "9%",
             "reviews": "6%"
           },
           {
-            "month": "2022-05",
+            "month": "2025-08",
             "intensity": 0.59,
             "label": "seasonal buzz"
           },
           {
-            "month": "2023-01",
+            "month": "2026-01",
             "intensity": 0.68,
             "label": "normal"
           }
@@ -117,28 +117,28 @@
         "target_total_return": 0.384,
         "trend_plan": [
           {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage",
-            "return": -0.054,
+            "month": "2025-06",
+            "intensity": 0.74,
+            "label": "award",
+            "return": 0.13,
             "volatility": "1.4x",
-            "volume": "x1.6"
+            "volume": "150%"
           },
           {
-            "month": "2022-05",
+            "month": "2025-08",
             "intensity": 0.59,
             "label": "seasonal buzz",
-            "return": 0.006,
-            "volatility": "1.0x",
-            "volume": "x1.0"
-          },
-          {
-            "month": "2023-01",
-            "intensity": 0.68,
-            "label": "normal",
-            "return": -0.001,
+            "return": 0.003,
             "volatility": "1.0x",
             "volume": "110%"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.68,
+            "label": "normal",
+            "return": 0.012,
+            "volatility": "1.0x",
+            "volume": "x1.0"
           }
         ]
       },
@@ -147,29 +147,1879 @@
         "n_transactions": 160560,
         "trend_plan": [
           {
-            "month": "2021-12",
-            "intensity": 0.81,
-            "label": "outage",
+            "month": "2025-06",
+            "intensity": 0.74,
+            "label": "award",
             "transactions": "3%",
-            "high_risk_intensity": 0.671,
-            "decline_rate": 0.34,
-            "gambling_share": 0.121
+            "high_risk_intensity": 0.095,
+            "decline_rate": 0.071,
+            "gambling_share": 0.049
           },
           {
-            "month": "2022-05",
+            "month": "2025-08",
             "intensity": 0.59,
             "label": "seasonal buzz",
             "transactions": "19%",
-            "high_risk_intensity": 0.124,
+            "high_risk_intensity": 0.104,
             "decline_rate": null,
-            "gambling_share": 0.104
+            "gambling_share": 0.112
           },
           {
-            "month": "2023-01",
+            "month": "2026-01",
             "intensity": 0.68,
             "label": "normal",
-            "high_risk_intensity": 0.095,
-            "decline_rate": 0.114
+            "high_risk_intensity": 0.16,
+            "decline_rate": 0.118
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "BuildPro",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 8679094,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 17804,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.66,
+            "label": "regulatory fine"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.78,
+            "label": "award",
+            "posts": "10%"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.89,
+            "label": "spike - data breach"
+          },
+          {
+            "month": "2025-05",
+            "intensity": 0.78,
+            "label": "expansion",
+            "posts": "14%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "partnership",
+            "posts": "15%"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 7459,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.66,
+            "label": "regulatory fine",
+            "posts": "11%"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.78,
+            "label": "award"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "posts": "8%"
+          },
+          {
+            "month": "2025-05",
+            "intensity": 0.78,
+            "label": "expansion",
+            "posts": "6%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "partnership"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 8540,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.66,
+            "label": "regulatory fine",
+            "articles": "15%"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.78,
+            "label": "award"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "articles": "6%"
+          },
+          {
+            "month": "2025-05",
+            "intensity": 0.78,
+            "label": "expansion",
+            "articles": "10%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "partnership"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 5,
+        "merchant_score": 4.36,
+        "n_reviews": 38061,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.66,
+            "label": "regulatory fine",
+            "reviews": "12%"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.78,
+            "label": "award",
+            "reviews": "11%"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "reviews": "15%"
+          },
+          {
+            "month": "2025-05",
+            "intensity": 0.78,
+            "label": "expansion",
+            "reviews": "19%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "partnership",
+            "reviews": "20%"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "BUI",
+        "base_price": 262.45,
+        "sigma_annual": 0.39,
+        "avg_daily_volume": 6418000,
+        "shares_outstanding": 435650000,
+        "target_total_return": -0.199,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.66,
+            "label": "regulatory fine",
+            "return": -0.127,
+            "volatility": "1.6x",
+            "volume": "x2.0"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.78,
+            "label": "award",
+            "return": 0.063,
+            "volatility": "+40%",
+            "volume": "150%"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "return": -0.075,
+            "volatility": "1.4x",
+            "volume": "180%"
+          },
+          {
+            "month": "2025-05",
+            "intensity": 0.78,
+            "label": "expansion",
+            "return": 0.133,
+            "volatility": "1.2x",
+            "volume": "x1.3"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "partnership",
+            "return": 0.045,
+            "volatility": "+40%",
+            "volume": "x1.6"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 92708,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.66,
+            "label": "regulatory fine",
+            "transactions": "16%",
+            "high_risk_intensity": 0.328,
+            "decline_rate": null,
+            "gambling_share": 0.086
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.78,
+            "label": "award",
+            "transactions": "8%",
+            "high_risk_intensity": 0.111,
+            "decline_rate": null
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.89,
+            "label": "spike - data breach",
+            "transactions": "11%",
+            "high_risk_intensity": 0.502,
+            "decline_rate": 0.226
+          },
+          {
+            "month": "2025-05",
+            "intensity": 0.78,
+            "label": "expansion",
+            "transactions": "14%",
+            "high_risk_intensity": 0.083,
+            "decline_rate": 0.072,
+            "gambling_share": 0.057
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "partnership",
+            "transactions": "7%",
+            "high_risk_intensity": 0.092,
+            "decline_rate": null
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "BrightLite",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 5676716,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 13725,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.49,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.8,
+            "label": "outage"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.87,
+            "label": "award",
+            "posts": "14%"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 9839,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.49,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.8,
+            "label": "outage",
+            "posts": "12%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.87,
+            "label": "award"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 6735,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.49,
+            "label": "seasonal buzz",
+            "posts": "9%",
+            "articles": "6%"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.8,
+            "label": "outage",
+            "articles": "6%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.87,
+            "label": "award",
+            "articles": "6%"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 5,
+        "merchant_score": 4.11,
+        "n_reviews": 36950,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.49,
+            "label": "seasonal buzz",
+            "posts": "9%",
+            "reviews": "6%"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.8,
+            "label": "outage",
+            "reviews": "9%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.87,
+            "label": "award"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "BRI",
+        "base_price": 64.86,
+        "sigma_annual": 0.53,
+        "avg_daily_volume": 13157000,
+        "shares_outstanding": 1614620000,
+        "target_total_return": 0.351,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.49,
+            "label": "seasonal buzz",
+            "return": 0.002,
+            "volatility": "1.1x",
+            "volume": "110%"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.8,
+            "label": "outage",
+            "return": -0.135,
+            "volatility": "1.6x",
+            "volume": "x2.0"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.87,
+            "label": "award",
+            "return": 0.107,
+            "volatility": "+20%",
+            "volume": "x1.6"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 123270,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.49,
+            "label": "seasonal buzz",
+            "high_risk_intensity": 0.085,
+            "decline_rate": 0.084
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.8,
+            "label": "outage",
+            "transactions": "17%",
+            "high_risk_intensity": 0.46,
+            "decline_rate": 0.191
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.87,
+            "label": "award",
+            "transactions": "15%",
+            "high_risk_intensity": 0.061,
+            "decline_rate": null
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "GardenCore",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 2883928,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 15367,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.59,
+            "label": "promo period",
+            "posts": "13%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.76,
+            "label": "recall"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.65,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.6,
+            "label": "normal"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 5995,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.59,
+            "label": "promo period"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.76,
+            "label": "recall",
+            "posts": "10%"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.65,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.6,
+            "label": "normal",
+            "posts": "14%"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 5488,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.59,
+            "label": "promo period",
+            "posts": "4%",
+            "articles": "13%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.76,
+            "label": "recall",
+            "articles": "5%"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.65,
+            "label": "seasonal buzz",
+            "posts": "14%",
+            "articles": "13%"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.6,
+            "label": "normal"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 11,
+        "merchant_score": 3.84,
+        "n_reviews": 27878,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.59,
+            "label": "promo period",
+            "posts": "4%",
+            "reviews": "19%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.76,
+            "label": "recall"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.65,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.6,
+            "label": "normal",
+            "posts": "4%",
+            "reviews": "18%"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "GAR",
+        "base_price": 269.57,
+        "sigma_annual": 0.26,
+        "avg_daily_volume": 10831000,
+        "shares_outstanding": 4771470000,
+        "target_total_return": 0.313,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.59,
+            "label": "promo period",
+            "return": 0.01,
+            "volatility": "1.1x",
+            "volume": "x1.0"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.76,
+            "label": "recall",
+            "return": -0.142,
+            "volatility": "1.4x",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.65,
+            "label": "seasonal buzz",
+            "return": 0.0,
+            "volatility": "1.0x",
+            "volume": "x1.0"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.6,
+            "label": "normal",
+            "return": 0.003,
+            "volatility": "1.0x",
+            "volume": "110%"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 57195,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.59,
+            "label": "promo period",
+            "transactions": "5%",
+            "high_risk_intensity": 0.159,
+            "decline_rate": null
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.76,
+            "label": "recall",
+            "transactions": "20%",
+            "high_risk_intensity": 0.564,
+            "decline_rate": null,
+            "gambling_share": 0.063
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.65,
+            "label": "seasonal buzz",
+            "transactions": "15%",
+            "high_risk_intensity": 0.087,
+            "decline_rate": null,
+            "gambling_share": 0.056
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.6,
+            "label": "normal",
+            "transactions": "17%",
+            "high_risk_intensity": 0.098,
+            "decline_rate": null,
+            "gambling_share": 0.114
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "FixItCo",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 3175527,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 6955,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "partnership"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.6,
+            "label": "normal"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.61,
+            "label": "promo period"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 3905,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "partnership",
+            "posts": "13%"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.6,
+            "label": "normal"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.61,
+            "label": "promo period"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 7141,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "partnership",
+            "articles": "4%"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.6,
+            "label": "normal"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.61,
+            "label": "promo period",
+            "posts": "14%",
+            "articles": "8%"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 11,
+        "merchant_score": 4.28,
+        "n_reviews": 13378,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "partnership"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.6,
+            "label": "normal"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.61,
+            "label": "promo period"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "FIX",
+        "base_price": 151.23,
+        "sigma_annual": 0.41,
+        "avg_daily_volume": 14291000,
+        "shares_outstanding": 800160000,
+        "target_total_return": -0.231,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "partnership",
+            "return": 0.097,
+            "volatility": "+20%",
+            "volume": "150%"
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.6,
+            "label": "normal",
+            "return": 0.02,
+            "volatility": "+10%",
+            "volume": "x1.0"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.61,
+            "label": "promo period",
+            "return": -0.007,
+            "volatility": "+10%",
+            "volume": "110%"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 37005,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "partnership",
+            "transactions": "6%",
+            "high_risk_intensity": 0.063,
+            "decline_rate": null
+          },
+          {
+            "month": "2025-03",
+            "intensity": 0.6,
+            "label": "normal",
+            "high_risk_intensity": 0.204,
+            "decline_rate": null
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.61,
+            "label": "promo period",
+            "transactions": "19%",
+            "high_risk_intensity": 0.145,
+            "decline_rate": null
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "ToolNest",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 3983708,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 18217,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.8,
+            "label": "award",
+            "posts": "11%"
+          },
+          {
+            "month": "2025-09",
+            "intensity": 0.84,
+            "label": "regulatory fine",
+            "posts": "10%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.76,
+            "label": "recall"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 7392,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.8,
+            "label": "award"
+          },
+          {
+            "month": "2025-09",
+            "intensity": 0.84,
+            "label": "regulatory fine",
+            "posts": "4%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.76,
+            "label": "recall",
+            "posts": "13%"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 6106,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.8,
+            "label": "award",
+            "articles": "12%"
+          },
+          {
+            "month": "2025-09",
+            "intensity": 0.84,
+            "label": "regulatory fine"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.76,
+            "label": "recall",
+            "posts": "14%",
+            "articles": "7%"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 9,
+        "merchant_score": 3.85,
+        "n_reviews": 35573,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.8,
+            "label": "award"
+          },
+          {
+            "month": "2025-09",
+            "intensity": 0.84,
+            "label": "regulatory fine",
+            "reviews": "9%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.76,
+            "label": "recall",
+            "posts": "14%",
+            "reviews": "8%"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "TOO",
+        "base_price": 337.31,
+        "sigma_annual": 0.27,
+        "avg_daily_volume": 10615000,
+        "shares_outstanding": 1919500000,
+        "target_total_return": -0.007,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "buyback",
+            "return": 0.087,
+            "volatility": "1.2x",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.8,
+            "label": "award",
+            "return": 0.083,
+            "volatility": "+20%",
+            "volume": "150%"
+          },
+          {
+            "month": "2025-09",
+            "intensity": 0.84,
+            "label": "regulatory fine",
+            "return": -0.06,
+            "volatility": "1.6x",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.76,
+            "label": "recall",
+            "return": -0.096,
+            "volatility": "1.6x",
+            "volume": "180%"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 173632,
+        "trend_plan": [
+          {
+            "month": "2025-01",
+            "intensity": 0.85,
+            "label": "buyback",
+            "high_risk_intensity": 0.133,
+            "decline_rate": null,
+            "gambling_share": 0.035
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.8,
+            "label": "award",
+            "transactions": "2%",
+            "high_risk_intensity": 0.138,
+            "decline_rate": null
+          },
+          {
+            "month": "2025-09",
+            "intensity": 0.84,
+            "label": "regulatory fine",
+            "high_risk_intensity": 0.637,
+            "decline_rate": null,
+            "gambling_share": 0.092
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.76,
+            "label": "recall",
+            "transactions": "12%",
+            "high_risk_intensity": 0.303,
+            "decline_rate": 0.192,
+            "gambling_share": 0.072
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "ApexDIY",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 7244492,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 5745,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.56,
+            "label": "award"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.6,
+            "label": "seasonal buzz",
+            "posts": "7%"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "normal",
+            "posts": "11%"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 5213,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.56,
+            "label": "award",
+            "posts": "4%"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.6,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "normal",
+            "posts": "8%"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 7848,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.56,
+            "label": "award"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.6,
+            "label": "seasonal buzz",
+            "posts": "13%",
+            "articles": "15%"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "normal",
+            "articles": "2%"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 9,
+        "merchant_score": 3.89,
+        "n_reviews": 32177,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.56,
+            "label": "award"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.6,
+            "label": "seasonal buzz"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "normal",
+            "reviews": "14%"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "APE",
+        "base_price": 178.33,
+        "sigma_annual": 0.36,
+        "avg_daily_volume": 2231000,
+        "shares_outstanding": 2773960000,
+        "target_total_return": 0.254,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.56,
+            "label": "award",
+            "return": 0.095,
+            "volatility": "1.4x",
+            "volume": "x1.3"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.6,
+            "label": "seasonal buzz",
+            "return": 0.012,
+            "volatility": "1.1x",
+            "volume": "110%"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "normal",
+            "return": -0.009,
+            "volatility": "1.1x",
+            "volume": "x1.1"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 85299,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.56,
+            "label": "award",
+            "high_risk_intensity": 0.114,
+            "decline_rate": null,
+            "gambling_share": 0.044
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.6,
+            "label": "seasonal buzz",
+            "high_risk_intensity": 0.136,
+            "decline_rate": 0.057,
+            "gambling_share": 0.085
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "normal",
+            "transactions": "13%",
+            "high_risk_intensity": 0.21,
+            "decline_rate": 0.077,
+            "gambling_share": 0.048
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "PrimeHome",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 7059465,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 8494,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.54,
+            "label": "normal"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.83,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.5,
+            "label": "normal",
+            "posts": "14%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.64,
+            "label": "feature rollout",
+            "posts": "2%"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.67,
+            "label": "normal"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 4129,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.54,
+            "label": "normal",
+            "posts": "15%"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.83,
+            "label": "buyback",
+            "posts": "13%"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.5,
+            "label": "normal"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.64,
+            "label": "feature rollout",
+            "posts": "13%"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.67,
+            "label": "normal",
+            "posts": "8%"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 8465,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.54,
+            "label": "normal",
+            "posts": "12%",
+            "articles": "10%"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.83,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.5,
+            "label": "normal",
+            "posts": "7%",
+            "articles": "4%"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.64,
+            "label": "feature rollout"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.67,
+            "label": "normal",
+            "posts": "12%",
+            "articles": "14%"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 10,
+        "merchant_score": 4.12,
+        "n_reviews": 29656,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.54,
+            "label": "normal"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.83,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.5,
+            "label": "normal"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.64,
+            "label": "feature rollout",
+            "posts": "7%",
+            "reviews": "5%"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.67,
+            "label": "normal",
+            "posts": "12%",
+            "reviews": "13%"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "PRI",
+        "base_price": 19.96,
+        "sigma_annual": 0.27,
+        "avg_daily_volume": 14089000,
+        "shares_outstanding": 4037000000,
+        "target_total_return": 0.404,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.54,
+            "label": "normal",
+            "return": -0.002,
+            "volatility": "1.0x",
+            "volume": "110%"
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.83,
+            "label": "buyback",
+            "return": 0.109,
+            "volatility": "1.4x",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.5,
+            "label": "normal",
+            "return": -0.0,
+            "volatility": "+10%",
+            "volume": "x1.0"
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.64,
+            "label": "feature rollout",
+            "return": 0.009,
+            "volatility": "+10%",
+            "volume": "110%"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.67,
+            "label": "normal",
+            "return": -0.004,
+            "volatility": "1.0x",
+            "volume": "x1.0"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 63504,
+        "trend_plan": [
+          {
+            "month": "2025-02",
+            "intensity": 0.54,
+            "label": "normal",
+            "transactions": "4%",
+            "high_risk_intensity": 0.199,
+            "decline_rate": null
+          },
+          {
+            "month": "2025-04",
+            "intensity": 0.83,
+            "label": "buyback",
+            "high_risk_intensity": 0.143,
+            "decline_rate": null
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.5,
+            "label": "normal",
+            "high_risk_intensity": 0.183,
+            "decline_rate": 0.108,
+            "gambling_share": 0.04
+          },
+          {
+            "month": "2025-10",
+            "intensity": 0.64,
+            "label": "feature rollout",
+            "transactions": "14%",
+            "high_risk_intensity": 0.2,
+            "decline_rate": 0.05
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.67,
+            "label": "normal",
+            "transactions": "8%",
+            "high_risk_intensity": 0.081,
+            "decline_rate": 0.07
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "HandyMart",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 7860037,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 17350,
+        "trend_plan": [
+          {
+            "month": "2025-05",
+            "intensity": 0.8,
+            "label": "spike - data breach"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.88,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.6,
+            "label": "spike - new product launch",
+            "posts": "10%"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.83,
+            "label": "lawsuit",
+            "posts": "15%"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.7,
+            "label": "expansion",
+            "posts": "14%"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 4747,
+        "trend_plan": [
+          {
+            "month": "2025-05",
+            "intensity": 0.8,
+            "label": "spike - data breach",
+            "posts": "5%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.88,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.6,
+            "label": "spike - new product launch"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.83,
+            "label": "lawsuit"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.7,
+            "label": "expansion",
+            "posts": "3%"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 6524,
+        "trend_plan": [
+          {
+            "month": "2025-05",
+            "intensity": 0.8,
+            "label": "spike - data breach"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.88,
+            "label": "buyback",
+            "posts": "6%",
+            "articles": "2%"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.6,
+            "label": "spike - new product launch",
+            "posts": "8%",
+            "articles": "8%"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.83,
+            "label": "lawsuit"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.7,
+            "label": "expansion",
+            "articles": "12%"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 10,
+        "merchant_score": 3.9,
+        "n_reviews": 34200,
+        "trend_plan": [
+          {
+            "month": "2025-05",
+            "intensity": 0.8,
+            "label": "spike - data breach",
+            "posts": "10%",
+            "reviews": "19%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.88,
+            "label": "buyback"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.6,
+            "label": "spike - new product launch"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.83,
+            "label": "lawsuit",
+            "posts": "10%",
+            "reviews": "22%"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.7,
+            "label": "expansion",
+            "reviews": "8%"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "HAN",
+        "base_price": 97.62,
+        "sigma_annual": 0.47,
+        "avg_daily_volume": 10972000,
+        "shares_outstanding": 3257300000,
+        "target_total_return": 0.573,
+        "trend_plan": [
+          {
+            "month": "2025-05",
+            "intensity": 0.8,
+            "label": "spike - data breach",
+            "return": -0.148,
+            "volatility": "1.4x",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.88,
+            "label": "buyback",
+            "return": 0.059,
+            "volatility": "1.4x",
+            "volume": "x1.3"
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.6,
+            "label": "spike - new product launch",
+            "return": 0.105,
+            "volatility": "+20%",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.83,
+            "label": "lawsuit",
+            "return": -0.125,
+            "volatility": "+60%",
+            "volume": "x1.6"
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.7,
+            "label": "expansion",
+            "return": 0.074,
+            "volatility": "+40%",
+            "volume": "x1.3"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 89455,
+        "trend_plan": [
+          {
+            "month": "2025-05",
+            "intensity": 0.8,
+            "label": "spike - data breach",
+            "high_risk_intensity": 0.558,
+            "decline_rate": 0.336
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.88,
+            "label": "buyback",
+            "transactions": "3%",
+            "high_risk_intensity": 0.052,
+            "decline_rate": null,
+            "gambling_share": 0.028
+          },
+          {
+            "month": "2025-08",
+            "intensity": 0.6,
+            "label": "spike - new product launch",
+            "transactions": "12%",
+            "high_risk_intensity": 0.111,
+            "decline_rate": 0.041,
+            "gambling_share": 0.046
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.83,
+            "label": "lawsuit",
+            "transactions": "16%",
+            "high_risk_intensity": 0.432,
+            "decline_rate": null
+          },
+          {
+            "month": "2026-01",
+            "intensity": 0.7,
+            "label": "expansion",
+            "transactions": "6%",
+            "high_risk_intensity": 0.075,
+            "decline_rate": null,
+            "gambling_share": 0.067
+          }
+        ]
+      }
+    },
+    {
+      "merchant_name": "CraftWorks",
+      "start_date": "2025-01-01",
+      "end_date": "2026-01-01",
+      "seed": 144097,
+      "tweets": {
+        "enabled": true,
+        "n_tweets": 15132,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.95,
+            "label": "recall",
+            "posts": "8%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "normal"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.54,
+            "label": "normal",
+            "posts": "14%"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "spike - new product launch"
+          }
+        ]
+      },
+      "reddit": {
+        "enabled": true,
+        "n_posts": 4295,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.95,
+            "label": "recall",
+            "posts": "10%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "normal",
+            "posts": "6%"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.54,
+            "label": "normal",
+            "posts": "12%"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "spike - new product launch"
+          }
+        ]
+      },
+      "news": {
+        "enabled": true,
+        "n_articles": 3795,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.95,
+            "label": "recall",
+            "articles": "5%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "normal",
+            "posts": "4%",
+            "articles": "10%"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.54,
+            "label": "normal",
+            "posts": "13%",
+            "articles": "11%"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "spike - new product launch",
+            "articles": "14%"
+          }
+        ]
+      },
+      "reviews": {
+        "enabled": true,
+        "n_products": 11,
+        "merchant_score": 3.77,
+        "n_reviews": 35965,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.95,
+            "label": "recall",
+            "reviews": "19%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "normal",
+            "posts": "4%",
+            "reviews": "12%"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.54,
+            "label": "normal",
+            "posts": "13%",
+            "reviews": "2%"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "spike - new product launch"
+          }
+        ]
+      },
+      "stock": {
+        "enabled": true,
+        "ticker": "CRA",
+        "base_price": 314.25,
+        "sigma_annual": 0.5,
+        "avg_daily_volume": 6761000,
+        "shares_outstanding": 3955320000,
+        "target_total_return": 0.183,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.95,
+            "label": "recall",
+            "return": -0.096,
+            "volatility": "1.4x",
+            "volume": "180%"
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "normal",
+            "return": -0.007,
+            "volatility": "1.1x",
+            "volume": "x1.1"
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.54,
+            "label": "normal",
+            "return": 0.016,
+            "volatility": "+10%",
+            "volume": "x1.1"
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "spike - new product launch",
+            "return": 0.109,
+            "volatility": "+40%",
+            "volume": "x1.6"
+          }
+        ]
+      },
+      "wl": {
+        "enabled": true,
+        "n_transactions": 125651,
+        "trend_plan": [
+          {
+            "month": "2025-03",
+            "intensity": 0.95,
+            "label": "recall",
+            "transactions": "11%",
+            "high_risk_intensity": 0.361,
+            "decline_rate": 0.151
+          },
+          {
+            "month": "2025-06",
+            "intensity": 0.67,
+            "label": "normal",
+            "transactions": "5%",
+            "high_risk_intensity": 0.117,
+            "decline_rate": null,
+            "gambling_share": 0.06
+          },
+          {
+            "month": "2025-11",
+            "intensity": 0.54,
+            "label": "normal",
+            "transactions": "12%",
+            "high_risk_intensity": 0.179,
+            "decline_rate": 0.072,
+            "gambling_share": 0.063
+          },
+          {
+            "month": "2025-12",
+            "intensity": 0.62,
+            "label": "spike - new product launch",
+            "transactions": "7%",
+            "high_risk_intensity": 0.098,
+            "decline_rate": null,
+            "gambling_share": 0.051
           }
         ]
       }

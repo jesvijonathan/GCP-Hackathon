@@ -105,7 +105,7 @@ export default {
       selectedMerchant: null,
       searchQuery: '',
       filters: { riskHigh:false, statusActive:false, dateRangeThisMonth:false },
-      apiBase: 'http://localhost:8000',
+      apiBase: import.meta.env.VITE_API_BASE || 'http://localhost:8000',
       loading:false,
       error:null,
       showRestrictModal:false,
